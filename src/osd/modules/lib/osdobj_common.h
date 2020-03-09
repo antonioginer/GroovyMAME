@@ -17,6 +17,7 @@
 #include "osdepend.h"
 #include "modules/osdmodule.h"
 #include "modules/output/output_module.h"
+#include "modules/switchres/switchres_module.h"
 #include "emuopts.h"
 #include "strformat.h"
 #include <list>
@@ -226,6 +227,7 @@ public:
 
 	// getters
 	running_machine &machine() const { assert(m_machine != nullptr); return *m_machine; }
+	switchres_module *switchres() { return &m_switchres; }
 
 	virtual void debugger_update();
 
@@ -306,6 +308,7 @@ protected:
 	monitor_module* m_monitor_module;
 	std::unique_ptr<osd_watchdog> m_watchdog;
 	std::vector<ui::menu_item> m_sliders;
+	switchres_module m_switchres;
 
 private:
 	std::vector<const char *> m_video_names;
