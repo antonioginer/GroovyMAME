@@ -121,6 +121,7 @@ function osdmodulesbuild()
 		MAME_DIR .. "src/osd/modules/monitor/monitor_dxgi.cpp",
 		MAME_DIR .. "src/osd/modules/monitor/monitor_sdl.cpp",
 		MAME_DIR .. "src/osd/modules/monitor/monitor_mac.cpp",
+		MAME_DIR .. "src/osd/modules/switchres/switchres_module.cpp",
 	}
 	includedirs {
 		MAME_DIR .. "src/osd",
