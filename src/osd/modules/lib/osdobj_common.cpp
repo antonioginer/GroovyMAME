@@ -662,6 +662,8 @@ void osd_common_t::init_subsystems()
 	assert(m_monitor_module != nullptr);
 	m_monitor_module->init(options());
 
+	m_switchres.init(machine());
+
 	if (!video_init())
 	{
 		video_exit();
@@ -746,6 +748,7 @@ void osd_common_t::input_resume()
 void osd_common_t::exit_subsystems()
 {
 	video_exit();
+	m_switchres.exit();
 }
 
 void osd_common_t::video_exit()
