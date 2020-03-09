@@ -2401,3 +2401,60 @@ project "asmjit"
 		MAME_DIR .. "3rdparty/asmjit/src/asmjit/x86/x86rapass_p.h",
 	}
 end
+
+
+--------------------------------------------------
+-- switchres library
+--------------------------------------------------
+
+project "switchres"
+	uuid "556720c2-c830-4c5f-bb6c-ec89eface072"
+	kind "StaticLib"
+
+files {
+	MAME_DIR .. "3rdparty/switchres/switchres.cpp",
+	MAME_DIR .. "3rdparty/switchres/switchres.h",
+	MAME_DIR .. "3rdparty/switchres/modeline.cpp",
+	MAME_DIR .. "3rdparty/switchres/modeline.h",
+	MAME_DIR .. "3rdparty/switchres/monitor.cpp",
+	MAME_DIR .. "3rdparty/switchres/monitor.h",
+	MAME_DIR .. "3rdparty/switchres/display.cpp",
+	MAME_DIR .. "3rdparty/switchres/display.h",
+	MAME_DIR .. "3rdparty/switchres/custom_video.cpp",
+	MAME_DIR .. "3rdparty/switchres/custom_video.h",
+	MAME_DIR .. "3rdparty/switchres/log.cpp",
+	MAME_DIR .. "3rdparty/switchres/log.h",
+}
+
+if _OPTIONS["targetos"]=="windows" then
+	files {
+		MAME_DIR .. "3rdparty/switchres/display_windows.cpp",
+		MAME_DIR .. "3rdparty/switchres/display_windows.h",
+		MAME_DIR .. "3rdparty/switchres/resync_windows.cpp",
+		MAME_DIR .. "3rdparty/switchres/resync_windows.h",
+		MAME_DIR .. "3rdparty/switchres/custom_video_adl.cpp",
+		MAME_DIR .. "3rdparty/switchres/custom_video_adl.h",
+		MAME_DIR .. "3rdparty/switchres/custom_video_ati.cpp",
+		MAME_DIR .. "3rdparty/switchres/custom_video_ati.h",
+		MAME_DIR .. "3rdparty/switchres/custom_video_ati_family.cpp",
+		MAME_DIR .. "3rdparty/switchres/custom_video_pstrip.cpp",
+		MAME_DIR .. "3rdparty/switchres/custom_video_pstrip.h",
+	}
+end
+
+if _OPTIONS["targetos"]=="linux" then
+	files {
+		MAME_DIR .. "3rdparty/switchres/display_linux.cpp",
+		MAME_DIR .. "3rdparty/switchres/display_linux.h",
+		MAME_DIR .. "3rdparty/switchres/custom_video_xrandr.cpp",
+		MAME_DIR .. "3rdparty/switchres/custom_video_xrandr.h",
+	}
+
+	links {
+		"Xrandr",
+	}
+
+	local str = backtick("pkg-config --libs libdrm")
+	addlibfromstring(str)
+	addoptionsfromstring(str)	
+end
