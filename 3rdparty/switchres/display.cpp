@@ -35,10 +35,51 @@ display_manager *display_manager::make(display_settings *ds)
 
 	if (m_display_manager)
 	{
+		m_display_manager->parse_options();
 		return m_display_manager;
 	}
 
 	return nullptr;
+}
+
+//============================================================
+//  display_manager::parse_options
+//============================================================
+
+void display_manager::parse_options()
+{
+	// Get user defined modeline
+	modeline user_mode = {};
+	if (m_ds.modeline_generation)
+	{
+		if (modeline_parse(m_ds.modeline, &user_mode))
+		{
+			user_mode.type |= MODE_USER_DEF;
+			set_user_mode(&user_mode);
+		}
+	}
+
+	// Get monitor specs
+	if (user_mode.hactive)
+	{
+		modeline_to_monitor_range(range, &user_mode);
+		monitor_show_range(range);
+	}
+	else
+	{
+		char default_monitor[] = "generic_15";
+
+		memset(&range[0], 0, sizeof(struct monitor_range) * MAX_RANGES);
+
+		if (!strcmp(m_ds.monitor, "custom"))
+			for (int i = 0; i++ < MAX_RANGES;) monitor_fill_range(&range[i], m_ds.crt_range[i]);
+
+		else if (!strcmp(m_ds.monitor, "lcd"))
+			monitor_fill_lcd_range(&range[0], m_ds.lcd_range);
+
+		else if (monitor_set_preset(m_ds.monitor, range) == 0)
+			monitor_set_preset(default_monitor, range);
+	}
 }
 
 //============================================================

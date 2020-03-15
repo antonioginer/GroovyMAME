@@ -12,6 +12,7 @@ using namespace std;
 const string WHITESPACE = " \n\r\t\f\v";
 int show_version();
 int show_usage();
+double get_aspect(const char* aspect);
 
 //============================================================
 //  File parsing helpers
@@ -171,6 +172,9 @@ bool parse_config(switchres_manager &switchres, const char *file_name)
 					switchres.set_super_width(super_width);
 					break;
 				}
+				case s2i("aspect"):
+					switchres.set_monitor_aspect(get_aspect(value.c_str()));
+					break;
 
 				default:
 					cout << "Invalid option " << key << '\n';
@@ -229,6 +233,7 @@ int main(int argc, char **argv)
 			{"launch",      required_argument, 0, 'l'},
 			{"monitor",     required_argument, 0, 'm'},
 			{"orientation", required_argument, 0, 'o'},
+			{"aspect",      required_argument, 0, 'a'},
 			{"rotated",     no_argument,       0, 'r'},
 			{"display",     required_argument, 0, 'd'},
 			{"force",       required_argument, 0, 'f'},
@@ -238,7 +243,7 @@ int main(int argc, char **argv)
 		};
 
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "vhcsl:m:o:rd:f:i:", long_options, &option_index);
+		int c = getopt_long(argc, argv, "vhcsl:m:o:a:rd:f:i:", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -282,9 +287,13 @@ int main(int argc, char **argv)
 				switchres.set_screen(optarg);
 				break;
 
+			case 'a':
+				switchres.set_monitor_aspect(get_aspect(optarg));
+				break;
+
 			case 'f':
 				force_flag = true;
-				if ((sscanf(optarg, "%dx%d@%d", &user_mode.width, &user_mode.height, &user_mode.refresh) < 1))
+				if (sscanf(optarg, "%dx%d@%d", &user_mode.width, &user_mode.height, &user_mode.refresh) < 1)
 					log_error("Error: use format --force <w>x<h>@<r>\n");
 				break;
 
@@ -386,6 +395,27 @@ usage:
 }
 
 //============================================================
+//  get_aspect
+//============================================================
+
+double get_aspect(const char* aspect)
+{
+	int num, den;
+	if (sscanf(aspect, "%d:%d", &num, &den) == 2)
+	{
+		if (den == 0)
+		{
+			log_error("Error: denominator can't be zero\n");
+			return STANDARD_CRT_ASPECT;
+		}
+		return (double(num)/double(den));
+	}
+
+	log_error("Error: use format --aspect <num:den>\n");
+	return STANDARD_CRT_ASPECT;
+}
+
+//============================================================
 //  show_version
 //============================================================
 
@@ -400,7 +430,7 @@ int show_version()
 		"This is free software: you are free to change and redistribute it.\n"
 		"There is NO WARRANTY, to the extent permitted by law.\n"
 	};
-	
+
 	log_info("%s", version);
 	return 0;
 }
@@ -420,6 +450,7 @@ int show_usage()
 		"  -l, --launch <command>            Launch <command>\n"
 		"  -m, --monitor <preset>            Monitor preset (generic_15, arcade_15, pal, ntsc, etc.)\n"
 		"  -o, --orientation <orientation>   Monitor orientation (horizontal, vertical, rotate_r, rotate_l)\n"
+		"  -a  --aspect <num:den>            Monitor aspect ratio\n"
 		"  -r  --rotated                     Original mode's native orientation is rotated\n"
 		"  -d, --display <OS_display_name>   Use target display (Windows: \\\\.\\DISPLAY1, ... Linux: VGA-0, ...)\n"
 		"  -f, --force <w>x<h>@<r>           Force a specific video mode from display mode list\n"
