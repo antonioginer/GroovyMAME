@@ -27,6 +27,14 @@ typedef struct display_settings
 	bool   lock_system_modes;
 	bool   refresh_dont_care;
 	char   ps_timing[256];
+
+	char   monitor[32];
+	char   orientation[32];
+	char   modeline[256];
+	char   crt_range[MAX_RANGES][256];
+	char   lcd_range[256];
+	bool   monitor_rotates_cw;
+
 	generator_settings gs;
 } display_settings;
 
@@ -44,8 +52,9 @@ public:
 	};
 
 	display_manager *make(display_settings *ds);
+	void parse_options();
 	virtual bool init();
-	int caps();
+	virtual int caps();
 
 	// getters
 	custom_video *factory() const { return m_factory; }
