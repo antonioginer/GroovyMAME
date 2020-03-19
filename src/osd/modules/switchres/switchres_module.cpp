@@ -34,9 +34,6 @@ void switchres_module::init(running_machine &machine)
 	if (machine.options().verbose()) switchres().set_log_verbose_fn((void *)printf);
 	switchres().set_log_info_fn((void *)printf);
 	switchres().set_log_error_fn((void *)printf);
-	
-	// Init swithcres manager
-	switchres().init();
 }
 
 //============================================================
@@ -45,7 +42,7 @@ void switchres_module::init(running_machine &machine)
 
 void switchres_module::exit()
 {
-	osd_printf_verbose("switchres_module destroy\n");
+	osd_printf_verbose("Switchres: exit\n");
 	if (m_switchres) delete m_switchres;
 	m_switchres = 0;
 }
@@ -54,11 +51,14 @@ void switchres_module::exit()
 //  switchres_module::exit
 //============================================================
 
-display_manager* switchres_module::add_display(const char* display_name, int width, int height, int refres, float aspect)
+display_manager* switchres_module::add_display(const char* display_name, int width, int height, int refresh, float aspect)
 {
 	switchres().set_screen(display_name);
-	switchres().display()->init();
-	return switchres().display();
+	switchres().set_aspect(aspect);
+
+	display_manager *display = switchres().add_display();
+	display->init();
+	return display;
 }
 
 
