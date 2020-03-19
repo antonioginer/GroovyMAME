@@ -8,7 +8,7 @@ OBJS = $(SRC:.cpp=.o)
 CROSS_COMPILE ?=
 CXX ?= g++
 AR ?= ar
-LDFLAGS =
+LDFLAGS = -shared
 FINAL_CXX=$(CROSS_COMPILE)$(CXX)
 FINAL_AR=$(CROSS_COMPILE)$(AR)
 CPPFLAGS = -O3 -Wall -Wextra
@@ -17,7 +17,7 @@ CPPFLAGS = -O3 -Wall -Wextra
 ifeq  ($(PLATFORM),Linux)
 SRC += display_linux.cpp custom_video_xrandr.cpp
 CPPFLAGS += -fPIC
-LIBS = -lXrandr -lX11
+LIBS = -ldl
 REMOVE = rm -f 
 STATIC_LIB_EXT = a
 DYNAMIC_LIB_EXT = so
@@ -40,7 +40,7 @@ all: $(SRC:.cpp=.o) $(MAIN).cpp
 	$(FINAL_CXX) $(CPPFLAGS) $(CXXFLAGS) $(SRC:.cpp=.o) $(MAIN).cpp $(LIBS) -o $(MAIN)
 
 $(TARGET_LIB): $(OBJS)
-	$(FINAL_CXX) $(LDFLAGS) $(CPPFLAGS) -shared -o $@.$(DYNAMIC_LIB_EXT) $^
+	$(FINAL_CXX) $(LDFLAGS) $(CPPFLAGS) -o $@.$(DYNAMIC_LIB_EXT) $^
 	$(FINAL_AR) rcs $@.$(STATIC_LIB_EXT) $(^)
 
 clean:

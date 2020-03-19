@@ -4,10 +4,11 @@
 
    ---------------------------------------------------------
 
-   SwitchRes   Modeline generation engine for emulation
+   Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2016 - Chris Kennedy, Antonio Giner
+   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+                         Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 
@@ -26,20 +27,15 @@
 
 display_manager *display_manager::make(display_settings *ds)
 {
+	display_manager *display = nullptr;
 
 #if defined(_WIN32)
-	m_display_manager = new windows_display(ds);
+	display = new windows_display(ds);
 #elif defined(__linux__)
-	m_display_manager = new linux_display(ds);
+	display = new linux_display(ds);
 #endif
 
-	if (m_display_manager)
-	{
-		m_display_manager->parse_options();
-		return m_display_manager;
-	}
-
-	return nullptr;
+	return display;
 }
 
 //============================================================

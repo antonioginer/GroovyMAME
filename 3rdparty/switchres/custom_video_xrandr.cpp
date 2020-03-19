@@ -1,17 +1,19 @@
 /**************************************************************
 
-   video_xrandr_xrandr.cpp - Linux XRANDR video management layer
+   custom_video_xrandr.cpp - Linux XRANDR video management layer
 
    ---------------------------------------------------------
 
-   SwitchRes   Modeline generation engine for emulation
+   Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2020 - Chris Kennedy, Antonio Giner, Alexandre Wodarczyk
+   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+                         Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 
 #include <stdio.h>
+#include <dlfcn.h>
 #include "custom_video_xrandr.h"
 #include "log.h"
 
@@ -24,10 +26,14 @@ int xrandr_timing::m_xerrors = 0;
 int xrandr_timing::m_xerrors_flag = 0;
 int (*old_error_handler)(Display *, XErrorEvent *);
 
+static __typeof__(XGetErrorText) *p_XGetErrorText;
+#define XGetErrorText p_XGetErrorText
+
 static int error_handler(Display *dpy, XErrorEvent *err)
 {
 	char buf[64];
 	XGetErrorText(dpy, err->error_code, buf, 64);
+	buf[0]='\0';
 	xrandr_timing::m_xerrors|=xrandr_timing::m_xerrors_flag;
 	log_error("XRANDR: (error_handler) [ERROR] %s error code %d flags %02x\n", buf, err->error_code, xrandr_timing::m_xerrors);
 	return 0;
@@ -58,6 +64,15 @@ xrandr_timing::~xrandr_timing()
 	// Free the display
 	if (m_pdisplay != NULL)
 		XCloseDisplay(m_pdisplay);
+
+	// close Xrandr library
+	if (m_xrandr_handle)
+		dlclose(m_xrandr_handle);
+
+	// close X11 library
+	if (m_x11_handle)
+		dlclose(m_x11_handle);
+
 }
 
 //============================================================
@@ -66,6 +81,186 @@ xrandr_timing::~xrandr_timing()
 
 bool xrandr_timing::init()
 {
+	log_verbose("XRANDR: (init) loading Xrandr library\n");
+	if (!m_xrandr_handle)
+		m_xrandr_handle = dlopen ("libXrandr.so", RTLD_NOW);
+	if (m_xrandr_handle)
+	{
+		p_XRRAddOutputMode = (__typeof__(XRRAddOutputMode))dlsym(m_xrandr_handle,"XRRAddOutputMode");
+		if (p_XRRAddOutputMode == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRAddOutputMode", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRConfigCurrentConfiguration = (__typeof__(XRRConfigCurrentConfiguration))dlsym(m_xrandr_handle,"XRRConfigCurrentConfiguration");
+		if (p_XRRConfigCurrentConfiguration == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRConfigCurrentConfiguration", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRCreateMode = (__typeof__(XRRCreateMode))dlsym(m_xrandr_handle,"XRRCreateMode");
+		if (p_XRRCreateMode == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRCreateMode", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRDeleteOutputMode = (__typeof__(XRRDeleteOutputMode))dlsym(m_xrandr_handle,"XRRDeleteOutputMode");
+		if (p_XRRDeleteOutputMode == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRDeleteOutputMode", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRDestroyMode = (__typeof__(XRRDestroyMode))dlsym(m_xrandr_handle,"XRRDestroyMode");
+		if (p_XRRDestroyMode == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRDestroyMode", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRFreeCrtcInfo = (__typeof__(XRRFreeCrtcInfo))dlsym(m_xrandr_handle,"XRRFreeCrtcInfo");
+		if (p_XRRFreeCrtcInfo == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRFreeCrtcInfo", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRFreeOutputInfo = (__typeof__(XRRFreeOutputInfo))dlsym(m_xrandr_handle,"XRRFreeOutputInfo");
+		if (p_XRRFreeOutputInfo == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRFreeOutputInfo", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRFreeScreenConfigInfo = (__typeof__(XRRFreeScreenConfigInfo))dlsym(m_xrandr_handle,"XRRFreeScreenConfigInfo");
+		if (p_XRRFreeScreenConfigInfo == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRFreeScreenConfigInfo", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRFreeScreenResources = (__typeof__(XRRFreeScreenResources))dlsym(m_xrandr_handle,"XRRFreeScreenResources");
+		if (p_XRRFreeScreenResources == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRFreeScreenResources", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRGetCrtcInfo = (__typeof__(XRRGetCrtcInfo))dlsym(m_xrandr_handle,"XRRGetCrtcInfo");
+		if (p_XRRGetCrtcInfo == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRGetCrtcInfo", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRGetOutputInfo = (__typeof__(XRRGetOutputInfo))dlsym(m_xrandr_handle,"XRRGetOutputInfo");
+		if (p_XRRGetOutputInfo == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRGetOutputInfo", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRGetScreenInfo = (__typeof__(XRRGetScreenInfo))dlsym(m_xrandr_handle,"XRRGetScreenInfo");
+		if (p_XRRGetScreenInfo == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRGetScreenInfo", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRGetScreenResourcesCurrent = (__typeof__(XRRGetScreenResourcesCurrent))dlsym(m_xrandr_handle,"XRRGetScreenResourcesCurrent");
+		if (p_XRRGetScreenResourcesCurrent == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRGetScreenResourcesCurrent", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRQueryVersion = (__typeof__(XRRQueryVersion))dlsym(m_xrandr_handle,"XRRQueryVersion");
+		if (p_XRRQueryVersion == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRQueryVersion", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRSetCrtcConfig = (__typeof__(XRRSetCrtcConfig))dlsym(m_xrandr_handle,"XRRSetCrtcConfig");
+		if (p_XRRSetCrtcConfig == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRSetCrtcConfig", "XRANDR_LIBRARY");
+			return false;
+		}
+
+		p_XRRSetScreenSize = (__typeof__(XRRSetScreenSize))dlsym(m_xrandr_handle,"XRRSetScreenSize");
+		if (p_XRRSetScreenSize == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s", "XRRSetScreenSize", "XRANDR_LIBRARY");
+			return false;
+		}
+	} else {
+		log_error("XRANDR: (init) [ERROR] missing %s library\n", "XRANDR_LIBRARY");
+		return false;
+	}
+
+	log_verbose("XRANDR: (init) loading X11 library\n");
+	if (!m_x11_handle)
+		m_x11_handle = dlopen ("libX11.so", RTLD_NOW);
+	if (m_x11_handle)
+	{
+		p_XCloseDisplay = (__typeof__(XCloseDisplay))dlsym(m_x11_handle,"XCloseDisplay");
+		if (p_XCloseDisplay == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s\n", "XCloseDisplay", "X11_LIBRARY");
+			return false;
+		}
+
+		p_XGrabServer = (__typeof__(XGrabServer)) dlsym(m_x11_handle,"XGrabServer");
+		if (p_XGrabServer == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s\n", "XGrabServer", "X11_LIBRARY");
+			return false;
+		}
+
+		p_XOpenDisplay = (__typeof__(XOpenDisplay))dlsym(m_x11_handle,"XOpenDisplay");
+		if (p_XOpenDisplay == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s\n", "XOpenDisplay", "X11_LIBRARY");
+			return false;
+		}
+
+		p_XSync = (__typeof__(XSync))dlsym(m_x11_handle,"XSync");
+		if (p_XSync == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s\n", "XSync", "X11_LIBRARY");
+			return false;
+		}
+
+		p_XUngrabServer = (__typeof__(XUngrabServer))dlsym(m_x11_handle,"XUngrabServer");
+		if (p_XUngrabServer == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s\n", "XUngrabServer", "X11_LIBRARY");
+			return false;
+		}
+
+		p_XSetErrorHandler = (__typeof__(XSetErrorHandler))dlsym(m_x11_handle,"XSetErrorHandler");
+		if (p_XSetErrorHandler == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s\n", "XSetErrorHandler", "X11_LIBRARY");
+			return false;
+		}
+
+		p_XGetErrorText = (__typeof__(XGetErrorText))dlsym(m_x11_handle,"XGetErrorText");
+		if (p_XGetErrorText == NULL)
+		{
+			log_error("XRANDR: (init) [ERROR] missing func %s in %s\n", "XGetErrorText", "X11_LIBRARY");
+			return false;
+		}
+	} else {
+		log_error("XRANDR: (init) [ERROR] missing %s library\n", "X11_LIBRARY");
+		return false;
+	}
+
+
 	// Select current display and root window
 	// m_pdisplay is global to reduce open/close calls, resource is freed when class is destroyed
 	if (!m_pdisplay)
@@ -108,17 +303,17 @@ bool xrandr_timing::init()
 		{
 			XRROutputInfo *output_info = XRRGetOutputInfo(m_pdisplay, resources, resources->outputs[o]);
 			if (!output_info)
-				log_error("XRANDR: (detect_connector) [ERROR] could not get output 0x%x information\n", (uint) resources->outputs[o]);
+				log_error("XRANDR: (init) [ERROR] could not get output 0x%x information\n", (uint) resources->outputs[o]);
 
 			// Check all connected output
 			if (output_info->connection == RR_Connected && output_info->crtc && m_desktop_output == -1)
 			{
-				log_verbose("XRANDR: (detect_connector) check output connector '%s'\n", output_info->name);
+				log_verbose("XRANDR: (init) check output connector '%s'\n", output_info->name);
 				XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(m_pdisplay, resources, output_info->crtc);
 				current_rotation = crtc_info->rotation;
 				if (!strcmp(m_device_name, "auto") || !strcmp(m_device_name,output_info->name) || output_position == screen_pos)
 				{
-					log_verbose("XRANDR: (detect_connector) name '%s' id %d selected as primary output\n", output_info->name, o);
+					log_verbose("XRANDR: (init) name '%s' id %d selected as primary output\n", output_info->name, o);
 					// store the output connector
 					m_desktop_output = o;
 
@@ -136,7 +331,7 @@ bool xrandr_timing::init()
 				if (current_rotation & 0xe)
 				{
 					m_crtc_flags = MODE_ROTATED;
-					log_verbose("XRANDR: (detect_connector) desktop rotation is %s\n",(current_rotation & 0x2)?"left":((current_rotation & 0x8)?"right":"inverted"));
+					log_verbose("XRANDR: (init) desktop rotation is %s\n",(current_rotation & 0x2)?"left":((current_rotation & 0x8)?"right":"inverted"));
 				}
 				output_position++;
 			}
@@ -208,7 +403,7 @@ bool xrandr_timing::add_mode(modeline *mode)
 
 	// Create specific mode name
 	char name[48];
-	sprintf(name,"SR-%dx%d_%f",mode->hactive, mode->vactive, mode->vfreq);
+	sprintf(name,"SR-%d_%dx%d_%f", m_desktop_output, mode->hactive, mode->vactive, mode->vfreq);
 
 	// Setup the xrandr mode structure
 	XRRModeInfo xmode = {};
@@ -358,10 +553,10 @@ bool xrandr_timing::set_timing(modeline *mode)
 	{
 		memcpy(&global_crtc[c], XRRGetCrtcInfo(m_pdisplay, resources, resources->crtcs[c]), sizeof(XRRCrtcInfo));
 		XRRCrtcInfo *crtc_info2 = &global_crtc[c];
-		log_verbose("****************** XRANDR: (set_timing) <debug> crtc time information %ld\n", crtc_info2->timestamp); // to be deleted in final version
+		//log_verbose("****************** XRANDR: (set_timing) <debug> crtc time information %ld\n", crtc_info2->timestamp); // to be deleted in final version
 		if ( resources->crtcs[c] == output_info->crtc)
 		{
-			log_verbose("****************** XRANDR: (set_timing) <debug> impacted crtc use new mode parameters\n"); // to be deleted in final version
+			//log_verbose("****************** XRANDR: (set_timing) <debug> impacted crtc use new mode parameters\n"); // to be deleted in final version
 
 			// switchres output, use new mode info
 			if (crtc_info->x + pxmode->width > width)
@@ -373,7 +568,7 @@ bool xrandr_timing::set_timing(modeline *mode)
 			crtc_info2->mode = pxmode->id;
 			crtc_info2->timestamp = 1;
 		} else {
-			log_verbose("****************** XRANDR: (set_timing) <debug> neighborhood original crtc %d: %04lx %dx%d+%d+%d\n", c, crtc_info2->mode, crtc_info2->width, crtc_info2->height, crtc_info2->x, crtc_info2->y); // to be deleted in final version
+			//log_verbose("****************** XRANDR: (set_timing) <debug> neighborhood original crtc %d: %04lx %dx%d+%d+%d\n", c, crtc_info2->mode, crtc_info2->width, crtc_info2->height, crtc_info2->x, crtc_info2->y); // to be deleted in final version
 
 			// relocate crtc impacted by new width
 			if ( crtc_info2->x >= bound_width )
@@ -395,16 +590,16 @@ bool xrandr_timing::set_timing(modeline *mode)
 			if (crtc_info2->y + crtc_info2->height > height)
 				height=crtc_info2->y + crtc_info2->height;
 
-			log_verbose("****************** XRANDR: (set_timing) <debug> \\___ neighborhood new crtc %d: %04lx %dx%d+%d+%d\n", c, crtc_info2->mode, crtc_info2->width, crtc_info2->height, crtc_info2->x, crtc_info2->y); // to be deleted in final version
+			//log_verbose("****************** XRANDR: (set_timing) <debug> \\___ neighborhood new crtc %d: %04lx %dx%d+%d+%d\n", c, crtc_info2->mode, crtc_info2->width, crtc_info2->height, crtc_info2->x, crtc_info2->y); // to be deleted in final version
 		}
-		log_verbose("XRANDR: (set_timing) <debug> screen size estimation %d x %d\n", width, height); // to be deleted in final version
+		//log_verbose("XRANDR: (set_timing) <debug> screen size estimation %d x %d\n", width, height); // to be deleted in final version
 	}
 
 	// Disable all CRTC
 	for (int c = 0;c < resources->ncrtc;c++)
 	{
 		XRRCrtcInfo *crtc_info2 = XRRGetCrtcInfo(m_pdisplay, resources, resources->crtcs[c]);
-		log_verbose("XRANDR: (set_timing) <debug> disable crtc %d mode id %04lx time %ld/%ld\n", c, crtc_info2->mode, crtc_info2->timestamp, global_crtc[c].timestamp);
+		//log_verbose("XRANDR: (set_timing) <debug> disable crtc %d mode id %04lx time %ld/%ld\n", c, crtc_info2->mode, crtc_info2->timestamp, global_crtc[c].timestamp);
 		// checking mode might not be necessary due to timestamp value 
 		if ( crtc_info2->mode != 0 && global_crtc[c].timestamp == 1)
 		{
@@ -443,7 +638,7 @@ bool xrandr_timing::set_timing(modeline *mode)
 			XSync(m_pdisplay, False);
 			m_xerrors_flag = 0x14;
 			old_error_handler = XSetErrorHandler(error_handler);
-			log_verbose("XRANDR: (set_timing) <debug> crtc %d set modeline %04lx\n", c, crtc_info2->mode);
+			//log_verbose("XRANDR: (set_timing) <debug> crtc %d set modeline %04lx\n", c, crtc_info2->mode);
 			XRRSetCrtcConfig(m_pdisplay, resources, resources->crtcs[c], CurrentTime, crtc_info2->x, crtc_info2->y, crtc_info2->mode, crtc_info2->rotation, crtc_info2->outputs, crtc_info2->noutput);
 			XSync(m_pdisplay, False);
 			if (m_xerrors & 0x10)
