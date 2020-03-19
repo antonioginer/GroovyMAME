@@ -4,10 +4,11 @@
 
    ---------------------------------------------------------
 
-   SwitchRes   Modeline generation engine for emulation
+   Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2016 - Chris Kennedy, Antonio Giner
+   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+                         Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 
@@ -24,6 +25,7 @@
 #define CUSTOM_VIDEO_TIMING_POWERSTRIP  0x00000040
 #define CUSTOM_VIDEO_TIMING_ATI_LEGACY  0x00000080
 #define CUSTOM_VIDEO_TIMING_ATI_ADL     0x00000100
+#define CUSTOM_VIDEO_TIMING_DRMKMS      0x00000200
 
 // Custom video caps
 #define CUSTOM_VIDEO_CAPS_UPDATE            0x001

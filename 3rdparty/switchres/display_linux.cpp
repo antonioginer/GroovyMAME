@@ -4,10 +4,11 @@
 
    ---------------------------------------------------------
 
-   SwitchRes   Modeline generation engine for emulation
+   Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2020 - Chris Kennedy, Antonio Giner, Alexandre Wodarczyk
+   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+                         Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 
@@ -124,7 +125,7 @@ int linux_display::get_available_video_modes()
 
 		// get next mode
 		video()->get_timing(&mode);
-		if (mode.type == 0)
+		if (mode.type == 0 || mode.platform_data == 0)
 			break;
 		
 		// set the desktop mode

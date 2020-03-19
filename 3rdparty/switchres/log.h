@@ -1,3 +1,17 @@
+/**************************************************************
+
+   log.h - Simple logging for Switchres
+
+   ---------------------------------------------------------
+
+   Switchres   Modeline generation engine for emulation
+
+   License     GPL-2.0+
+   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+                         Alexandre Wodarczyk, Gil Delescluse
+
+ **************************************************************/
+
 #ifndef __LOG__
 #define __LOG__
 
