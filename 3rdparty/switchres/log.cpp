@@ -1,3 +1,17 @@
+/**************************************************************
+
+   log.cpp - Simple logging for Switchres
+
+   ---------------------------------------------------------
+
+   Switchres   Modeline generation engine for emulation
+
+   License     GPL-2.0+
+   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+                         Alexandre Wodarczyk, Gil Delescluse
+
+ **************************************************************/
+
 #include "log.h"
 
 void log_dummy(const char *, ...) {}
