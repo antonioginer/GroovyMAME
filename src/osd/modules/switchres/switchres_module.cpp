@@ -1,13 +1,14 @@
 /**************************************************************
 
-   switchres_module.cpp - Swichres MAME module
+   switchres_module.cpp - Switchres MAME module
 
    ---------------------------------------------------------
 
    Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2019 - Chris Kennedy, Antonio Giner
+   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+                         Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 
