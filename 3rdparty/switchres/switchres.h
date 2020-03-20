@@ -15,6 +15,7 @@
 #ifndef __SWITCHRES_H__
 #define __SWITCHRES_H__
 
+#include <cstring>
 #include <vector>
 #include "monitor.h"
 #include "modeline.h"
