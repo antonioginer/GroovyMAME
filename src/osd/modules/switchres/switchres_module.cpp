@@ -54,7 +54,7 @@ void switchres_module::exit()
 display_manager* switchres_module::add_display(const char* display_name, int width, int height, int refresh, float aspect)
 {
 	switchres().set_screen(display_name);
-	switchres().set_aspect(aspect);
+	switchres().set_monitor_aspect(aspect);
 
 	display_manager *display = switchres().add_display();
 	display->init();
