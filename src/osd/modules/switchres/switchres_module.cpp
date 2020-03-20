@@ -12,11 +12,23 @@
 
  **************************************************************/
 
+// MAME headers
 #include "emu.h"
+#include "render.h"
+
+#include "rendutil.h"
 #include "emuopts.h"
 #include "../frontend/mame/mameopts.h"
-#include "config.h"
-#include "rendutil.h"
+
+#include "modules/osdwindow.h"
+
+// MAMEOS headers
+#if defined(OSD_WINDOWS)
+#include "winmain.h"
+#elif defined(OSD_SDL)
+#include "osdsdl.h"
+#endif
+
 #include <switchres/switchres.h>
 #include "switchres_module.h"
 
@@ -51,13 +63,50 @@ void switchres_module::exit()
 //  switchres_module::exit
 //============================================================
 
-display_manager* switchres_module::add_display(const char* display_name, int width, int height, int refresh, float aspect)
+display_manager* switchres_module::add_display(int index, const char* display_name, render_target *target, const osd_window_config *config)
 {
+	#if defined(OSD_WINDOWS)
+		windows_options &options = downcast<windows_options &>(machine().options());
+	#elif defined(OSD_SDL)
+		sdl_options &options = downcast<sdl_options &>(machine().options());
+	#endif
+
 	switchres().set_screen(display_name);
-	switchres().set_monitor_aspect(aspect);
+
+	// Get per window aspect
+	const char * aspect = strcmp(options.aspect(index), "auto")? options.aspect(index) : options.aspect();
+	if (strcmp(aspect, "auto"))
+		switchres().set_monitor_aspect(aspect);
+	else
+		switchres().set_monitor_aspect(STANDARD_CRT_ASPECT);
+
+	// determine the refresh rate of the primary screen
+	const screen_device *primary_screen = screen_device_iterator(machine().root_device()).first();
+	if (primary_screen != nullptr)
+	{
+		set_refresh(index, ATTOSECONDS_TO_HZ(primary_screen->refresh_attoseconds()));
+	}
+
+	int minwidth, minheight;
+	target->compute_minimum_size(minwidth, minheight);
+	set_width(index, minwidth);
+	set_height(index, minheight);
+
+	osd_printf_verbose("Switchres: add_display(%d) %d %d %f\n", index, width(index), height(index), refresh(index));
 
 	display_manager *display = switchres().add_display();
 	display->init();
+
+	modeline *mode = display->get_mode(width(index), height(index), refresh(index), 0, 0);
+
+	if (mode)
+	{
+		if (mode->type & MODE_UPDATED) display->update_mode(mode);
+
+		else if (mode->type & MODE_NEW) display->add_mode(mode);
+	}
+
+	m_num_screens ++;
 	return display;
 }
 
