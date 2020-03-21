@@ -101,6 +101,8 @@ display_manager* switchres_module::add_display(int index, const char* display_na
 	display_manager *display = switchres().add_display();
 	display->init();
 
+	switchres().set_rotation(effective_orientation(display, target));
+
 	modeline *mode = display->get_mode(width(index), height(index), refresh(index), 0, 0);
 
 	if (mode)
@@ -170,35 +172,35 @@ void switchres_module::get_game_info()
 //  switchres_module::effective_orientation
 //============================================================
 
-bool switchres_module::effective_orientation()
+bool switchres_module::effective_orientation(display_manager* display, render_target *target)
 {
-/*
-	config_settings *cs = &m_machine.switchres.cs;
-	const game_driver *game = &m_machine.system();
-	emu_options &options = m_machine.options();
-	render_target *target = m_machine.render().first_target();
-	bool game_orientation = ((game->flags & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY);
+	#if defined(OSD_WINDOWS)
+		windows_options &options = downcast<windows_options &>(machine().options());
+	#elif defined(OSD_SDL)
+		sdl_options &options = downcast<sdl_options &>(machine().options());
+	#endif
+
+	bool game_orientation = ((machine().system().flags & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY);
+	bool monitor_is_rotated = false;
 
 	if (target)
-		cs->monitor_orientation = ((target->orientation() & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY? 1:0) ^ cs->desktop_rotated;
+		monitor_is_rotated = ((target->orientation() & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY? true:false) ^ display->desktop_is_rotated();
 	else if (!strcmp(options.orientation(), "horizontal"))
-		cs->monitor_orientation = 0;
+		monitor_is_rotated = false;
 	else if (!strcmp(options.orientation(), "vertical"))
-		cs->monitor_orientation = 1;
+		monitor_is_rotated = true;
 	else if (!strcmp(options.orientation(), "rotate") || !strcmp(options.orientation(), "rotate_r"))
 	{
-		cs->monitor_orientation = game_orientation;
-		cs->monitor_rotates_cw = 0;
+		monitor_is_rotated = game_orientation;
+		switchres().set_monitor_rotates_cw(false);
 	}
 	else if (!strcmp(options.orientation(), "rotate_l"))
 	{
-		cs->monitor_orientation = game_orientation;
-		cs->monitor_rotates_cw = 1;
+		monitor_is_rotated = game_orientation;
+		switchres().set_monitor_rotates_cw(true);
 	}
 
-	return game_orientation ^ cs->monitor_orientation;
-*/
-	return false;
+	return game_orientation ^ monitor_is_rotated;
 }
 
 //============================================================

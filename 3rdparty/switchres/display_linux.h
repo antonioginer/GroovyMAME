@@ -12,11 +12,6 @@
 
  **************************************************************/
 
-// X11 Xrandr headers
-#include <X11/extensions/Xrandr.h>
-
-#include <string.h>
-
 #include "display.h"
 
 class linux_display : public display_manager
