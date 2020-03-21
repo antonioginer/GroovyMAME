@@ -42,7 +42,7 @@ public:
 	// interface
 	void init(running_machine &machine);
 	void exit();
-	display_manager* add_display(int index, const char* display_name, render_target *target, const osd_window_config *config);
+	display_manager* add_display(int index, const char* display_name, render_target *target, osd_window_config *config);
 	void get_game_info();
 	bool effective_orientation();
 	bool check_resolution_change();
