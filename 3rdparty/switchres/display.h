@@ -61,6 +61,7 @@ public:
 	custom_video *video() const { return m_video; }
 	modeline user_mode() const { return m_user_mode; }
 	modeline *best_mode() const { return m_best_mode; }
+	bool desktop_is_rotated() const { return m_desktop_rotated; }
 
 	// setters
 	void set_user_mode(modeline *mode) { m_user_mode = *mode; }
