@@ -13,6 +13,8 @@
  **************************************************************/
 
 #include <stdio.h>
+#include <string.h>
+
 #include "display_linux.h"
 #include "log.h"
 
