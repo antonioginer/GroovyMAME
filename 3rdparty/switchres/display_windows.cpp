@@ -208,7 +208,7 @@ int windows_display::get_available_video_modes()
 			if (m.width == desktop_mode.width && m.height == desktop_mode.height && m.refresh == desktop_mode.refresh)
 			{
 				m.type |= MODE_DESKTOP;
-				if (m.type & MODE_ROTATED) m_desktop_rotated = true;
+				if (m.type & MODE_ROTATED) set_desktop_is_rotated(true);
 			}
 
 			log_verbose("Switchres: [%3d] %4dx%4d @%3d%s%s %s: ", k, m.width, m.height, m.refresh, m.interlace?"i":"p", m.type & MODE_DESKTOP?"*":"",  m.type & MODE_ROTATED?"rot":"");
