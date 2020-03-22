@@ -80,7 +80,6 @@ switchres_manager::switchres_manager()
 	set_modeline("auto");
 	set_lcd_range("auto");
 	for (int i = 0; i++ < MAX_RANGES;) set_crt_range(i, "auto");
-	set_monitor_rotates_cw(false);
 
 	// Set display manager default options
 	set_screen("auto");
