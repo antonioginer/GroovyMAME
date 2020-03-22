@@ -17,6 +17,30 @@
 #include "custom_video_xrandr.h"
 #include "log.h"
 
+#define XRRAddOutputMode p_XRRAddOutputMode
+#define XRRConfigCurrentConfiguration p_XRRConfigCurrentConfiguration
+#define XRRCreateMode p_XRRCreateMode
+#define XRRDeleteOutputMode p_XRRDeleteOutputMode
+#define XRRDestroyMode p_XRRDestroyMode
+#define XRRFreeCrtcInfo p_XRRFreeCrtcInfo
+#define XRRFreeOutputInfo p_XRRFreeOutputInfo
+#define XRRFreeScreenConfigInfo p_XRRFreeScreenConfigInfo
+#define XRRFreeScreenResources p_XRRFreeScreenResources
+#define XRRGetCrtcInfo p_XRRGetCrtcInfo
+#define XRRGetOutputInfo p_XRRGetOutputInfo
+#define XRRGetScreenInfo p_XRRGetScreenInfo
+#define XRRGetScreenResourcesCurrent p_XRRGetScreenResourcesCurrent
+#define XRRQueryVersion p_XRRQueryVersion
+#define XRRSetCrtcConfig p_XRRSetCrtcConfig
+#define XRRSetScreenSize p_XRRSetScreenSize
+
+#define XCloseDisplay p_XCloseDisplay
+#define XGrabServer p_XGrabServer
+#define XOpenDisplay p_XOpenDisplay
+#define XSync p_XSync
+#define XUngrabServer p_XUngrabServer
+#define XSetErrorHandler p_XSetErrorHandler
+
 //============================================================
 //  error_handler 
 //  xorg error handler (static)

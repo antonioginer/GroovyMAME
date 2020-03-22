@@ -279,7 +279,7 @@ bool display_manager::filter_modes()
 //  display_manager::get_video_mode
 //============================================================
 
-modeline *display_manager::get_mode(int width, int height, float refresh, bool interlaced, bool rotated)
+modeline *display_manager::get_mode(int width, int height, float refresh, bool interlaced)
 {
 	modeline s_mode = {};
 	modeline t_mode = {};
@@ -287,7 +287,7 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 	char result[256]={'\x00'};
 
 	log_verbose("Switchres: Calculating best video mode for %dx%d@%.6f%s orientation: %s\n",
-						width, height, refresh, interlaced?"i":"", rotated?"rotated":"normal");
+						width, height, refresh, interlaced?"i":"", rotation()?"rotated":"normal");
 
 	best_mode.result.weight |= R_OUT_OF_RANGE;
 
@@ -296,8 +296,8 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 
 	s_mode.hactive = normalize(width, 8);
 	s_mode.vactive = height;
-	m_ds.gs.rotation = rotated;
-	if (rotated) std::swap(s_mode.hactive, s_mode.vactive);
+
+	if (rotation()) std::swap(s_mode.hactive, s_mode.vactive);
 
 	// Create a dummy mode entry if allowed
 	if (caps() & CUSTOM_VIDEO_CAPS_ADD && m_ds.modeline_generation)
@@ -366,7 +366,7 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 		return nullptr;
 	}
 
-	log_verbose("\nSwitchres: %s (%dx%d@%.6f)->(%dx%d@%.6f)\n", rotated?"vertical":"horizontal",
+	log_verbose("\nSwitchres: %s (%dx%d@%.6f)->(%dx%d@%.6f)\n", rotation()?"rotated":"normal",
 		width, height, refresh, best_mode.hactive, best_mode.vactive, best_mode.vfreq);
 
 	log_verbose("%s\n", modeline_result(&best_mode, result));

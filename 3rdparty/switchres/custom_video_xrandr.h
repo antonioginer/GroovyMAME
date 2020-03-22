@@ -56,23 +56,6 @@ class xrandr_timing : public custom_video
 		__typeof__(XRRSetCrtcConfig) *p_XRRSetCrtcConfig;
 		__typeof__(XRRSetScreenSize) *p_XRRSetScreenSize;
 
-#define XRRAddOutputMode p_XRRAddOutputMode
-#define XRRConfigCurrentConfiguration p_XRRConfigCurrentConfiguration
-#define XRRCreateMode p_XRRCreateMode
-#define XRRDeleteOutputMode p_XRRDeleteOutputMode
-#define XRRDestroyMode p_XRRDestroyMode
-#define XRRFreeCrtcInfo p_XRRFreeCrtcInfo
-#define XRRFreeOutputInfo p_XRRFreeOutputInfo
-#define XRRFreeScreenConfigInfo p_XRRFreeScreenConfigInfo
-#define XRRFreeScreenResources p_XRRFreeScreenResources
-#define XRRGetCrtcInfo p_XRRGetCrtcInfo
-#define XRRGetOutputInfo p_XRRGetOutputInfo
-#define XRRGetScreenInfo p_XRRGetScreenInfo
-#define XRRGetScreenResourcesCurrent p_XRRGetScreenResourcesCurrent
-#define XRRQueryVersion p_XRRQueryVersion
-#define XRRSetCrtcConfig p_XRRSetCrtcConfig
-#define XRRSetScreenSize p_XRRSetScreenSize
-
 		void *m_x11_handle = 0;
 
 		__typeof__(XCloseDisplay) *p_XCloseDisplay;
@@ -81,13 +64,6 @@ class xrandr_timing : public custom_video
 		__typeof__(XSync) *p_XSync;
 		__typeof__(XUngrabServer) *p_XUngrabServer;
 		__typeof__(XSetErrorHandler) *p_XSetErrorHandler;
-
-#define XCloseDisplay p_XCloseDisplay
-#define XGrabServer p_XGrabServer
-#define XOpenDisplay p_XOpenDisplay
-#define XSync p_XSync
-#define XUngrabServer p_XUngrabServer
-#define XSetErrorHandler p_XSetErrorHandler
 
 		XRRModeInfo *find_mode(modeline *mode);
 
