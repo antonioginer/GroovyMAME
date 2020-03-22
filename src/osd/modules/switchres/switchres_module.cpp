@@ -101,9 +101,11 @@ display_manager* switchres_module::add_display(int index, const char* display_na
 	display_manager *display = switchres().add_display();
 	display->init();
 
-	switchres().set_rotation(effective_orientation(display, target));
+	osd_printf_verbose("effective_orientation: %d\n", effective_orientation(display, target));
 
-	modeline *mode = display->get_mode(width(index), height(index), refresh(index), 0, 0);
+	display->set_rotation(effective_orientation(display, target));
+
+	modeline *mode = display->get_mode(width(index), height(index), refresh(index), 0);
 
 	if (mode)
 	{
@@ -192,12 +194,12 @@ bool switchres_module::effective_orientation(display_manager* display, render_ta
 	else if (!strcmp(options.orientation(), "rotate") || !strcmp(options.orientation(), "rotate_r"))
 	{
 		monitor_is_rotated = game_orientation;
-		switchres().set_monitor_rotates_cw(false);
+		display->set_monitor_rotates_cw(false);
 	}
 	else if (!strcmp(options.orientation(), "rotate_l"))
 	{
 		monitor_is_rotated = game_orientation;
-		switchres().set_monitor_rotates_cw(true);
+		display->set_monitor_rotates_cw(true);
 	}
 
 	return game_orientation ^ monitor_is_rotated;
@@ -250,17 +252,15 @@ bool switchres_module::check_resolution_change()
 //  switchres_module::set_options
 //============================================================
 
-void switchres_module::set_options()
+void switchres_module::set_options(display_manager* display, render_target *target)
 {
-/*
-	config_settings *cs = &m_machine.switchres.cs;
-	bool native_orientation = ((m_machine.system().flags & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY);
-	bool must_rotate = effective_orientation() ^ cs->desktop_rotated;
-	modeline *best_mode = &m_machine.switchres.best_mode;
+	bool native_orientation = ((machine().system().flags & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY);
+	bool must_rotate = effective_orientation(display, target) ^ display->desktop_is_rotated();
+	modeline *best_mode = display->best_mode();
 
 	// Set rotation options
 	set_option(OPTION_ROTATE, true);
-	if (cs->monitor_rotates_cw)
+	if (display->monitor_rotates_cw())
 	{
 		set_option(OPTION_ROL, (!native_orientation & must_rotate));
 		set_option(OPTION_AUTOROL, !must_rotate);
@@ -278,22 +278,20 @@ void switchres_module::set_options()
 	// Set scaling/stretching options
 	set_option(OPTION_KEEPASPECT, true);
 	set_option(OPTION_UNEVENSTRETCH, best_mode->result.weight & R_RES_STRETCH);
-	set_option(OPTION_UNEVENSTRETCHX, (!(best_mode->result.weight & R_RES_STRETCH) && (best_mode->width >= m_machine.options().super_width())));
+	set_option(OPTION_UNEVENSTRETCHX, (!(best_mode->result.weight & R_RES_STRETCH) && (best_mode->width >= display->super_width())));
 
 	// Update target if it's already initialized
-	render_target *target = m_machine.render().first_target();
 	if (target)
 	{
-		if (m_machine.options().uneven_stretch())
+		if (machine().options().uneven_stretch())
 			target->set_scale_mode(SCALE_FRACTIONAL);
-		else if(m_machine.options().uneven_stretch_x())
+		else if(machine().options().uneven_stretch_x())
 			target->set_scale_mode(SCALE_FRACTIONAL_X);
-		else if(m_machine.options().uneven_stretch_y())
+		else if(machine().options().uneven_stretch_y())
 			target->set_scale_mode(SCALE_FRACTIONAL_Y);
 		else
 			target->set_scale_mode(SCALE_INTEGER);
 	}
-*/
 }
 
 //============================================================

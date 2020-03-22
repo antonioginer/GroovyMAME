@@ -46,7 +46,7 @@ public:
 	void get_game_info();
 	bool effective_orientation(display_manager* display, render_target *target);
 	bool check_resolution_change();
-	void set_options();
+	void set_options(display_manager* display, render_target *target);
 	void set_option(const char *option_ID, bool state);
 
 private:
