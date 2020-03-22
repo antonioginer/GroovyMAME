@@ -53,15 +53,12 @@ public:
 	void set_log_info_fn(void *func_ptr);
 	void set_log_error_fn(void *func_ptr);
 
-	// setters (switchres manager)
+	// setters (display manager)
 	void set_monitor(const char *preset) { strncpy(ds.monitor, preset, sizeof(ds.monitor)-1); }
 	void set_orientation(const char *orientation) { strncpy(ds.orientation, orientation, sizeof(ds.orientation)-1); }
 	void set_modeline(const char *modeline) { strncpy(ds.modeline, modeline, sizeof(ds.modeline)-1); }
 	void set_crt_range(int i, const char *range) { strncpy(ds.crt_range[i], range, sizeof(ds.crt_range[i])-1); }
 	void set_lcd_range(const char *range) { strncpy(ds.lcd_range, range, sizeof(ds.lcd_range)-1); }
-	void set_monitor_rotates_cw(bool value) { ds.monitor_rotates_cw = value; }
-
-	// setters (display manager)
 	void set_screen(const char *screen) { strncpy(ds.screen, screen, sizeof(ds.screen)-1); }
 	void set_api(const char *api) { strncpy(ds.api, api, sizeof(ds.api)-1); }
 	void set_modeline_generation(bool value) { ds.modeline_generation = value; }
