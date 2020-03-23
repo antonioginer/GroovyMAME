@@ -126,8 +126,8 @@ private:
 	modeline m_user_mode = {};
 	modeline *m_best_mode = 0;
 
-	bool m_desktop_is_rotated;
-	bool m_monitor_rotates_cw;
+	bool m_desktop_is_rotated = 0;
+	bool m_monitor_rotates_cw = 0;
 };
 
 #endif
