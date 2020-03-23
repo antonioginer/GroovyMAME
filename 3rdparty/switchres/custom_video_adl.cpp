@@ -297,6 +297,7 @@ bool adl_timing::display_mode_info_to_modeline(ADLDisplayModeInfo *dmi, modeline
 	m->vbegin    = dt.sVSyncStart;
 	m->vend      = dt.sVSyncWidth + m->vbegin;
 	m->interlace = (dt.sTimingFlags & ADL_DL_TIMINGFLAG_INTERLACED)? 1 : 0;
+	m->doublescan = (dt.sTimingFlags & ADL_DL_TIMINGFLAG_DOUBLE_SCAN)? 1 : 0;
 	m->hsync     = ((dt.sTimingFlags & ADL_DL_TIMINGFLAG_H_SYNC_POLARITY)? 1 : 0) ^ invert_pol(1);
 	m->vsync     = ((dt.sTimingFlags & ADL_DL_TIMINGFLAG_V_SYNC_POLARITY)? 1 : 0) ^ invert_pol(1) ;
 	m->pclock    = dt.sPixelClock * 10000;
@@ -416,6 +417,7 @@ bool adl_timing::set_timing_override(modeline *m, int update_mode)
 	//modeline to ADLDetailedTiming
 	dt = &mode_info.sDetailedTiming;
 	dt->sTimingFlags     = (m->interlace? ADL_DL_TIMINGFLAG_INTERLACED : 0) |
+						   (m->doublescan? ADL_DL_TIMINGFLAG_DOUBLE_SCAN: 0) |
 						   (m->hsync ^ invert_pol(0)? ADL_DL_TIMINGFLAG_H_SYNC_POLARITY : 0) |
 						   (m->vsync ^ invert_pol(0)? ADL_DL_TIMINGFLAG_V_SYNC_POLARITY : 0);
 	dt->sHTotal          = m->htotal;

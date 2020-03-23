@@ -76,6 +76,7 @@ display_manager* switchres_module::add_display(int index, const char* display_na
 	switchres().set_orientation(options.orientation());
 	switchres().set_modeline(options.modeline());
 	for (int i = 0; i < MAX_RANGES; i++) switchres().set_crt_range(i, options.crt_range(i));
+	switchres().set_doublescan(false);
 
 	// Get per window aspect
 	const char * aspect = strcmp(options.aspect(index), "auto")? options.aspect(index) : options.aspect();
@@ -83,6 +84,10 @@ display_manager* switchres_module::add_display(int index, const char* display_na
 		switchres().set_monitor_aspect(aspect);
 	else
 		switchres().set_monitor_aspect(STANDARD_CRT_ASPECT);
+
+	display_manager *display = switchres().add_display();
+	display->init();
+	display->set_rotation(effective_orientation(display, target));
 
 	// determine the refresh rate of the primary screen
 	const screen_device *primary_screen = screen_device_iterator(machine().root_device()).first();
@@ -93,17 +98,12 @@ display_manager* switchres_module::add_display(int index, const char* display_na
 
 	int minwidth, minheight;
 	target->compute_minimum_size(minwidth, minheight);
+
+	if (display->rotation() ^ display->desktop_is_rotated()) std::swap(minwidth, minheight);
 	set_width(index, minwidth);
 	set_height(index, minheight);
 
-	osd_printf_verbose("Switchres: add_display(%d) %d %d %f\n", index, width(index), height(index), refresh(index));
-
-	display_manager *display = switchres().add_display();
-	display->init();
-
-	osd_printf_verbose("effective_orientation: %d\n", effective_orientation(display, target));
-
-	display->set_rotation(effective_orientation(display, target));
+	osd_printf_verbose("Switchres: get_mode(%d) %d %d %f\n", index, width(index), height(index), refresh(index));
 
 	modeline *mode = display->get_mode(width(index), height(index), refresh(index), 0);
 
@@ -117,6 +117,8 @@ display_manager* switchres_module::add_display(int index, const char* display_na
 		config->height = mode->height;
 		config->refresh = mode->refresh;
 	}
+
+	set_options(display, target);
 
 	m_num_screens ++;
 	return display;
@@ -176,33 +178,11 @@ void switchres_module::get_game_info()
 
 bool switchres_module::effective_orientation(display_manager* display, render_target *target)
 {
-	#if defined(OSD_WINDOWS)
-		windows_options &options = downcast<windows_options &>(machine().options());
-	#elif defined(OSD_SDL)
-		sdl_options &options = downcast<sdl_options &>(machine().options());
-	#endif
 
-	bool game_orientation = ((machine().system().flags & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY);
-	bool monitor_is_rotated = false;
+	bool target_is_rotated = (target->orientation() & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY? true:false;
+	bool game_is_rotated = (machine().system().flags & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY;
 
-	if (target)
-		monitor_is_rotated = ((target->orientation() & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY? true:false) ^ display->desktop_is_rotated();
-	else if (!strcmp(options.orientation(), "horizontal"))
-		monitor_is_rotated = false;
-	else if (!strcmp(options.orientation(), "vertical"))
-		monitor_is_rotated = true;
-	else if (!strcmp(options.orientation(), "rotate") || !strcmp(options.orientation(), "rotate_r"))
-	{
-		monitor_is_rotated = game_orientation;
-		display->set_monitor_rotates_cw(false);
-	}
-	else if (!strcmp(options.orientation(), "rotate_l"))
-	{
-		monitor_is_rotated = game_orientation;
-		display->set_monitor_rotates_cw(true);
-	}
-
-	return game_orientation ^ monitor_is_rotated;
+	return target_is_rotated ^ game_is_rotated ^ display->desktop_is_rotated();
 }
 
 //============================================================
@@ -254,26 +234,7 @@ bool switchres_module::check_resolution_change()
 
 void switchres_module::set_options(display_manager* display, render_target *target)
 {
-	bool native_orientation = ((machine().system().flags & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY);
-	bool must_rotate = effective_orientation(display, target) ^ display->desktop_is_rotated();
 	modeline *best_mode = display->best_mode();
-
-	// Set rotation options
-	set_option(OPTION_ROTATE, true);
-	if (display->monitor_rotates_cw())
-	{
-		set_option(OPTION_ROL, (!native_orientation & must_rotate));
-		set_option(OPTION_AUTOROL, !must_rotate);
-		set_option(OPTION_ROR, false);
-		set_option(OPTION_AUTOROR, false);
-	}
-	else
-	{
-		set_option(OPTION_ROR, (!native_orientation & must_rotate));
-		set_option(OPTION_AUTOROR, !must_rotate);
-		set_option(OPTION_ROL, false);
-		set_option(OPTION_AUTOROL, false);
-	}
 
 	// Set scaling/stretching options
 	set_option(OPTION_KEEPASPECT, true);
@@ -303,6 +264,6 @@ void switchres_module::set_option(const char *option_ID, bool state)
 	emu_options &options = machine().options();
 
 	//options.set_value(option_ID, state, OPTION_PRIORITY_SWITCHRES);
-	options.set_value(option_ID, state, OPTION_PRIORITY_NORMAL);
+	options.set_value(option_ID, state, OPTION_PRIORITY_NORMAL+1);
 	osd_printf_verbose("SwitchRes: Setting option -%s%s\n", machine().options().bool_value(option_ID)?"":"no", option_ID);
 }
