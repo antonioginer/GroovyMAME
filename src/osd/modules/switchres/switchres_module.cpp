@@ -63,7 +63,7 @@ void switchres_module::exit()
 //  switchres_module::exit
 //============================================================
 
-display_manager* switchres_module::add_display(int index, const char* display_name, render_target *target, osd_window_config *config)
+display_manager* switchres_module::add_display(int index, osd_monitor_info *monitor, render_target *target, osd_window_config *config)
 {
 	#if defined(OSD_WINDOWS)
 		windows_options &options = downcast<windows_options &>(machine().options());
@@ -71,7 +71,7 @@ display_manager* switchres_module::add_display(int index, const char* display_na
 		sdl_options &options = downcast<sdl_options &>(machine().options());
 	#endif
 
-	switchres().set_screen(display_name);
+	switchres().set_screen(monitor->devicename().c_str());
 	switchres().set_monitor(options.monitor());
 	switchres().set_orientation(options.orientation());
 	switchres().set_modeline(options.modeline());
@@ -118,6 +118,7 @@ display_manager* switchres_module::add_display(int index, const char* display_na
 		config->refresh = mode->refresh;
 
 		display->set_mode(mode);
+		monitor->refresh();
 
 		set_options(display, target);
 	}
