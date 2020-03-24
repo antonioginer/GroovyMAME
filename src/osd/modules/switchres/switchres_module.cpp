@@ -78,23 +78,16 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	for (int i = 0; i < MAX_RANGES; i++) switchres().set_crt_range(i, options.crt_range(i));
 	switchres().set_doublescan(false);
 
-	// Get per window aspect
-	const char * aspect = strcmp(options.aspect(index), "auto")? options.aspect(index) : options.aspect();
-	if (strcmp(aspect, "auto"))
-		switchres().set_monitor_aspect(aspect);
-	else
-		switchres().set_monitor_aspect(STANDARD_CRT_ASPECT);
+	modeline user_mode = {};
+	user_mode.width = config->width;
+	user_mode.height = config->height;
+	user_mode.refresh = config->refresh;
 
 	display_manager *display = switchres().add_display();
 	display->init();
 	display->set_rotation(effective_orientation(display, target));
-
-	// determine the refresh rate of the primary screen
-	const screen_device *primary_screen = screen_device_iterator(machine().root_device()).first();
-	if (primary_screen != nullptr)
-	{
-		set_refresh(index, ATTOSECONDS_TO_HZ(primary_screen->refresh_attoseconds()));
-	}
+	display->set_user_mode(&user_mode);
+	display->set_monitor_aspect(display->desktop_is_rotated()? 1.0f / monitor->aspect() : monitor->aspect());
 
 	int minwidth, minheight;
 	target->compute_minimum_size(minwidth, minheight);
@@ -103,7 +96,11 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	set_width(index, minwidth);
 	set_height(index, minheight);
 
-	osd_printf_verbose("Switchres: get_mode(%d) %d %d %f\n", index, width(index), height(index), refresh(index));
+	// determine the refresh rate of the primary screen
+	const screen_device *primary_screen = screen_device_iterator(machine().root_device()).first();
+	if (primary_screen != nullptr) set_refresh(index, ATTOSECONDS_TO_HZ(primary_screen->refresh_attoseconds()));
+
+	osd_printf_verbose("Switchres: get_mode(%d) %d %d %f %f\n", index, width(index), height(index), refresh(index), display->monitor_aspect());
 
 	modeline *mode = display->get_mode(width(index), height(index), refresh(index), 0);
 
