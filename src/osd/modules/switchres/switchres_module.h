@@ -17,6 +17,7 @@
 
 #define MAX_WINDOWS 4
 
+class osd_monitor_info;
 class osd_window_config;
 class switchres_manager;
 class display_manager;
@@ -42,7 +43,7 @@ public:
 	// interface
 	void init(running_machine &machine);
 	void exit();
-	display_manager* add_display(int index, const char* display_name, render_target *target, osd_window_config *config);
+	display_manager* add_display(int index, osd_monitor_info *monitor, render_target *target, osd_window_config *config);
 	void get_game_info();
 	bool effective_orientation(display_manager* display, render_target *target);
 	bool check_resolution_change();
