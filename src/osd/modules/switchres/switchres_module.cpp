@@ -117,6 +117,8 @@ display_manager* switchres_module::add_display(int index, const char* display_na
 		config->height = mode->height;
 		config->refresh = mode->refresh;
 
+		display->set_mode(mode);
+
 		set_options(display, target);
 	}
 
