@@ -443,6 +443,10 @@ int sdl_window_info::window_init()
 
 	set_renderer(osd_renderer::make_for_type(video_config.mode, static_cast<osd_window*>(this)->shared_from_this()));
 
+	// add they switchres display manager
+	if (options.switch_res())
+		m_display_manager = downcast<sdl_osd_interface&>(machine().osd()).switchres()->add_display(m_index, monitor(), m_target, &m_win_config);
+
 	int result = complete_create();
 
 	// handle error conditions
