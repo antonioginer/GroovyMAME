@@ -150,10 +150,12 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 	// let's start with the SCALED case
 	if (!(t_mode->result.weight & R_RES_STRETCH))
 	{
+		// apply integer scaling to yres
+		if (t_mode->type & Y_RES_EDITABLE) t_mode->vactive *= y_scale;
+
 		// if we can, let's apply the same scaling to both directions
 		if (t_mode->type & X_RES_EDITABLE)
 		{
-			if (t_mode->type & Y_RES_EDITABLE) t_mode->vactive *= y_scale;
 			x_scale = y_scale;
 			t_mode->hactive = normalize(double(t_mode->hactive) * double(x_scale) * cs->monitor_aspect / (cs->rotation? (1.0/(STANDARD_CRT_ASPECT)) : (STANDARD_CRT_ASPECT)), 8);
 		}
