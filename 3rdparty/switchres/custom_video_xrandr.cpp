@@ -330,17 +330,17 @@ bool xrandr_timing::init()
 				log_error("XRANDR: <%p,%d> (init) [ERROR] could not get output 0x%x information\n", this, m_desktop_output, (uint) resources->outputs[o]);
 
 			// Check all connected output
-			if (output_info->connection == RR_Connected && output_info->crtc && m_desktop_output == -1)
+			log_verbose("XRANDR: <%p,%d> (init) check output connector '%s' active %d crtc %d\n", this, m_desktop_output, output_info->name, output_info->connection == RR_Connected?1:0, output_info->crtc?1:0);
+			if (m_desktop_output == -1 && output_info->connection == RR_Connected && output_info->crtc)
 			{
-				log_verbose("XRANDR: <%p,%d> (init) check output connector '%s'\n", this, m_desktop_output, output_info->name);
-				XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(m_pdisplay, resources, output_info->crtc);
-				current_rotation = crtc_info->rotation;
 				if (!strcmp(m_device_name, "auto") || !strcmp(m_device_name,output_info->name) || output_position == screen_pos)
 				{
-					log_verbose("XRANDR: <%p,%d> (init) name '%s' id %d selected as primary output\n", this, m_desktop_output, output_info->name, o);
 					// store the output connector
 					m_desktop_output = o;
+					log_verbose("XRANDR: <%p,%d> (init) name '%s' id %d selected as primary output\n", this, m_desktop_output, output_info->name, o);
 
+					XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(m_pdisplay, resources, output_info->crtc);
+					current_rotation = crtc_info->rotation;
 					// identify the current modeline id
 					for (int m = 0;m < resources->nmode && m_desktop_mode.id == 0;m++)
 					{
@@ -348,14 +348,14 @@ bool xrandr_timing::init()
 						if (crtc_info->mode == resources->modes[m].id)
 							m_desktop_mode = resources->modes[m];
 					}
-				}
-				XRRFreeCrtcInfo(crtc_info);
+					XRRFreeCrtcInfo(crtc_info);
 
-				// check screen rotation (left or right)
-				if (current_rotation & 0xe)
-				{
-					m_crtc_flags = MODE_ROTATED;
-					log_verbose("XRANDR: <%p,%d> (init) desktop rotation is %s\n", this, m_desktop_output, (current_rotation & 0x2)?"left":((current_rotation & 0x8)?"right":"inverted"));
+					// check screen rotation (left or right)
+					if (current_rotation & 0xe)
+					{
+						m_crtc_flags = MODE_ROTATED;
+						log_verbose("XRANDR: <%p,%d> (init) desktop rotation is %s\n", this, m_desktop_output, (current_rotation & 0x2)?"left":((current_rotation & 0x8)?"right":"inverted"));
+					}
 				}
 				output_position++;
 			}
