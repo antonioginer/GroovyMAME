@@ -303,7 +303,7 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 	if (caps() & CUSTOM_VIDEO_CAPS_ADD && m_ds.modeline_generation)
 	{
 		modeline new_mode = {};
-		new_mode.type = XYV_EDITABLE | V_FREQ_EDITABLE | SCAN_EDITABLE | MODE_NEW;
+		new_mode.type = XYV_EDITABLE | V_FREQ_EDITABLE | SCAN_EDITABLE | MODE_NEW | (desktop_is_rotated()? MODE_ROTATED : MODE_OK);
 		video_modes.push_back(new_mode);
 	}
 
