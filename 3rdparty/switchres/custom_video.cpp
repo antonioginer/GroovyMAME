@@ -24,6 +24,7 @@
 #include "custom_video_pstrip.h"
 #elif defined(__linux__)
 #include "custom_video_xrandr.h"
+#include "custom_video_drmkms.h"
 #endif
 
 
@@ -84,6 +85,19 @@ custom_video *custom_video::make(char *device_name, char *device_id, int method,
 		if (m_custom_video)
 		{
 			m_custom_method = CUSTOM_VIDEO_TIMING_XRANDR;
+			return m_custom_video;
+		}
+	}
+
+	if (method == CUSTOM_VIDEO_TIMING_DRMKMS || method == 0)
+	{
+		if (sizeof(device_id) != 0)
+			log_verbose("Device ID: %s\n", device_id);
+
+		m_custom_video = new drmkms_timing(device_name, s_param);
+		if (m_custom_video)
+		{
+			m_custom_method = CUSTOM_VIDEO_TIMING_DRMKMS;
 			return m_custom_video;
 		}
 	}
