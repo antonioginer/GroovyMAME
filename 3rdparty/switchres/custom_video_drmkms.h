@@ -35,6 +35,8 @@ class drmkms_timing : public custom_video
 		bool set_timing(modeline *mode);
 
 	private:
+		int m_id = 0;
+
 		int m_drm_fd = 0;
 		drmModeCrtc *mp_crtc_desktop = NULL;
 
