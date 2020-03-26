@@ -103,16 +103,24 @@ const char * get_connector_name(int mode)
 }
 
 //============================================================
+//  id for class object (static)
+//============================================================
+
+static int static_id = 0;
+
+//============================================================
 //  drmkms_timing::drmkms_timing
 //============================================================
 drmkms_timing::drmkms_timing(char *device_name, char *param)
 {
-	log_verbose("DRM/KMS: <%p,%d> (drmkms_timing) creation (%s,%s)\n", this, m_desktop_output, device_name, param);
+	m_id = static_id++;
+
+	log_verbose("DRM/KMS: <%d> (drmkms_timing) creation (%s,%s)\n", m_id, device_name, param);
 	// Copy screen device name and limit size
 	if ((strlen(device_name)+1) > 32)
 	{
 		strncpy(m_device_name, device_name, 31);
-		log_error("DRM/KMS: <%p,%d> (drmkms_timing) [ERROR] the devine name is too long it has been trucated to %s\n", this, m_desktop_output,m_device_name);
+		log_error("DRM/KMS: <%d> (drmkms_timing) [ERROR] the devine name is too long it has been trucated to %s\n", m_id,m_device_name);
 	} else {
 		strcpy(m_device_name, device_name);
 	}
@@ -142,165 +150,165 @@ drmkms_timing::~drmkms_timing()
 
 bool drmkms_timing::init()
 {
-	log_verbose("DRM/KMS: <%p,%d> (init) loading DRM/KMS library\n", this, m_desktop_output);
+	log_verbose("DRM/KMS: <%d> (init) loading DRM/KMS library\n", m_id);
 	mp_drm_handle = dlopen ("libdrm.so", RTLD_NOW);
 	if (mp_drm_handle)
 	{
                 p_drmGetVersion = (__typeof__(drmGetVersion))dlsym(mp_drm_handle,"drmGetVersion");
                 if (p_drmGetVersion == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmGetVersion", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmGetVersion", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmFreeVersion = (__typeof__(drmFreeVersion))dlsym(mp_drm_handle,"drmFreeVersion");
                 if (p_drmFreeVersion == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmFreeVersion", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmFreeVersion", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeGetResources = (__typeof__(drmModeGetResources))dlsym(mp_drm_handle,"drmModeGetResources");
                 if (p_drmModeGetResources == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeGetResources", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeGetResources", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeGetConnector = (__typeof__(drmModeGetConnector))dlsym(mp_drm_handle,"drmModeGetConnector");
                 if (p_drmModeGetConnector == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeGetConnector", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeGetConnector", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeFreeConnector = (__typeof__(drmModeFreeConnector))dlsym(mp_drm_handle,"drmModeFreeConnector");
                 if (p_drmModeFreeConnector == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeFreeConnector", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeFreeConnector", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeFreeResources = (__typeof__(drmModeFreeResources))dlsym(mp_drm_handle,"drmModeFreeResources");
                 if (p_drmModeFreeResources == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeFreeResources", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeFreeResources", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeGetEncoder = (__typeof__(drmModeGetEncoder))dlsym(mp_drm_handle,"drmModeGetEncoder");
                 if (p_drmModeGetEncoder == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeGetEncoder", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeGetEncoder", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeFreeEncoder = (__typeof__(drmModeFreeEncoder))dlsym(mp_drm_handle,"drmModeFreeEncoder");
                 if (p_drmModeFreeEncoder == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeFreeEncoder", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeFreeEncoder", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeGetCrtc = (__typeof__(drmModeGetCrtc))dlsym(mp_drm_handle,"drmModeGetCrtc");
                 if (p_drmModeGetCrtc == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeGetCrtc", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeGetCrtc", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeSetCrtc = (__typeof__(drmModeSetCrtc))dlsym(mp_drm_handle,"drmModeSetCrtc");
                 if (p_drmModeSetCrtc == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeSetCrtc", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeSetCrtc", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeFreeCrtc = (__typeof__(drmModeFreeCrtc))dlsym(mp_drm_handle,"drmModeFreeCrtc");
                 if (p_drmModeFreeCrtc == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeFreeCrtc", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeFreeCrtc", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeAttachMode = (__typeof__(drmModeAttachMode))dlsym(mp_drm_handle,"drmModeAttachMode");
                 if (p_drmModeAttachMode == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeAttachMode", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeAttachMode", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeAddFB = (__typeof__(drmModeAddFB))dlsym(mp_drm_handle,"drmModeAddFB");
                 if (p_drmModeAddFB == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeAddFB", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeAddFB", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeRmFB = (__typeof__(drmModeRmFB))dlsym(mp_drm_handle,"drmModeRmFB");
                 if (p_drmModeRmFB == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeRmFB", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeRmFB", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeGetFB = (__typeof__(drmModeGetFB))dlsym(mp_drm_handle,"drmModeGetFB");
                 if (p_drmModeGetFB == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeGetFB", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeGetFB", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeFreeFB = (__typeof__(drmModeFreeFB))dlsym(mp_drm_handle,"drmModeFreeFB");
                 if (p_drmModeFreeFB == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeFreeFB", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeFreeFB", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmPrimeHandleToFD = (__typeof__(drmPrimeHandleToFD))dlsym(mp_drm_handle,"drmPrimeHandleToFD");
                 if (p_drmPrimeHandleToFD == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmPrimeHandleToFD", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmPrimeHandleToFD", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeGetPlaneResources = (__typeof__(drmModeGetPlaneResources))dlsym(mp_drm_handle,"drmModeGetPlaneResources");
                 if (p_drmModeGetPlaneResources == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeGetPlaneResources", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeGetPlaneResources", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmModeFreePlaneResources = (__typeof__(drmModeFreePlaneResources))dlsym(mp_drm_handle,"drmModeFreePlaneResources");
                 if (p_drmModeFreePlaneResources == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmModeFreePlaneResources", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmModeFreePlaneResources", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmIoctl = (__typeof__(drmIoctl))dlsym(mp_drm_handle,"drmIoctl");
                 if (p_drmIoctl == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmIoctl", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmIoctl", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmGetCap = (__typeof__(drmGetCap))dlsym(mp_drm_handle,"drmGetCap");
                 if (p_drmGetCap == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmGetCap", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmGetCap", "DRM_LIBRARY");
                         return false;
                 }
 
                 p_drmIsMaster = (__typeof__(drmIsMaster))dlsym(mp_drm_handle,"drmIsMaster");
                 if (p_drmIsMaster == NULL)
                 {
-                        log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing func %s in %s", this, m_desktop_output, "drmIsMaster", "DRM_LIBRARY");
+                        log_error("DRM/KMS: <%d> (init) [ERROR] missing func %s in %s", m_id, "drmIsMaster", "DRM_LIBRARY");
                         return false;
                 }
 	} else {
-		log_error("DRM/KMS: <%p,%d> (init) [ERROR] missing %s library\n", this, m_desktop_output, "DRM/KMS_LIBRARY");
+		log_error("DRM/KMS: <%d> (init) [ERROR] missing %s library\n", m_id, "DRM/KMS_LIBRARY");
 		return false;
 	}
 
@@ -322,18 +330,18 @@ bool drmkms_timing::init()
 		if (m_drm_fd>0)
 		{
 			drmVersion *version = drmGetVersion(m_drm_fd);
-			log_verbose("DRM/KMS: <%p,%d> (init) version %d.%d.%d type %s\n", this, m_desktop_output, version->version_major, version->version_minor, version->version_patchlevel, version->name);
+			log_verbose("DRM/KMS: <%d> (init) version %d.%d.%d type %s\n", m_id, version->version_major, version->version_minor, version->version_patchlevel, version->name);
 			drmFreeVersion(version);
 
 			long unsigned int check_dumb = 0;
 			if (drmGetCap(m_drm_fd, DRM_CAP_DUMB_BUFFER, &check_dumb) < 0)
 			{
-				log_error("DRM/KMS: <%p,%d> (init) [ERROR] ioctl DRM_CAP_DUMB_BUFFER\n", this, m_desktop_output);
+				log_error("DRM/KMS: <%d> (init) [ERROR] ioctl DRM_CAP_DUMB_BUFFER\n", m_id);
 			}
 
 			if (! check_dumb)
 			{
-				log_error("DRM/KMS: <%p,%d> (init) [ERROR] dumb buffer not supported\n", this, m_desktop_output);
+				log_error("DRM/KMS: <%d> (init) [ERROR] dumb buffer not supported\n", m_id);
 			}
 
 			p_res = drmModeGetResources(m_drm_fd);
@@ -345,14 +353,14 @@ bool drmkms_timing::init()
 				{
 					char connector_name[32];
 					snprintf(connector_name, 32, "%s%d", get_connector_name(p_connector->connector_type), p_connector->connector_type_id);
-					log_verbose("DRM/KMS: <%p,%d> (init) card %d connector %d id %d name %s status %d - modes %d\n", this, m_desktop_output, num, i, p_connector->connector_id, connector_name, p_connector->connection, p_connector->count_modes);
+					log_verbose("DRM/KMS: <%d> (init) card %d connector %d id %d name %s status %d - modes %d\n", m_id, num, i, p_connector->connector_id, connector_name, p_connector->connection, p_connector->count_modes);
 					// detect desktop connector
 					if (!m_desktop_output && p_connector->connection == DRM_MODE_CONNECTED)
 					{
 						if (!strcmp(m_device_name, "auto") || !strcmp(m_device_name,connector_name) || output_position == screen_pos)
 						{
 							m_desktop_output = p_connector->connector_id;
-							log_verbose("DRM/KMS: <%p,%d> (init) card %d connector %d id %d name %s selected as primary output\n", this, m_desktop_output, num, i,  m_desktop_output, connector_name);
+							log_verbose("DRM/KMS: <%d> (init) card %d connector %d id %d name %s selected as primary output\n", m_id, num, i,  m_desktop_output, connector_name);
 
 							drmModeEncoder *p_encoder = drmModeGetEncoder(m_drm_fd, p_connector->encoder_id);
 
@@ -364,14 +372,14 @@ bool drmkms_timing::init()
 
 									if (mp_crtc_desktop->crtc_id == p_encoder->crtc_id)
 									{
-										log_verbose("DRM/KMS: <%p,%d> (init) desktop mode name %s crtc %d fb %d valid %d\n", this, m_desktop_output, mp_crtc_desktop->mode.name, mp_crtc_desktop->crtc_id, mp_crtc_desktop->buffer_id, mp_crtc_desktop->mode_valid);
+										log_verbose("DRM/KMS: <%d> (init) desktop mode name %s crtc %d fb %d valid %d\n", m_id, mp_crtc_desktop->mode.name, mp_crtc_desktop->crtc_id, mp_crtc_desktop->buffer_id, mp_crtc_desktop->mode_valid);
 										break;
 									}
 									drmModeFreeCrtc(mp_crtc_desktop);
 								}
 							}
 							if (!mp_crtc_desktop)
-								log_error("DRM/KMS: <%p,%d> (init) [ERROR] no crtc found\n", this, m_desktop_output);
+								log_error("DRM/KMS: <%d> (init) [ERROR] no crtc found\n", m_id);
 							drmModeFreeEncoder(p_encoder);
 						}
 						output_position++;
@@ -379,7 +387,7 @@ bool drmkms_timing::init()
 					drmModeFreeConnector(p_connector);
 				}
 				else
-					log_error("DRM/KMS: <%p,%d> (init) [ERROR] card %d connector %d - %d\n", this, m_desktop_output, num, i, p_res->connectors[i]);
+					log_error("DRM/KMS: <%d> (init) [ERROR] card %d connector %d - %d\n", m_id, num, i, p_res->connectors[i]);
 			}
 			drmModeFreeResources(p_res);
 			if (!m_desktop_output)
@@ -405,19 +413,19 @@ bool drmkms_timing::init()
 					}
 					else
 					{
-						log_error("DRM/KMS: <%p,%d> (init) [ERROR] previous DRM object not found\n", this, m_desktop_output);
+						log_error("DRM/KMS: <%d> (init) [ERROR] previous DRM object not found\n", m_id);
 					}
 				}
 				if ( !drmIsMaster(m_drm_fd) )
 				{
-					log_error("DRM/KMS: <%p,%d> (init) [ERROR] no rights on this screen\n", this, m_desktop_output);
+					log_error("DRM/KMS: <%d> (init) [ERROR] no rights on this screen\n", m_id);
 				}
 			}
 		}
 		else
 		{
 			if (!num)
-				log_error("DRM/KMS: <%p,%d> (init) [ERROR] cannot open device %s\n", this, m_desktop_output, drm_name);
+				log_error("DRM/KMS: <%d> (init) [ERROR] cannot open device %s\n", m_id, drm_name);
 			break;
 		}
 	}
@@ -425,7 +433,7 @@ bool drmkms_timing::init()
 	// Handle no screen detected case
 	if(!m_desktop_output)
 	{
-		log_error("DRM/KMS: <%p,%d> (init) [ERROR] no screen detected\n", this, m_desktop_output);
+		log_error("DRM/KMS: <%d> (init) [ERROR] no screen detected\n", m_id);
 		return false;
 	}
 	else
@@ -446,19 +454,19 @@ bool drmkms_timing::update_mode(modeline *mode)
 
 	if (!m_desktop_output)
 	{
-		log_error("DRM/KMS: <%p,%d> (update_mode) [ERROR] no screen detected\n", this, m_desktop_output);
+		log_error("DRM/KMS: <%d> (update_mode) [ERROR] no screen detected\n", m_id);
 		return false;
 	}
 
 	if (!delete_mode(mode))
 	{
-		log_error("DRM/KMS: <%p,%d> (update_mode) [ERROR] delete operation not successful", this, m_desktop_output);
+		log_error("DRM/KMS: <%d> (update_mode) [ERROR] delete operation not successful", m_id);
 		return false;
 	}
 
 	if (!add_mode(mode))
 	{
-		log_error("DRM/KMS: <%p,%d> (update_mode) [ERROR] add operation not successful", this, m_desktop_output);
+		log_error("DRM/KMS: <%d> (update_mode) [ERROR] add operation not successful", m_id);
 		return false;
 	}
 
@@ -476,13 +484,13 @@ bool drmkms_timing::add_mode(modeline *mode)
 	// Handle no screen detected case
 	if (!m_desktop_output)
 	{
-		log_error("DRM/KMS: <%p,%d> (add_mode) [ERROR] no screen detected\n", this, m_desktop_output);
+		log_error("DRM/KMS: <%d> (add_mode) [ERROR] no screen detected\n", m_id);
 		return false;
 	}
 
 	if (!mp_crtc_desktop)
 	{
-		log_error("DRM/KMS: <%p,%d> (add_mode) [ERROR] no desktop crtc\n", this, m_desktop_output);
+		log_error("DRM/KMS: <%d> (add_mode) [ERROR] no desktop crtc\n", m_id);
 		return false;
 	}
 
@@ -504,7 +512,7 @@ bool drmkms_timing::set_timing(modeline *mode)
 	// Handle no screen detected case
 	if (!m_desktop_output)
 	{
-		log_error("DRM/KMS: <%p,%d> (set_timing) [ERROR] no screen detected\n", this, m_desktop_output);
+		log_error("DRM/KMS: <%d> (set_timing) [ERROR] no screen detected\n", m_id);
 		return false;
 	}
 
@@ -512,7 +520,7 @@ bool drmkms_timing::set_timing(modeline *mode)
 	drmModeModeInfo dmode = {};
 
 	// Create specific mode name
-	snprintf(dmode.name, 32, "SR-%p,%d_%dx%d", this, m_desktop_output, mode->hactive, mode->vactive);
+	snprintf(dmode.name, 32, "SR-%d_%dx%d", m_id, mode->hactive, mode->vactive);
         dmode.clock	  = mode->pclock / 1000;
         dmode.hdisplay    = mode->hactive;
         dmode.hsync_start = mode->hbegin;
@@ -535,19 +543,19 @@ bool drmkms_timing::set_timing(modeline *mode)
 
 	if (mode->platform_data == 4815162342)
 	{
-		log_verbose("DRM/KMS: <%p,%d> (set_timing) <debug> restore desktop mode\n", this, m_desktop_output);
+		log_verbose("DRM/KMS: <%d> (set_timing) <debug> restore desktop mode\n", m_id);
 		drmModeSetCrtc(m_drm_fd, mp_crtc_desktop->crtc_id, mp_crtc_desktop->buffer_id, mp_crtc_desktop->x, mp_crtc_desktop->y, &m_desktop_output, 1, &mp_crtc_desktop->mode);
 		if ( m_dumb_handle )
 		{
 			int ret = ioctl(m_drm_fd, DRM_IOCTL_MODE_DESTROY_DUMB, &m_dumb_handle);
 			if (ret)
-				log_verbose("DRM/KMS: <%p,%d> (add_mode) [ERROR] ioctl DRM_IOCTL_MODE_DESTROY_DUMB %d\n", this, m_desktop_output, ret);
+				log_verbose("DRM/KMS: <%d> (add_mode) [ERROR] ioctl DRM_IOCTL_MODE_DESTROY_DUMB %d\n", m_id, ret);
 			m_dumb_handle = 0;
 		}
 		if ( m_framebuffer_id && m_framebuffer_id != mp_crtc_desktop->buffer_id)
 		{
 			if (drmModeRmFB(m_drm_fd, m_framebuffer_id))
-				log_verbose("DRM/KMS: <%p,%d> (add_mode) [ERROR] remove frame buffer\n", this, m_desktop_output);
+				log_verbose("DRM/KMS: <%d> (add_mode) [ERROR] remove frame buffer\n", m_id);
 			m_framebuffer_id = 0;
 		}
 	}
@@ -556,15 +564,15 @@ bool drmkms_timing::set_timing(modeline *mode)
 		unsigned int old_dumb_handle = m_dumb_handle;
 
 		drmModeFB *pframebuffer = drmModeGetFB(m_drm_fd, mp_crtc_desktop->buffer_id);
-		log_verbose("DRM/KMS: <%p,%d> (add_mode) <debug> existing frame buffer id %d size %dx%d bpp %d\n", this, m_desktop_output, mp_crtc_desktop->buffer_id, pframebuffer->width, pframebuffer->height, pframebuffer->bpp);
+		log_verbose("DRM/KMS: <%d> (add_mode) <debug> existing frame buffer id %d size %dx%d bpp %d\n", m_id, mp_crtc_desktop->buffer_id, pframebuffer->width, pframebuffer->height, pframebuffer->bpp);
 		//drmModePlaneRes *pplanes = drmModeGetPlaneResources(m_drm_fd);
-		//log_verbose("DRM/KMS: <%p,%d> (add_mode) <debug> total planes %d\n", this, m_desktop_output, pplanes->count_planes);
+		//log_verbose("DRM/KMS: <%d> (add_mode) <debug> total planes %d\n", m_id, pplanes->count_planes);
 		//drmModeFreePlaneResources(pplanes);
 
 		unsigned int framebuffer_id = mp_crtc_desktop->buffer_id;
 		if (pframebuffer->width < dmode.hdisplay || pframebuffer->height < dmode.vdisplay)
 		{
-			log_verbose("DRM/KMS: <%p,%d> (add_mode) <debug> creating new frame buffer with size %dx%d\n", this, m_desktop_output, dmode.hdisplay, dmode.vdisplay);
+			log_verbose("DRM/KMS: <%d> (add_mode) <debug> creating new frame buffer with size %dx%d\n", m_id, dmode.hdisplay, dmode.vdisplay);
 
 			// create a new dumb fb (not driver specefic)
 			drm_mode_create_dumb create_dumb = {};
@@ -574,11 +582,11 @@ bool drmkms_timing::set_timing(modeline *mode)
 
 			int ret =ioctl(m_drm_fd, DRM_IOCTL_MODE_CREATE_DUMB, &create_dumb);
 			if (ret)
-				log_verbose("DRM/KMS: <%p,%d> (add_mode) [ERROR] ioctl DRM_IOCTL_MODE_CREATE_DUMB %d\n", this, m_desktop_output, ret);
+				log_verbose("DRM/KMS: <%d> (add_mode) [ERROR] ioctl DRM_IOCTL_MODE_CREATE_DUMB %d\n", m_id, ret);
 
 			if (drmModeAddFB(m_drm_fd, dmode.hdisplay, dmode.vdisplay, pframebuffer->depth, pframebuffer->bpp, create_dumb.pitch, create_dumb.handle, &framebuffer_id))
 			{
-				log_error("DRM/KMS: <%p,%d> (add_mode) [ERROR] cannot add frame buffer\n", this, m_desktop_output);
+				log_error("DRM/KMS: <%d> (add_mode) [ERROR] cannot add frame buffer\n", m_id);
 			}
 			else
 			{
@@ -590,7 +598,7 @@ bool drmkms_timing::set_timing(modeline *mode)
 
 			ret = drmIoctl(m_drm_fd, DRM_IOCTL_MODE_MAP_DUMB, &map_dumb);
 			if (ret)
-				log_verbose("DRM/KMS: <%p,%d> (add_mode) [ERROR] ioctl DRM_IOCTL_MODE_MAP_DUMB %d\n", this, m_desktop_output, ret);
+				log_verbose("DRM/KMS: <%d> (add_mode) [ERROR] ioctl DRM_IOCTL_MODE_MAP_DUMB %d\n", m_id, ret);
 
 			void *map = mmap(0, create_dumb.size, PROT_READ | PROT_WRITE, MAP_SHARED, m_drm_fd, map_dumb.offset);
 			if (map != MAP_FAILED)
@@ -600,34 +608,34 @@ bool drmkms_timing::set_timing(modeline *mode)
 			}
 			else
 			{
-				log_verbose("DRM/KMS: <%p,%d> (add_mode) [ERROR] failed to map frame buffer %p\n", this, m_desktop_output, map);
+				log_verbose("DRM/KMS: <%d> (add_mode) [ERROR] failed to map frame buffer %p\n", m_id, map);
 			}
 		}
 
 		drmModeFreeFB(pframebuffer);
 
 		pframebuffer = drmModeGetFB(m_drm_fd, framebuffer_id);
-		log_verbose("DRM/KMS: <%p,%d> (add_mode) <debug> new frame buffer id %d size %dx%d bpp %d\n", this, m_desktop_output, framebuffer_id, pframebuffer->width, pframebuffer->height, pframebuffer->bpp);
+		log_verbose("DRM/KMS: <%d> (add_mode) <debug> new frame buffer id %d size %dx%d bpp %d\n", m_id, framebuffer_id, pframebuffer->width, pframebuffer->height, pframebuffer->bpp);
 		drmModeFreeFB(pframebuffer);
 
 		// set the mode on the crtc
 		if ( drmModeSetCrtc(m_drm_fd, mp_crtc_desktop->crtc_id, framebuffer_id, 0, 0, &m_desktop_output, 1, &dmode))
 		{
-			log_error("DRM/KMS: <%p,%d> (add_mode) [ERROR] cannot attach the mode to the crtc %d frame buffer %d\n", this, m_desktop_output, mp_crtc_desktop->crtc_id, framebuffer_id);
+			log_error("DRM/KMS: <%d> (add_mode) [ERROR] cannot attach the mode to the crtc %d frame buffer %d\n", m_id, mp_crtc_desktop->crtc_id, framebuffer_id);
 		}
 		else
 		{
 			if ( old_dumb_handle )
 			{
-				log_verbose("DRM/KMS: <%p,%d> (add_mode) <debug> remove old dumb %d\n", this, m_desktop_output, old_dumb_handle);
+				log_verbose("DRM/KMS: <%d> (add_mode) <debug> remove old dumb %d\n", m_id, old_dumb_handle);
 				int ret = ioctl(m_drm_fd, DRM_IOCTL_MODE_DESTROY_DUMB, &old_dumb_handle);
 				if (ret)
-					log_verbose("DRM/KMS: <%p,%d> (add_mode) [ERROR] ioctl DRM_IOCTL_MODE_DESTROY_DUMB %d\n", this, m_desktop_output, ret);
+					log_verbose("DRM/KMS: <%d> (add_mode) [ERROR] ioctl DRM_IOCTL_MODE_DESTROY_DUMB %d\n", m_id, ret);
 				old_dumb_handle = 0;
 			}
 			if ( m_framebuffer_id && framebuffer_id != mp_crtc_desktop->buffer_id)
 			{
-				log_verbose("DRM/KMS: <%p,%d> (add_mode) <debug> remove old frame buffer %d\n", this, m_desktop_output, m_framebuffer_id);
+				log_verbose("DRM/KMS: <%d> (add_mode) <debug> remove old frame buffer %d\n", m_id, m_framebuffer_id);
 				drmModeRmFB(m_drm_fd, m_framebuffer_id);
 				m_framebuffer_id = 0;
 			}
@@ -650,7 +658,7 @@ bool drmkms_timing::delete_mode(modeline *mode)
 	// Handle no screen detected case
 	if (!m_desktop_output)
 	{
-		log_error("DRM/KMS: <%p,%d> (delete_mode) [ERROR] no screen detected\n", this, m_desktop_output);
+		log_error("DRM/KMS: <%d> (delete_mode) [ERROR] no screen detected\n", m_id);
 		return false;
 	}
 
@@ -666,7 +674,7 @@ bool drmkms_timing::get_timing(modeline *mode)
 	// Handle no screen detected case
 	if (!m_desktop_output)
 	{
-		log_error("DRM/KMS: <%p,%d> (get_timing) [ERROR] no screen detected\n", this, m_desktop_output);
+		log_error("DRM/KMS: <%d> (get_timing) [ERROR] no screen detected\n", m_id);
 		return false;
 	}
 
@@ -713,7 +721,7 @@ bool drmkms_timing::get_timing(modeline *mode)
 
 				if (strncmp(pdmode->name,"SR-",3) == 0)
 				{
-					log_verbose("DRM/KMS: <%p,%d> (get_timing) [WARNING] modeline %s detected\n", this, m_desktop_output, pdmode->name);
+					log_verbose("DRM/KMS: <%d> (get_timing) [WARNING] modeline %s detected\n", m_id, pdmode->name);
 					mode->type |= CUSTOM_VIDEO_TIMING_DRMKMS;
 				}
 				else
@@ -723,7 +731,7 @@ bool drmkms_timing::get_timing(modeline *mode)
 					// Add the desktop flag to desktop modeline
 					if (!strcmp(pdmode->name,mp_crtc_desktop->mode.name) && pdmode->clock == mp_crtc_desktop->mode.clock && pdmode->vrefresh == mp_crtc_desktop->mode.vrefresh) 
 					{
-						log_verbose("DRM/KMS: <%p,%d> (get_timing) desktop mode name %s refresh %d found\n", this, m_desktop_output, mp_crtc_desktop->mode.name, mp_crtc_desktop->mode.vrefresh);
+						log_verbose("DRM/KMS: <%d> (get_timing) desktop mode name %s refresh %d found\n", m_id, mp_crtc_desktop->mode.name, mp_crtc_desktop->mode.vrefresh);
 						mode->type |= MODE_DESKTOP;
 						mode->platform_data = 4815162342;
 					}
