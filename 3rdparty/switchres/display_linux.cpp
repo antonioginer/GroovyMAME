@@ -43,16 +43,22 @@ linux_display::~linux_display()
 
 bool linux_display::init()
 {
+	// Initialize custom video
+	int method = CUSTOM_VIDEO_TIMING_AUTO;
+
+	if(!strcmp(m_ds.api, "xrandr"))
+		method = CUSTOM_VIDEO_TIMING_XRANDR;
+	else if(!strcmp(m_ds.api, "drmkms"))
+		method = CUSTOM_VIDEO_TIMING_DRMKMS;
+
 	set_factory(new custom_video);
-	set_custom_video(factory()->make(m_ds.screen, NULL, 0, NULL));
+	set_custom_video(factory()->make(m_ds.screen, NULL, method, NULL));
 	if (video()) video()->init();
 
         // Build our display's mode list
 	video_modes.clear();
 	backup_modes.clear();
-
-	// It is not needed to call get_desktop_mode, it is already performed by the get_available_video_modes function
-	// get_desktop_mode();
+	get_desktop_mode();
 	get_available_video_modes();
 
 	filter_modes();
@@ -129,7 +135,7 @@ int linux_display::get_available_video_modes()
 		video()->get_timing(&mode);
 		if (mode.type == 0 || mode.platform_data == 0)
 			break;
-		
+
 		// set the desktop mode
 		if (mode.type & MODE_DESKTOP)
 			memcpy(&desktop_mode, &mode, sizeof(modeline));
