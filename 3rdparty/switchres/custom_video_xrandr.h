@@ -37,6 +37,22 @@ class xrandr_timing : public custom_video
 		static int m_xerrors_flag;
 
 	private:
+		int m_id = 0;
+		XRRModeInfo *find_mode(modeline *mode);
+
+		int m_video_modes_position = 0;
+		char m_device_name[32];
+		Rotation m_desktop_rotation;
+
+		Display *m_pdisplay = NULL;
+		Window m_root;
+
+		int m_desktop_output = -1;
+		XRRModeInfo m_desktop_mode = {};
+		int m_crtc_flags = 0;
+
+		XRRCrtcInfo m_last_crtc = {};
+
 		void *m_xrandr_handle = 0;
 
 		__typeof__(XRRAddOutputMode) *p_XRRAddOutputMode;
@@ -64,19 +80,4 @@ class xrandr_timing : public custom_video
 		__typeof__(XSync) *p_XSync;
 		__typeof__(XUngrabServer) *p_XUngrabServer;
 		__typeof__(XSetErrorHandler) *p_XSetErrorHandler;
-
-		XRRModeInfo *find_mode(modeline *mode);
-
-		int m_video_modes_position = 0;
-		char m_device_name[32];
-		Rotation m_desktop_rotation;
-
-		Display *m_pdisplay = NULL;
-		Window m_root;
-
-		int m_desktop_output = -1;
-		XRRModeInfo m_desktop_mode = {};
-		int m_crtc_flags = 0;
-
-		XRRCrtcInfo m_last_crtc = {};
 };
