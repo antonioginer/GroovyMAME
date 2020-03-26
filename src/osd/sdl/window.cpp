@@ -651,10 +651,10 @@ int sdl_window_info::complete_create()
 	{
 		// default to the current mode exactly
 		temp = monitor()->position_size().dim();
-
+/*
 		// if we're allowed to switch resolutions, override with something better
 		if (video_config.switchres)
-			temp = pick_best_mode();
+			temp = pick_best_mode();*/
 	}
 	else if (m_windowed_dim.width() > 0)
 	{
@@ -804,7 +804,7 @@ int sdl_window_info::complete_create()
 		if (m_win_config.refresh)
 			mode.refresh_rate = m_win_config.refresh;
 
-		SDL_SetWindowDisplayMode(platform_window(), &mode);    // Try to set mode
+//		SDL_SetWindowDisplayMode(platform_window(), &mode);    // Try to set mode
 #ifndef SDLMAME_WIN32
 		/* FIXME: Warp the mouse to 0,0 in case a virtual desktop resolution
 		 * is in place after the mode switch - which will most likely be the case

@@ -77,4 +77,6 @@ class xrandr_timing : public custom_video
 		int m_desktop_output = -1;
 		XRRModeInfo m_desktop_mode = {};
 		int m_crtc_flags = 0;
+
+		XRRCrtcInfo m_last_crtc = {};
 };

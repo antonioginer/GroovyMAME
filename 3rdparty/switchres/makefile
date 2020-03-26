@@ -15,8 +15,8 @@ CPPFLAGS = -O3 -Wall -Wextra
 
 # Linux
 ifeq  ($(PLATFORM),Linux)
-SRC += display_linux.cpp custom_video_xrandr.cpp
-CPPFLAGS += -fPIC
+SRC += display_linux.cpp custom_video_xrandr.cpp custom_video_drmkms.cpp
+CPPFLAGS += -fPIC -I/usr/include/drm
 LIBS = -ldl
 REMOVE = rm -f 
 STATIC_LIB_EXT = a

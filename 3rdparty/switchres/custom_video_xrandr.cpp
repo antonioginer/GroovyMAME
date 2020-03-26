@@ -346,7 +346,10 @@ bool xrandr_timing::init()
 					{
 						// Get screen mode
 						if (crtc_info->mode == resources->modes[m].id)
+						{
 							m_desktop_mode = resources->modes[m];
+							m_last_crtc = *crtc_info;
+						}
 					}
 					XRRFreeCrtcInfo(crtc_info);
 
@@ -548,13 +551,10 @@ bool xrandr_timing::set_timing(modeline *mode)
 	XRROutputInfo *output_info = XRRGetOutputInfo(m_pdisplay, resources, resources->outputs[m_desktop_output]);
 	XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(m_pdisplay, resources, output_info->crtc);
 
-	if (pxmode->id == crtc_info->mode)
+	if (m_last_crtc.mode != crtc_info->mode)
 	{
-		log_verbose("XRANDR: <%p,%d> (set_timing) mode [%04lx] is already active\n", this, m_desktop_output,pxmode->id);
-		XRRFreeCrtcInfo(crtc_info);
-		XRRFreeOutputInfo(output_info);
-		XRRFreeScreenResources(resources);
-		return true;
+			log_error("XRANDR: <%p,%d> (set_timing) [WARNING] screen mode has changed since last switch, forcing crtc replacement (last:[%04lx] now:[%04lx] %ux%u+%d+%d)\n", this, m_desktop_output, m_last_crtc.mode, crtc_info->mode, crtc_info->width, crtc_info->height, crtc_info->x, crtc_info->y);
+			*crtc_info = m_last_crtc;
 	}
 
 	m_xerrors = 0;
@@ -567,11 +567,6 @@ bool xrandr_timing::set_timing(modeline *mode)
 	unsigned int width=0;
 	unsigned int height=0;
 
-	int x_offset = pxmode->width - crtc_info->width;
-	int y_offset = pxmode->height - crtc_info->height;
-	int bound_width = crtc_info->x + crtc_info->width;
-	int bound_height = crtc_info->y + crtc_info->height;
-
 	XRRCrtcInfo *global_crtc = new XRRCrtcInfo[resources->ncrtc];
 
 	// caculate necessary screen size and replace the crtc neighbors if they have at least one side aligned with the mode changed crtc 
@@ -580,7 +575,7 @@ bool xrandr_timing::set_timing(modeline *mode)
 		memcpy(&global_crtc[c], XRRGetCrtcInfo(m_pdisplay, resources, resources->crtcs[c]), sizeof(XRRCrtcInfo));
 		XRRCrtcInfo *crtc_info2 = &global_crtc[c];
 		//log_verbose("****************** XRANDR: <%p,%d> (set_timing) <debug> crtc time information %ld\n", this, m_desktop_output, crtc_info2->timestamp); // to be deleted in final version
-		if ( resources->crtcs[c] == output_info->crtc)
+		if (resources->crtcs[c] == output_info->crtc)
 		{
 			//log_verbose("****************** XRANDR: <%p,%d> (set_timing) <debug> impacted crtc use new mode parameters\n", this, m_desktop_output); // to be deleted in final version
 
@@ -597,16 +592,16 @@ bool xrandr_timing::set_timing(modeline *mode)
 			//log_verbose("****************** XRANDR: <%p,%d> (set_timing) <debug> neighborhood original crtc %d: %04lx %dx%d+%d+%d\n", this, m_desktop_output, c, crtc_info2->mode, crtc_info2->width, crtc_info2->height, crtc_info2->x, crtc_info2->y); // to be deleted in final version
 
 			// relocate crtc impacted by new width
-			if ( crtc_info2->x >= bound_width )
+			if (crtc_info2->x >= crtc_info->x + (int) crtc_info->width)
 			{
-				crtc_info2->x += x_offset;
+				crtc_info2->x += pxmode->width - crtc_info->width;
 				crtc_info2->timestamp = 1;
 			}
 
 			// relocate crtc impacted by new  height
-			if ( crtc_info2->y >= bound_height )
+			if (crtc_info2->y >= crtc_info->y + (int) crtc_info->height)
 			{
-				crtc_info2->y += y_offset;
+				crtc_info2->y += pxmode->height - crtc_info->height;
 				crtc_info2->timestamp = 1;
 			}
 
@@ -687,6 +682,9 @@ bool xrandr_timing::set_timing(modeline *mode)
 	// Recall the impacted crtc to settle parameters
 	crtc_info = XRRGetCrtcInfo(m_pdisplay, resources, output_info->crtc);
 
+	// save last crtc
+	m_last_crtc = *crtc_info;
+
 	// log crtc config modeline change fail 
 	if (crtc_info->mode == 0)
 		log_error("XRANDR: <%p,%d> (set_timing) [ERROR] switching resolution, no modeline\n", this, m_desktop_output);
@@ -696,7 +694,9 @@ bool xrandr_timing::set_timing(modeline *mode)
 	{
 		XRRModeInfo *pxmode2 = &resources->modes[m];
 		if (pxmode2->id == crtc_info->mode)
+		{
 			log_verbose("XRANDR: <%p,%d> (set_timing) active mode [%04lx] name %s clock %6.6fMHz %ux%u+%d+%d\n", this, m_desktop_output, pxmode2->id, pxmode2->name, (double)pxmode2->dotClock / 1000000.0, pxmode->width, pxmode->height, crtc_info->x, crtc_info->y);
+		}
 	}
 
 	XRRFreeCrtcInfo(crtc_info);
