@@ -73,7 +73,6 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 
 	switchres().set_screen(monitor->devicename().c_str());
 	switchres().set_monitor(options.monitor());
-	switchres().set_orientation(options.orientation());
 	switchres().set_modeline(options.modeline());
 	for (int i = 0; i < MAX_RANGES; i++) switchres().set_crt_range(i, options.crt_range(i));
 	switchres().set_doublescan(false);
@@ -114,7 +113,7 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 		config->height = mode->height;
 		config->refresh = mode->refresh;
 
-		if (options().mode_setting())
+		if (options.mode_setting())
 		{
 			display->set_mode(mode);
 			monitor->refresh();
