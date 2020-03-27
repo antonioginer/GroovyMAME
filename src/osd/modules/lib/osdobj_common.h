@@ -88,9 +88,9 @@
 #define OSDOPTION_BGFX_AVI_NAME         "bgfx_avi_name"
 
 #define OSDOPTION_MODELINE_GENERATION   "modeline_generation"
+#define OSDOPTION_MODE_SETTING          "modesetting"
 #define OSDOPTION_MONITOR               "monitor"
 #define OSDOPTION_CONNECTOR             "connector"
-#define OSDOPTION_ORIENTATION           "orientation"
 #define OSDOPTION_INTERLACE             "interlace"
 #define OSDOPTION_DOUBLESCAN            "doublescan"
 #define OSDOPTION_SUPER_WIDTH           "super_width"
@@ -154,9 +154,9 @@ public:
 
 	// full screen options
 	bool switch_res() const { return bool_value(OSDOPTION_SWITCHRES); }
+	bool mode_setting() const { return bool_value(OSDOPTION_MODE_SETTING); }
 	bool modeline_generation() const { return bool_value(OSDOPTION_MODELINE_GENERATION); }
 	const char *monitor() const { return value(OSDOPTION_MONITOR); }
-	const char *orientation() const { return value(OSDOPTION_ORIENTATION); }
 	bool doublescan() const { return bool_value(OSDOPTION_DOUBLESCAN); }
 	bool interlace() const { return bool_value(OSDOPTION_INTERLACE); }
 	int super_width() const { return int_value(OSDOPTION_SUPER_WIDTH); }
