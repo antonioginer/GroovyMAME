@@ -102,11 +102,11 @@ const options_entry osd_options::s_option_entries[] =
 	// full screen options
 	{ nullptr,                                nullptr,          core_options::option_type::HEADER,    "OSD FULL SCREEN OPTIONS" },
 	{ OSDOPTION_SWITCHRES,                    "0",              core_options::option_type::BOOLEAN,   "enable resolution switching" },
+	{ OSDOPTION_MODE_SETTING,                 "0",              core_options::option_type::BOOLEAN,   "force resolution switching through Switchres backend" },
 	{ OSDOPTION_MODELINE_GENERATION ";ml",    "1",              core_options::option_type::BOOLEAN,   "Automatic generation of modelines based on the specified monitor type" },
 	{ OSDOPTION_MONITOR ";m",                 "generic_15",     core_options::option_type::STRING,    "Monitor type, e.g.: generic_15, arcade_15, lcd, custom, etc." },
-	{ OSDOPTION_ORIENTATION ";or",            "horizontal",     core_options::option_type::STRING,    "Monitor orientation (horizontal|vertical|rotate|rotate_r|rotate_l)" },
 	{ OSDOPTION_INTERLACE ";in",              "1",              core_options::option_type::BOOLEAN,   "Enable interlaced scanning when necessary" },
-	{ OSDOPTION_DOUBLESCAN ";ds",             "1",              core_options::option_type::BOOLEAN,   "Enable double scanning when necessary (unsupported under Windows)" },
+	{ OSDOPTION_DOUBLESCAN ";ds",             "0",              core_options::option_type::BOOLEAN,   "Enable double scanning when necessary (unsupported by some backends/gpus)" },
 	{ OSDOPTION_SUPER_WIDTH ";cs",            "2560",           core_options::option_type::INTEGER,   "Automatically apply -unevenstretchx if resolution width is equal or greater than this value" },
 	{ OSDOPTION_CHANGERES ";cr",              "1",              core_options::option_type::BOOLEAN,   "Enable dynamic in-game video mode switching" },
 	{ OSDOPTION_POWERSTRIP ";ps",             "0",              core_options::option_type::BOOLEAN,   "Use Powerstrip API for dynamic setting of custom video timings" },
@@ -133,7 +133,7 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_CRT_RANGE "9",                OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "Add custom CRT range" },
 
 	{ nullptr,                                nullptr,          core_options::option_type::HEADER,    "OSD ACCELERATED VIDEO OPTIONS" },
-	{ OSDOPTION_FILTER ";glfilter;flt",       "1",              core_options::option_type::BOOLEAN,   "use bilinear filtering when scaling emulated video" },
+	{ OSDOPTION_FILTER ";glfilter;flt",       "0",              core_options::option_type::BOOLEAN,   "use bilinear filtering when scaling emulated video" },
 	{ OSDOPTION_PRESCALE "(1-8)",             "1",              core_options::option_type::INTEGER,   "scale emulated video by this factor before applying filters/shaders" },
 
 #if USE_OPENGL
