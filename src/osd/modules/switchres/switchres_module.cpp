@@ -114,8 +114,11 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 		config->height = mode->height;
 		config->refresh = mode->refresh;
 
-		//display->set_mode(mode);
-		monitor->refresh();
+		if (options().mode_setting())
+		{
+			display->set_mode(mode);
+			monitor->refresh();
+		}
 
 		set_options(display, target);
 	}
