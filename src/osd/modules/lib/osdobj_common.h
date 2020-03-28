@@ -165,8 +165,8 @@ public:
 	bool lock_system_modes() const { return bool_value(OSDOPTION_LOCK_SYSTEM_MODES); }
 	bool lock_unsupported_modes() const { return bool_value(OSDOPTION_LOCK_UNSUPPORTED_MODES); }
 	bool refresh_dont_care() const { return bool_value(OSDOPTION_REFRESH_DONT_CARE); }
-	const char *dotclock_min() const { return value(OSDOPTION_DOTCLOCK_MIN); }
-	const char *sync_refresh_tolerance() const { return value(OSDOPTION_SYNC_REFRESH_TOLERANCE); }
+	float dotclock_min() const { return float_value(OSDOPTION_DOTCLOCK_MIN); }
+	float sync_refresh_tolerance() const { return float_value(OSDOPTION_SYNC_REFRESH_TOLERANCE); }
 	int frame_delay() const { return int_value(OSDOPTION_FRAME_DELAY); }
 	int vsync_offset() const { return int_value(OSDOPTION_VSYNC_OFFSET); }
 	bool black_frame_insertion() const { return bool_value(OSDOPTION_BLACK_FRAME_INSERTION); }
