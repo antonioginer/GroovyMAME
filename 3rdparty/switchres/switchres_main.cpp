@@ -68,7 +68,6 @@ int main(int argc, char **argv)
 			{"switch",      no_argument,       0, 's'},
 			{"launch",      required_argument, 0, 'l'},
 			{"monitor",     required_argument, 0, 'm'},
-			{"orientation", required_argument, 0, 'o'},
 			{"aspect",      required_argument, 0, 'a'},
 			{"rotated",     no_argument,       0, 'r'},
 			{"display",     required_argument, 0, 'd'},
@@ -79,7 +78,7 @@ int main(int argc, char **argv)
 		};
 
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "vhcsl:m:o:a:rd:f:i:", long_options, &option_index);
+		int c = getopt_long(argc, argv, "vhcsl:m:a:rd:f:i:", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -115,10 +114,6 @@ int main(int argc, char **argv)
 
 			case 'm':
 				switchres.set_monitor(optarg);
-				break;
-
-			case 'o':
-				switchres.set_orientation(optarg);
 				break;
 
 			case 'r':
@@ -261,7 +256,6 @@ int show_usage()
 		"  -s, --switch                      Switch to video mode\n"
 		"  -l, --launch <command>            Launch <command>\n"
 		"  -m, --monitor <preset>            Monitor preset (generic_15, arcade_15, pal, ntsc, etc.)\n"
-		"  -o, --orientation <orientation>   Monitor orientation (horizontal, vertical, rotate_r, rotate_l)\n"
 		"  -a  --aspect <num:den>            Monitor aspect ratio\n"
 		"  -r  --rotated                     Original mode's native orientation is rotated\n"
 		"  -d, --display <OS_display_name>   Use target display (Windows: \\\\.\\DISPLAY1, ... Linux: VGA-0, ...)\n"
