@@ -710,9 +710,9 @@ int sdl_window_info::complete_create()
 	m_extra_flags |= (fullscreen() ?
 			SDL_WINDOW_BORDERLESS | SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE);
 
-#if defined(SDLMAME_WIN32)
+//#if defined(SDLMAME_WIN32)
 	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
-#endif
+//#endif
 
 	// get monitor work area for centering
 	osd_rect work = monitor()->usuable_position_size();
