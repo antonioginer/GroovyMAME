@@ -75,7 +75,16 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	switchres().set_monitor(options.monitor());
 	switchres().set_modeline(options.modeline());
 	for (int i = 0; i < MAX_RANGES; i++) switchres().set_crt_range(i, options.crt_range(i));
-	switchres().set_doublescan(false);
+	switchres().set_modeline_generation(options.modeline_generation());
+	switchres().set_lock_unsupported_modes(options.lock_unsupported_modes());
+	switchres().set_lock_system_modes(options.lock_system_modes());
+	switchres().set_refresh_dont_care(options.refresh_dont_care());
+
+	switchres().set_interlace(options.interlace());
+	switchres().set_doublescan(options.doublescan());
+	switchres().set_dotclock_min(options.dotclock_min());
+	switchres().set_refresh_tolerance(options.sync_refresh_tolerance());
+	switchres().set_super_width(options.super_width());
 
 	modeline user_mode = {};
 	user_mode.width = config->width;
