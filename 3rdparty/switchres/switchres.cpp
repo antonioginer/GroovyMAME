@@ -76,7 +76,6 @@ switchres_manager::switchres_manager()
 {
 	// Set Switchres default config options
 	set_monitor("generic_15");
-	set_orientation("horizontal");
 	set_modeline("auto");
 	set_lcd_range("auto");
 	for (int i = 0; i++ < MAX_RANGES;) set_crt_range(i, "auto");
@@ -124,9 +123,10 @@ display_manager* switchres_manager::add_display()
 	display_manager *display = m_display_factory->make(&ds);
 
 	displays.push_back(display);
+	display->set_index(displays.size() - 1);
 
-	log_verbose("Switchres: v%s, Monitor: %s, Orientation: %s, Modeline generation: %s\n",
-		SWITCHRES_VERSION, ds.monitor, ds.orientation, ds.modeline_generation?"enabled":"disabled");
+	log_verbose("Switchres(v%s) display[%d]: monitor[%s] generation[%s]\n",
+		SWITCHRES_VERSION, display->index(), ds.monitor, ds.modeline_generation?"on":"off");
 
 	display->parse_options();
 
@@ -162,9 +162,6 @@ bool switchres_manager::parse_config(const char *file_name)
 				case s2i("monitor"):
 					transform(value.begin(), value.end(), value.begin(), ::tolower);
 					set_monitor(value.c_str());
-					break;
-				case s2i("orientation"):
-					set_orientation(value.c_str());
 					break;
 				case s2i("crt_range0"):
 					set_crt_range(0, value.c_str());

@@ -30,7 +30,6 @@ typedef struct display_settings
 	char   ps_timing[256];
 
 	char   monitor[32];
-	char   orientation[32];
 	char   modeline[256];
 	char   crt_range[MAX_RANGES][256];
 	char   lcd_range[256];
@@ -60,11 +59,11 @@ public:
 	custom_video *video() const { return m_video; }
 	modeline user_mode() const { return m_user_mode; }
 	modeline *best_mode() const { return m_best_mode; }
+	int index() const { return m_index; }
 	bool desktop_is_rotated() const { return m_desktop_is_rotated; }
 
 	// getters (display manager)
 	const char *set_monitor() { return (const char*) &m_ds.monitor; }
-	const char *orientation() { return (const char*) &m_ds.orientation; }
 	const char *user_modeline() { return (const char*) &m_ds.modeline; }
 	const char *crt_range(int i) { return (const char*) &m_ds.crt_range[i]; }
 	const char *lcd_range() { return (const char*) &m_ds.lcd_range; }
@@ -89,6 +88,7 @@ public:
 	void set_factory(custom_video *factory) { m_factory = factory; }
 	void set_custom_video(custom_video *video) { m_video = video; }
 	void set_user_mode(modeline *mode) { m_user_mode = *mode; filter_modes(); }
+	void set_index(int index) { m_index = index; }
 	void set_desktop_is_rotated(bool value) { m_desktop_is_rotated = value; }
 	void set_rotation(bool value) { m_ds.gs.rotation = value; }
 	void set_monitor_aspect(float aspect) { m_ds.gs.monitor_aspect = aspect; }
@@ -125,6 +125,7 @@ private:
 	modeline m_user_mode = {};
 	modeline *m_best_mode = 0;
 
+	int m_index = 0;
 	bool m_desktop_is_rotated = 0;
 };
 
