@@ -157,7 +157,8 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		if (t_mode->type & X_RES_EDITABLE)
 		{
 			x_scale = y_scale;
-			t_mode->hactive = normalize(double(t_mode->hactive) * double(x_scale) * cs->monitor_aspect / (cs->rotation? (1.0/(STANDARD_CRT_ASPECT)) : (STANDARD_CRT_ASPECT)), 8);
+			double aspect_corrector = max(1.0f, cs->monitor_aspect / (cs->rotation? (1.0/(STANDARD_CRT_ASPECT)) : (STANDARD_CRT_ASPECT)));
+			t_mode->hactive = normalize(double(t_mode->hactive) * double(x_scale) * aspect_corrector, 8);
 		}
 
 		// otherwise, try to get the best out of our current xres
