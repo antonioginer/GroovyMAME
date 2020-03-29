@@ -67,13 +67,13 @@ public:
 	void set_ps_timing(const char *ps_timing) { strncpy(ds.ps_timing, ps_timing, sizeof(ds.ps_timing)-1); }
 
 	//setters (modeline generator)
-	void set_interlace(bool value) { gs.interlace = value; }
-	void set_doublescan(bool value) { gs.doublescan = value; }
-	void set_dotclock_min(double value) { gs.pclock_min = value * 1000000; }
-	void set_refresh_tolerance(double value) { gs.refresh_tolerance = value; }
-	void set_super_width(int value) { gs.super_width = value; }
-	void set_rotation(bool value) { gs.rotation = value; }
-	void set_monitor_aspect(double value) { gs.monitor_aspect = value; }
+	void set_interlace(bool value) { ds.gs.interlace = value; }
+	void set_doublescan(bool value) { ds.gs.doublescan = value; }
+	void set_dotclock_min(double value) { ds.gs.pclock_min = value * 1000000; }
+	void set_refresh_tolerance(double value) { ds.gs.refresh_tolerance = value; }
+	void set_super_width(int value) { ds.gs.super_width = value; }
+	void set_rotation(bool value) { ds.gs.rotation = value; }
+	void set_monitor_aspect(double value) { ds.gs.monitor_aspect = value; }
 	void set_monitor_aspect(const char* aspect) { set_monitor_aspect(get_aspect(aspect)); }
 
 	// interface
@@ -83,7 +83,6 @@ public:
 	//settings
 	config_settings cs;
 	display_settings ds;
-	generator_settings gs;
 
 	// display list
 	std::vector<display_manager *> displays;
