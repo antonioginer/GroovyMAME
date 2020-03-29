@@ -245,6 +245,12 @@ bool switchres_module::check_resolution_change()
 
 void switchres_module::set_options(display_manager* display, render_target *target)
 {
+	#if defined(OSD_WINDOWS)
+		windows_options &options = downcast<windows_options &>(machine().options());
+	#elif defined(OSD_SDL)
+		sdl_options &options = downcast<sdl_options &>(machine().options());
+	#endif
+
 	modeline *best_mode = display->best_mode();
 
 	// Set scaling/stretching options
@@ -255,15 +261,27 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 	// Update target if it's already initialized
 	if (target)
 	{
-		if (machine().options().uneven_stretch())
+		if (options.uneven_stretch())
 			target->set_scale_mode(SCALE_FRACTIONAL);
-		else if(machine().options().uneven_stretch_x())
+		else if(options.uneven_stretch_x())
 			target->set_scale_mode(SCALE_FRACTIONAL_X);
-		else if(machine().options().uneven_stretch_y())
+		else if(options.uneven_stretch_y())
 			target->set_scale_mode(SCALE_FRACTIONAL_Y);
 		else
 			target->set_scale_mode(SCALE_INTEGER);
 	}
+
+	// Black frame insertion / multithreading
+	bool black_frame_insertion = options.black_frame_insertion() && best_mode->result.v_scale > 1 && best_mode->vfreq > 100;
+	set_option(OSDOPTION_BLACK_FRAME_INSERTION, black_frame_insertion);
+
+	// Set MAME OSD specific options
+
+	// Vertical synchronization management (autosync)
+	// Disable -syncrefresh if our vfreq is scaled or out of syncrefresh_tolerance
+	bool sync_refresh_effective = black_frame_insertion || !((best_mode->result.weight & R_V_FREQ_OFF) || best_mode->result.v_scale > 1);
+	set_option(OSDOPTION_WAITVSYNC, options.autosync()? sync_refresh_effective : options.wait_vsync());
+	set_option(OPTION_THROTTLE, options.autosync()? !sync_refresh_effective : options.throttle());
 }
 
 //============================================================
@@ -272,9 +290,13 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 
 void switchres_module::set_option(const char *option_ID, bool state)
 {
-	emu_options &options = machine().options();
+	#if defined(OSD_WINDOWS)
+		windows_options &options = downcast<windows_options &>(machine().options());
+	#elif defined(OSD_SDL)
+		sdl_options &options = downcast<sdl_options &>(machine().options());
+	#endif
 
 	//options.set_value(option_ID, state, OPTION_PRIORITY_SWITCHRES);
 	options.set_value(option_ID, state, OPTION_PRIORITY_NORMAL+1);
-	osd_printf_verbose("SwitchRes: Setting option -%s%s\n", machine().options().bool_value(option_ID)?"":"no", option_ID);
+	osd_printf_verbose("SwitchRes: Setting option -%s%s\n", options.bool_value(option_ID)?"":"no", option_ID);
 }

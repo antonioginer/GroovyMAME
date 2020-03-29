@@ -115,6 +115,7 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_REFRESH_DONT_CARE ";rdc",     "0",              core_options::option_type::BOOLEAN,   "Ignore video mode's refresh reported by OS when checking ranges" },
 	{ OSDOPTION_DOTCLOCK_MIN ";dcm",          "0",              core_options::option_type::FLOAT,     "Lowest pixel clock supported by video card, in MHz, default is 0" },
 	{ OSDOPTION_SYNC_REFRESH_TOLERANCE ";srt","2.0",            core_options::option_type::FLOAT,     "Maximum refresh difference, in Hz, allowed in order to synchronize" },
+	{ OSDOPTION_AUTOSYNC,                     "0",              core_options::option_type::BOOLEAN,   "automatically enable syncrefresh if refresh difference is below syncrefresh_tolerance" },
 	{ OSDOPTION_FRAME_DELAY ";fd",            "0",              core_options::option_type::INTEGER,   "Delays the start of each frame to minimize input lag (0-9)"},
 	{ OSDOPTION_VSYNC_OFFSET,                 "0",              core_options::option_type::INTEGER,	  "Offset vsync position by this many lines to prevent tearing with frame_delay and high-resolution displays" },
 	{ OSDOPTION_BLACK_FRAME_INSERTION ";bfi", "0",              core_options::option_type::BOOLEAN,   "Inserts a black frame after each normal frame, intended to reduce motion blur on 120 Hz monitors" },
