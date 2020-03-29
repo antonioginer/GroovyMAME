@@ -14,13 +14,6 @@
 
 // MAME headers
 #include "emu.h"
-#include "render.h"
-
-#include "rendutil.h"
-#include "emuopts.h"
-#include "../frontend/mame/mameopts.h"
-
-#include "modules/osdwindow.h"
 
 // MAMEOS headers
 #if defined(OSD_WINDOWS)
@@ -29,6 +22,7 @@
 #include "osdsdl.h"
 #endif
 
+#include "modules/osdwindow.h"
 #include <switchres/switchres.h>
 #include "switchres_module.h"
 
