@@ -101,6 +101,7 @@
 #define OSDOPTION_REFRESH_DONT_CARE     "refresh_dont_care"
 #define OSDOPTION_DOTCLOCK_MIN          "dotclock_min"
 #define OSDOPTION_SYNC_REFRESH_TOLERANCE "sync_refresh_tolerance"
+#define OSDOPTION_AUTOSYNC              "autosync"
 #define OSDOPTION_FRAME_DELAY           "frame_delay"
 #define OSDOPTION_VSYNC_OFFSET          "vsync_offset"
 #define OSDOPTION_BLACK_FRAME_INSERTION "black_frame_insertion"
@@ -167,6 +168,7 @@ public:
 	bool refresh_dont_care() const { return bool_value(OSDOPTION_REFRESH_DONT_CARE); }
 	float dotclock_min() const { return float_value(OSDOPTION_DOTCLOCK_MIN); }
 	float sync_refresh_tolerance() const { return float_value(OSDOPTION_SYNC_REFRESH_TOLERANCE); }
+	bool autosync() const { return bool_value(OSDOPTION_AUTOSYNC); }
 	int frame_delay() const { return int_value(OSDOPTION_FRAME_DELAY); }
 	int vsync_offset() const { return int_value(OSDOPTION_VSYNC_OFFSET); }
 	bool black_frame_insertion() const { return bool_value(OSDOPTION_BLACK_FRAME_INSERTION); }
