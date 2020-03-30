@@ -869,12 +869,10 @@ bool xrandr_timing::get_timing(modeline *mode)
 				// Add the rotation flag from the crtc
 				mode->type |= m_crtc_flags;
 
-				if (strncmp(pxmode->name,"SR-",3) == 0) {
+				mode->type |= CUSTOM_VIDEO_TIMING_XRANDR;
+
+				if (strncmp(pxmode->name,"SR-",3) == 0)
 					log_verbose("XRANDR: <%d> (get_timing) [WARNING] modeline %s detected\n", m_id, pxmode->name);
-					mode->type |= CUSTOM_VIDEO_TIMING_XRANDR;
-				} else {
-					mode->type |= CUSTOM_VIDEO_TIMING_SYSTEM;
-				}
 		
 				// Add the desktop flag to desktop modeline
 				if (m_desktop_mode.id == pxmode->id)
