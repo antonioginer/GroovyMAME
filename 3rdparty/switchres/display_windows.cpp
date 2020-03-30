@@ -102,6 +102,7 @@ bool windows_display::init()
 	backup_modes.clear();
 	get_desktop_mode();
 	get_available_video_modes();
+	if (!strcmp(m_ds.monitor, "lcd")) auto_specs();
 	filter_modes();
 
 	return true;
@@ -113,7 +114,7 @@ bool windows_display::init()
 
 bool windows_display::set_mode(modeline *mode)
 {
-	if (mode) return set_desktop_mode(mode, CDS_FULLSCREEN);
+	if (mode) return set_desktop_mode(mode, CDS_FULLSCREEN | CDS_RESET);
 
 	return false;
 }
