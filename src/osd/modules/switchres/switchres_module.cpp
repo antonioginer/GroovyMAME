@@ -69,6 +69,7 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	switchres().set_monitor(options.monitor());
 	switchres().set_modeline(options.modeline());
 	for (int i = 0; i < MAX_RANGES; i++) switchres().set_crt_range(i, options.crt_range(i));
+	switchres().set_lcd_range(options.lcd_range());
 	switchres().set_modeline_generation(options.modeline_generation());
 	switchres().set_lock_unsupported_modes(options.lock_unsupported_modes());
 	switchres().set_lock_system_modes(options.lock_system_modes());

@@ -61,6 +61,7 @@ bool linux_display::init()
 	get_desktop_mode();
 	get_available_video_modes();
 
+	if (!strcmp(m_ds.monitor, "lcd")) auto_specs();
 	filter_modes();
 
 	return true;
