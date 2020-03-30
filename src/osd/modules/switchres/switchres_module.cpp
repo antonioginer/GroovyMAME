@@ -276,6 +276,12 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 	bool sync_refresh_effective = black_frame_insertion || !((best_mode->result.weight & R_V_FREQ_OFF) || best_mode->result.v_scale > 1);
 	set_option(OSDOPTION_WAITVSYNC, options.autosync()? sync_refresh_effective : options.wait_vsync());
 	set_option(OPTION_THROTTLE, options.autosync()? !sync_refresh_effective : options.throttle());
+
+	#if defined(OSD_WINDOWS)
+		downcast<windows_osd_interface &>(machine().osd()).extract_video_config();
+	#elif defined(OSD_SDL)
+		downcast<sdl_osd_interface &>(machine().osd()).extract_video_config();
+	#endif
 }
 
 //============================================================
