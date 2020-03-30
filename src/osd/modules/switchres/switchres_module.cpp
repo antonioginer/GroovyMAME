@@ -87,9 +87,10 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	user_mode.refresh = config->refresh;
 
 	display_manager *display = switchres().add_display();
-	display->init();
-	display->set_rotation(effective_orientation(display, target));
 	display->set_user_mode(&user_mode);
+	display->init();
+
+	display->set_rotation(effective_orientation(display, target));
 	display->set_monitor_aspect(display->desktop_is_rotated()? 1.0f / monitor->aspect() : monitor->aspect());
 
 	int minwidth, minheight;
