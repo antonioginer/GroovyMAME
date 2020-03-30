@@ -392,3 +392,40 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 	*m_best_mode = best_mode;
 	return m_best_mode;
 }
+
+//============================================================
+//  display_manager::auto_specs
+//============================================================
+
+bool display_manager::auto_specs()
+{
+	// Make sure we have a valid mode
+	if (desktop_mode.width == 0 || desktop_mode.height == 0 || desktop_mode.refresh == 0)
+	{
+		log_error("Switchres: Invalid desktop mode %dx%d@%d\n", desktop_mode.width, desktop_mode.height, desktop_mode.refresh);
+		return false;
+	}
+
+	log_verbose("Switchres: Creating automatic specs for LCD based on %s\n", (desktop_mode.type & CUSTOM_VIDEO_TIMING_SYSTEM)? "VESA GTF" : "current timings");
+
+	// Make sure our current refresh is within range if set to auto
+	if (!strcmp(m_ds.lcd_range, "auto"))
+	{
+		sprintf(m_ds.lcd_range, "%d-%d", desktop_mode.refresh - 1, desktop_mode.refresh + 1);
+		monitor_fill_lcd_range(range, m_ds.lcd_range);
+	}
+
+	// Create a working range with the best possible information
+	if (desktop_mode.type & CUSTOM_VIDEO_TIMING_SYSTEM) modeline_vesa_gtf(&desktop_mode);
+	modeline_to_monitor_range(range, &desktop_mode);
+	monitor_show_range(range);
+
+	// Force our resolution to LCD's native one
+	modeline user_mode = {};
+	user_mode.width = desktop_mode.width;
+	user_mode.height = desktop_mode.height;
+	user_mode.refresh = desktop_mode.refresh;
+	set_user_mode(&user_mode);
+
+	return true;
+}

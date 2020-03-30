@@ -107,6 +107,7 @@ public:
 	// mode list handling
 	bool filter_modes();
 	bool restore_modes();
+	bool auto_specs();
 
 	// mode list
 	std::vector<modeline> video_modes = {};
