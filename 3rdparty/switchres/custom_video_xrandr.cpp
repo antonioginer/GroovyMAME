@@ -637,7 +637,13 @@ bool xrandr_timing::set_timing(modeline *mode)
 
 			crtc_info2->mode = pxmode->id;
 			crtc_info2->timestamp = 1;
-		} else {
+		} 
+		else if (output_info->crtc == 0 || crtc_info2->mode == 0)
+		{
+			log_verbose("****************** XRANDR: <%d> (set_timing) <debug> crtc %d skipped mode %04lx\n", m_id, c, crtc_info2->mode); // to be deleted in final version
+		}
+		else 
+		{
 			log_verbose("****************** XRANDR: <%d> (set_timing) <debug> neighborhood original crtc %d: %04lx %dx%d+%d+%d\n", m_id, c, crtc_info2->mode, crtc_info2->width, crtc_info2->height, crtc_info2->x, crtc_info2->y); // to be deleted in final version
 
 			// relocate crtc impacted by new width
@@ -669,10 +675,10 @@ bool xrandr_timing::set_timing(modeline *mode)
 	for (int c = 0;c < resources->ncrtc;c++)
 	{
 		XRRCrtcInfo *crtc_info2 = XRRGetCrtcInfo(m_pdisplay, resources, resources->crtcs[c]);
-		log_verbose("++++++++++++++++++ XRANDR: <%d> (set_timing) <debug> disable crtc %d mode id %04lx time %ld/%ld\n", m_id, c, crtc_info2->mode, crtc_info2->timestamp, global_crtc[c].timestamp);
 		// checking mode might not be necessary due to timestamp value 
 		if ( crtc_info2->mode != 0 && global_crtc[c].timestamp == 1)
 		{
+			log_verbose("++++++++++++++++++ XRANDR: <%d> (set_timing) <debug> disable crtc %d mode id %04lx time %ld/%ld\n", m_id, c, crtc_info2->mode, crtc_info2->timestamp, global_crtc[c].timestamp);
 			if (XRRSetCrtcConfig(m_pdisplay, resources, resources->crtcs[c], CurrentTime, 0, 0, None, RR_Rotate_0, NULL, 0) != RRSetConfigSuccess)
 			{
 				log_error("XRANDR: <%d> (set_timing) [ERROR] when disabling CRTC\n", m_id);
