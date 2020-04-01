@@ -148,7 +148,7 @@ class adl_timing : public custom_video
 		const char *api_name() { return "AMD ADL"; }
 		bool init();
 		void close();
-		int caps() { return CUSTOM_VIDEO_CAPS_UPDATE | CUSTOM_VIDEO_CAPS_ADD; }
+		int caps() { return CUSTOM_VIDEO_CAPS_UPDATE | CUSTOM_VIDEO_CAPS_ADD | CUSTOM_VIDEO_CAPS_DESKTOP_EDITABLE; }
 
 		bool add_mode(modeline *mode);
 		bool delete_mode(modeline *mode);
@@ -183,10 +183,11 @@ class adl_timing : public custom_video
 
 		HINSTANCE hDLL;
 		LPAdapterInfo lpAdapterInfo = NULL;
-		LPAdapterList lpAdapter;
-		int iNumberAdapters;
-		int cat_version;
-		int sub_version;
+		LPAdapterList lpAdapter = NULL;;
+		int iNumberAdapters = 0;
+		int cat_version = 0;
+		int sub_version = 0;
+		bool is_patched = false;
 
 		ADL_CONTEXT_HANDLE m_adl = 0;
 		ADLDisplayModeInfo adl_mode[MAX_MODELINES];

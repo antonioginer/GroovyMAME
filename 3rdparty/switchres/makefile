@@ -13,10 +13,14 @@ FINAL_CXX=$(CROSS_COMPILE)$(CXX)
 FINAL_AR=$(CROSS_COMPILE)$(AR)
 CPPFLAGS = -O3 -Wall -Wextra
 
+PKG_CONFIG=pkg-config
+
 # Linux
 ifeq  ($(PLATFORM),Linux)
+EXTRA_LIBS = libdrm
+CPPFLAGS += $(shell $(PKG_CONFIG) --cflags $(EXTRA_LIBS))
 SRC += display_linux.cpp custom_video_xrandr.cpp custom_video_drmkms.cpp
-CPPFLAGS += -fPIC -I/usr/include/drm
+CPPFLAGS += -fPIC
 LIBS = -ldl
 REMOVE = rm -f 
 STATIC_LIB_EXT = a

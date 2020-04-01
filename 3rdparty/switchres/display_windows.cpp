@@ -217,7 +217,6 @@ int windows_display::get_available_video_modes()
 			if (video() && video()->get_timing(&m))
 			{
 				j++;
-				if (m.type & MODE_DESKTOP) memcpy(&desktop_mode, &m, sizeof(modeline));
 				log_mode(&m);
 			}
 			else
@@ -225,6 +224,9 @@ int windows_display::get_available_video_modes()
 				m.type |= CUSTOM_VIDEO_TIMING_SYSTEM;
 				log_verbose("system mode\n");
 			}
+
+			// Save our desktop mode now that we queried detailed timings
+			if (m.type & MODE_DESKTOP) desktop_mode = m;
 
 			video_modes.push_back(m);
 			backup_modes.push_back(m);
