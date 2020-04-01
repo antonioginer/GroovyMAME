@@ -104,7 +104,8 @@ LRESULT CALLBACK resync_handler::my_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
 {
 	switch (msg)
 	{
-		case WM_DEVICECHANGE:
+		//case WM_DEVICECHANGE:
+		case WM_DISPLAYCHANGE:
 		{
 			m_is_notified = true;
 			m_event.notify_one();

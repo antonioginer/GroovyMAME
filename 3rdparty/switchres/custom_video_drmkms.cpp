@@ -719,22 +719,18 @@ bool drmkms_timing::get_timing(modeline *mode)
 				//Add the rotation flag from the plane (DRM_MODE_ROTATE_xxx)
 				//todo mode->type |= MODE_ROTATED;
 
+				mode->type |= CUSTOM_VIDEO_TIMING_DRMKMS;
+
 				if (strncmp(pdmode->name,"SR-",3) == 0)
 				{
 					log_verbose("DRM/KMS: <%d> (get_timing) [WARNING] modeline %s detected\n", m_id, pdmode->name);
-					mode->type |= CUSTOM_VIDEO_TIMING_DRMKMS;
 				}
-				else
+				else if (!strcmp(pdmode->name,mp_crtc_desktop->mode.name) && pdmode->clock == mp_crtc_desktop->mode.clock && pdmode->vrefresh == mp_crtc_desktop->mode.vrefresh) 
 				{
-					mode->type |= CUSTOM_VIDEO_TIMING_SYSTEM;
-
 					// Add the desktop flag to desktop modeline
-					if (!strcmp(pdmode->name,mp_crtc_desktop->mode.name) && pdmode->clock == mp_crtc_desktop->mode.clock && pdmode->vrefresh == mp_crtc_desktop->mode.vrefresh) 
-					{
-						log_verbose("DRM/KMS: <%d> (get_timing) desktop mode name %s refresh %d found\n", m_id, mp_crtc_desktop->mode.name, mp_crtc_desktop->mode.vrefresh);
-						mode->type |= MODE_DESKTOP;
-						mode->platform_data = 4815162342;
-					}
+					log_verbose("DRM/KMS: <%d> (get_timing) desktop mode name %s refresh %d found\n", m_id, mp_crtc_desktop->mode.name, mp_crtc_desktop->mode.vrefresh);
+					mode->type |= MODE_DESKTOP;
+					mode->platform_data = 4815162342;
 				}
 			}
 			else

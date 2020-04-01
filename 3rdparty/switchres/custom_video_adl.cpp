@@ -208,11 +208,13 @@ bool adl_timing::get_driver_version(char *device_key)
 		BYTE cat_ver[32];
 		DWORD length = sizeof(cat_ver);
 		if ((RegQueryValueExA(hkey, "Catalyst_Version", NULL, NULL, cat_ver, &length) == ERROR_SUCCESS) ||
-			(RegQueryValueExA(hkey, "RadeonSoftwareVersion", NULL, NULL, cat_ver, &length) == ERROR_SUCCESS))
+			(RegQueryValueExA(hkey, "RadeonSoftwareVersion", NULL, NULL, cat_ver, &length) == ERROR_SUCCESS) ||
+			(RegQueryValueExA(hkey, "DriverVersion", NULL, NULL, cat_ver, &length) == ERROR_SUCCESS))
 		{
 			found = true;
+			is_patched = (RegQueryValueExA(hkey, "CalamityRelease", NULL, NULL, NULL, NULL) == ERROR_SUCCESS);
 			sscanf((char *)cat_ver, "%d.%d", &cat_version, &sub_version);
-			log_verbose("AMD driver version %d.%d\n", cat_version, sub_version);
+			log_verbose("AMD driver version %d.%d%s\n", cat_version, sub_version, is_patched? "(patched)":"");
 		}
 		RegCloseKey(hkey);
 	}
@@ -482,11 +484,14 @@ bool adl_timing::delete_mode(modeline *mode)
 
 bool adl_timing::update_mode(modeline *mode)
 {
-	if (!set_timing_override(mode, TIMING_UPDATE))
+	bool refresh_required = !is_patched || (mode->type & MODE_DESKTOP);
+
+	if (!set_timing_override(mode, refresh_required? TIMING_UPDATE_LIST : TIMING_UPDATE))
 	{
 		return false;
 	}
 
+	if (refresh_required) m_resync.wait();
 	mode->type |= CUSTOM_VIDEO_TIMING_ATI_ADL;
 	return true;
 }
