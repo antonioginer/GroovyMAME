@@ -809,6 +809,10 @@ void win_window_info::update()
 		}
 	}
 
+	// check if we need to change the video mode
+	if (downcast<windows_options &>(machine().options()).changeres())
+		WINOSD(m_machine)->switchres()->check_resolution_change(m_index, m_monitor.get(), m_target, &m_win_config);
+
 	// if we're visible and running and not in the middle of a resize, draw
 	if (platform_window() != nullptr && target() != nullptr && has_renderer())
 	{
