@@ -585,6 +585,10 @@ void sdl_window_info::update()
 			}
 			else if (video_config.switchres)
 			{
+				// check if we need to change the video mode
+				if (downcast<sdl_options &>(machine().options()).changeres())
+					downcast<sdl_osd_interface&>(machine().osd()).switchres()->check_resolution_change(m_index, m_monitor.get(), m_target, &m_win_config);
+
 				osd_dim tmp = this->pick_best_mode();
 				resize(tmp.width(), tmp.height());
 			}
