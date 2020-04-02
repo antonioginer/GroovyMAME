@@ -44,9 +44,10 @@ public:
 	void init(running_machine &machine);
 	void exit();
 	display_manager* add_display(int index, osd_monitor_info *monitor, render_target *target, osd_window_config *config);
-	void get_game_info();
+	void get_game_info(display_manager* display, render_target *target);
 	bool effective_orientation(display_manager* display, render_target *target);
-	bool check_resolution_change();
+	bool check_resolution_change(int i, osd_monitor_info *monitor, render_target *target, osd_window_config *config);
+	bool set_mode(int i, osd_monitor_info *monitor, render_target *target, osd_window_config *config);
 	void set_options(display_manager* display, render_target *target);
 	void set_option(const char *option_ID, bool state);
 
