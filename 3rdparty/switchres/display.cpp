@@ -69,7 +69,7 @@ void display_manager::parse_options()
 		memset(&range[0], 0, sizeof(struct monitor_range) * MAX_RANGES);
 
 		if (!strcmp(m_ds.monitor, "custom"))
-			for (int i = 0; i++ < MAX_RANGES;) monitor_fill_range(&range[i], m_ds.crt_range[i]);
+			for (int i = 0; i < MAX_RANGES; i++) monitor_fill_range(&range[i], m_ds.crt_range[i]);
 
 		else if (!strcmp(m_ds.monitor, "lcd"))
 			monitor_fill_lcd_range(&range[0], m_ds.lcd_range);
@@ -355,7 +355,7 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 	}
 
 	// If we didn't need to create a new mode, remove our dummy entry
-	if (caps() & CUSTOM_VIDEO_CAPS_ADD && m_ds.modeline_generation && !(best_mode.type & MODE_NEW))
+	if (caps() & CUSTOM_VIDEO_CAPS_ADD && m_ds.modeline_generation && m_best_mode != &video_modes.back())
 		video_modes.pop_back();
 
 	// If we didn't find a suitable mode, exit now

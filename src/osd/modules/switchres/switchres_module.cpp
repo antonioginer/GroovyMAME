@@ -54,7 +54,7 @@ void switchres_module::exit()
 }
 
 //============================================================
-//  switchres_module::exit
+//  switchres_module::add_display
 //============================================================
 
 display_manager* switchres_module::add_display(int index, osd_monitor_info *monitor, render_target *target, osd_window_config *config)
@@ -89,43 +89,13 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	display_manager *display = switchres().add_display();
 	display->set_user_mode(&user_mode);
 	display->init();
-
-	display->set_rotation(effective_orientation(display, target));
 	display->set_monitor_aspect(display->desktop_is_rotated()? 1.0f / monitor->aspect() : monitor->aspect());
 
-	int minwidth, minheight;
-	target->compute_minimum_size(minwidth, minheight);
-
-	if (display->rotation() ^ display->desktop_is_rotated()) std::swap(minwidth, minheight);
-	set_width(index, minwidth);
-	set_height(index, minheight);
-
-	// determine the refresh rate of the primary screen
-	const screen_device *primary_screen = screen_device_iterator(machine().root_device()).first();
-	if (primary_screen != nullptr) set_refresh(index, ATTOSECONDS_TO_HZ(primary_screen->refresh_attoseconds()));
+	get_game_info(display, target);
 
 	osd_printf_verbose("Switchres: get_mode(%d) %d %d %f %f\n", index, width(index), height(index), refresh(index), display->monitor_aspect());
-
 	modeline *mode = display->get_mode(width(index), height(index), refresh(index), 0);
-
-	if (mode)
-	{
-		if (mode->type & MODE_UPDATED) display->update_mode(mode);
-
-		else if (mode->type & MODE_NEW) display->add_mode(mode);
-
-		config->width = mode->width;
-		config->height = mode->height;
-		config->refresh = mode->refresh;
-
-		if (options.mode_setting())
-		{
-			display->set_mode(mode);
-			monitor->refresh();
-		}
-
-		set_options(display, target);
-	}
+	if (mode != nullptr) set_mode(index, monitor, target, config);
 
 	m_num_screens ++;
 	return display;
@@ -136,47 +106,20 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 //  switchres_module::get_game_info
 //============================================================
 
-void switchres_module::get_game_info()
+void switchres_module::get_game_info(display_manager* display, render_target *target)
 {
-/*
-	emu_options &options = m_machine.options();
-	game_info *game = &m_machine.switchres.game;
-	const game_driver *game_drv = &m_machine.system();
-	const screen_device *screen;
+	display->set_rotation(effective_orientation(display, target));
 
-	// Get game information
-	sprintf(game->name, "%s", options.system_name());
-	if (game->name[0] == 0) sprintf(game->name, "empty");
+	int minwidth, minheight;
+	target->compute_minimum_size(minwidth, minheight);
 
-	machine_config config(*game_drv, options);
-	screen = screen_device_iterator(config.root_device()).first();
+	if (display->rotation() ^ display->desktop_is_rotated()) std::swap(minwidth, minheight);
+	set_width(display->index(), minwidth);
+	set_height(display->index(), minheight);
 
-	// Fill in current video mode settings
-	game->orientation = effective_orientation();
-
-	if (screen->screen_type() == SCREEN_TYPE_VECTOR)
-	{
-		game->vector = 1;
-		game->width = 640;
-		game->height = 480;
-	}
-
-	// Output width and height only for games that are not vector
-	else
-	{
-		const rectangle &visarea = screen->visible_area();
-		int w = visarea.max_x - visarea.min_x + 1;
-		int h = visarea.max_y - visarea.min_y + 1;
-		game->width = game->orientation?h:w;
-		game->height = game->orientation?w:h;
-	}
-
-	game->refresh = ATTOSECONDS_TO_HZ(screen->refresh_attoseconds());
-
-	// Check for multiple screens
-	screen_device_iterator iter(config.root_device());
-	game->screens = iter.count();
-*/
+	// determine the refresh rate of the primary screen
+	const screen_device *primary_screen = screen_device_iterator(machine().root_device()).first();
+	if (primary_screen != nullptr) set_refresh(display->index(), ATTOSECONDS_TO_HZ(primary_screen->refresh_attoseconds()));
 }
 
 //============================================================
@@ -196,42 +139,76 @@ bool switchres_module::effective_orientation(display_manager* display, render_ta
 //  switchres_module::check_resolution_change
 //============================================================
 
-bool switchres_module::check_resolution_change()
+bool switchres_module::check_resolution_change(int i, osd_monitor_info *monitor, render_target *target, osd_window_config *config)
 {
-/*
-	game_info *game = &m_machine.switchres.game;
-	config_settings *cs = &m_machine.switchres.cs;
-	
-	int new_width = game->width;
-	int new_height = game->height;
-	float new_vfreq = game->refresh;
-	bool new_orientation = effective_orientation();
+	display_manager *display = switchres().display(i);
 
-	screen_device_iterator scriter(machine.root_device());
-	if (scriter.count())
+	int old_width = width(i);
+	int old_height = height(i);
+	double old_refresh = refresh(i);
+	bool old_rotation = display->rotation();
+
+	get_game_info(display, target);
+
+	if (old_width != width(i) || old_height != height(i) || old_refresh != refresh(i) || old_rotation != display->rotation())
 	{
-		screen_device *screen = scriter.first();
-		if (screen->frame_number())
+		osd_printf_verbose("Switchres: Resolution change from %dx%d@%f %s to %dx%d@%f %s\n",
+			old_width, old_height, old_refresh, old_rotation?"rotated":"normal", width(i), height(i), refresh(i), display->rotation()?"rotated":"normal");
+
+		modeline old_mode = *display->best_mode();
+		modeline *mode = display->get_mode(width(i), height(i), refresh(i), 0);
+
+		if (mode != nullptr)
 		{
-			const rectangle &visarea = screen->visible_area();
-			new_width = new_orientation? visarea.height() : visarea.width();
-			new_height = new_orientation? visarea.width() : visarea.height();
-			new_vfreq = ATTOSECONDS_TO_HZ(screen->frame_period().m_attoseconds);
+			if (memcmp(mode, &old_mode, sizeof(modeline) - sizeof(mode_result)) != 0)
+			{
+				set_mode(i, monitor, target, config);
+				return true;
+			}
+
+			set_options(display, target);
 		}
 	}
 
-	if (game->width != new_width || game->height != new_height || new_vfreq != game->refresh || cs->effective_orientation != new_orientation)
-	{
-		osd_printf_verbose("SwitchRes: Resolution change from %dx%d@%f %s to %dx%d@%f %s\n",
-			game->width, game->height, game->refresh, cs->effective_orientation?"rotated":"normal", new_width, new_height, new_vfreq, new_orientation?"rotated":"normal");
+	return false;
+}
 
-		game->width = new_width;
-		game->height = new_height;
-		game->refresh = new_vfreq;
+//============================================================
+//  switchres_module::set_mode
+//============================================================
+
+bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target *target, osd_window_config *config)
+{
+	#if defined(OSD_WINDOWS)
+		windows_options &options = downcast<windows_options &>(machine().options());
+	#elif defined(OSD_SDL)
+		sdl_options &options = downcast<sdl_options &>(machine().options());
+	#endif
+
+	display_manager *display = switchres().display(i);
+	modeline *mode = display->best_mode();
+
+	if (mode != nullptr)
+	{
+		if (mode->type & MODE_UPDATED) display->update_mode(mode);
+
+		else if (mode->type & MODE_NEW) display->add_mode(mode);
+
+		config->width = mode->width;
+		config->height = mode->height;
+		config->refresh = mode->refresh;
+
+		if (options.mode_setting())
+		{
+			display->set_mode(mode);
+			monitor->refresh();
+		}
+
+		set_options(display, target);
 
 		return true;
 	}
-*/
+
 	return false;
 }
 
