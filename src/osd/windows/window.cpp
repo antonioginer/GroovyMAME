@@ -1356,6 +1356,12 @@ LRESULT CALLBACK win_window_info::video_window_proc(HWND wnd, UINT message, WPAR
 		window->maximize_window();
 		break;
 
+	// make sure the taskbar doesn't get on top of us
+	case WM_DEVICECHANGE:
+	case WM_WININICHANGE:
+		SetWindowPos(wnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+		break;
+
 	// maximum size set
 	case WM_DISPLAYCHANGE:
 		/* FIXME: The current codebase has an issue with setting aspect
