@@ -111,6 +111,7 @@ typedef struct generator_settings
 	double   monitor_aspect;
 	double   refresh_tolerance;
 	int      super_width;
+	int      v_shift_correct;
 } generator_settings;
 
 //============================================================

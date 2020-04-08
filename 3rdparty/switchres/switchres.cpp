@@ -21,6 +21,12 @@
 using namespace std;
 const string WHITESPACE = " \n\r\t\f\v";
 
+#if defined(_WIN32)
+	#define SR_CONFIG_PATHS ".\\;.\\ini\\;"
+#elif defined(__linux__)
+	#define SR_CONFIG_PATHS "./;./ini/;/etc/;"
+#endif
+
 //============================================================
 //  logging
 //============================================================
@@ -95,6 +101,7 @@ switchres_manager::switchres_manager()
 	set_monitor_aspect(STANDARD_CRT_ASPECT);
 	set_refresh_tolerance(2.0f);
 	set_super_width(2560);
+	set_v_shift_correct(0);
 
 	// Create our display manager
 	m_display_factory = new display_manager();
@@ -146,13 +153,30 @@ display_manager* switchres_manager::add_display()
 
 bool switchres_manager::parse_config(const char *file_name)
 {
-	ifstream config_file(file_name);
+	ifstream config_file;
 
-	if (!config_file.is_open())
-		return false;
+	// Search for ini file in our config paths
+	auto start = 0U;
+	while (true)
+	{
+		char full_path[256] = "";
+		string paths = SR_CONFIG_PATHS;
 
-	log_verbose("parsing %s\n", file_name);
+		auto end = paths.find(";", start);
+		if (end == string::npos) return false;
 
+		snprintf(full_path, sizeof(full_path), "%s%s", paths.substr(start, end - start).c_str(), file_name);
+		config_file.open(full_path);
+
+		if (config_file.is_open())
+		{
+			log_verbose("parsing %s\n", full_path);
+			break;
+		}
+		start = end + 1;
+	}
+
+	// Ini file found, parse it
 	string line;
 	while (getline(config_file, line))
 	{
@@ -257,6 +281,10 @@ bool switchres_manager::parse_config(const char *file_name)
 				}
 				case s2i("aspect"):
 					set_monitor_aspect(get_aspect(value.c_str()));
+					break;
+
+				case s2i("v_shift_correct"):
+					set_v_shift_correct(atoi(value.c_str()));
 					break;
 
 				default:
