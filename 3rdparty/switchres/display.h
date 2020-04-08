@@ -83,6 +83,7 @@ public:
 	int super_width() { return m_ds.gs.super_width; }
 	bool rotation() { return m_ds.gs.rotation; }
 	double monitor_aspect() { return m_ds.gs.monitor_aspect; }
+	int v_shift_correct() { return m_ds.gs.v_shift_correct; }
 
 	// setters
 	void set_factory(custom_video *factory) { m_factory = factory; }
@@ -92,6 +93,7 @@ public:
 	void set_desktop_is_rotated(bool value) { m_desktop_is_rotated = value; }
 	void set_rotation(bool value) { m_ds.gs.rotation = value; }
 	void set_monitor_aspect(float aspect) { m_ds.gs.monitor_aspect = aspect; }
+	void set_v_shift_correct(int value) { m_ds.gs.v_shift_correct = value; }
 
 	// options
 	display_settings m_ds = {};
