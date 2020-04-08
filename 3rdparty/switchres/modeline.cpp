@@ -258,6 +258,15 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		// Recalculate final vfreq
 		t_mode->vfreq = (t_mode->hfreq / t_mode->vtotal) * scan_factor;
 
+		// Calculate offset for consumer TVs
+		if (cs->v_shift_correct)
+		{
+			float refresh_offset = 60.00f - t_mode->vfreq;
+			int v_offset = round(24 * (refresh_offset > 0? refresh_offset : 0) / 10);
+			t_mode->vbegin += v_offset;
+			t_mode->vend += v_offset;
+		}
+
 		t_mode->hsync = range->hsync_polarity;
 		t_mode->vsync = range->vsync_polarity;
 		t_mode->interlace = interlace == 2?1:0;
