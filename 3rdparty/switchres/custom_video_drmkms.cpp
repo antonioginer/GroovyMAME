@@ -418,22 +418,22 @@ bool drmkms_timing::init()
 						for (int fd = 4; fd < m_drm_fd ; fd++)
 						{
 							struct stat st;
-							if ( !fstat(fd, &st))
+							if ( !fstat(fd, &st) )
 							{
+								// in case of multiple video cards, it wouldd be better to compare dri number
 								if ( S_ISCHR(st.st_mode) )
 								{
 									if ( drmIsMaster(fd) )
 									{
 										close(m_drm_fd);
 										m_drm_fd = fd;
+										m_shared_fd[num] = m_drm_fd;
+										m_shared_id = num;
+										// start at 2 to disable closing the fd
+										m_shared_count[num] = 2;
 										drmVersion *version_hook = drmGetVersion(m_drm_fd);
-										if ( m_shared_count[num] == 0 )
-										{
-											m_shared_fd[num] = m_drm_fd;
-											m_shared_id = num;
-											m_shared_count[num] = 1;
-										}
 										log_verbose("DRM/KMS: <%d> (init) DRM hook created version %d.%d.%d type %s\n", m_id, version_hook->version_major, version_hook->version_minor, version_hook->version_patchlevel, version_hook->name);
+										drmFreeVersion(version_hook);
 									}
 								}
 							}

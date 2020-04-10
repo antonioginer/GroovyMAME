@@ -114,6 +114,7 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_LOCK_UNSUPPORTED_MODES ";lum","1",              core_options::option_type::BOOLEAN,   "Lock video modes reported as unsupported by your monitor's EDID" },
 	{ OSDOPTION_REFRESH_DONT_CARE ";rdc",     "0",              core_options::option_type::BOOLEAN,   "Ignore video mode's refresh reported by OS when checking ranges" },
 	{ OSDOPTION_DOTCLOCK_MIN ";dcm",          "0",              core_options::option_type::FLOAT,     "Lowest pixel clock supported by video card, in MHz, default is 0" },
+	{ OSDOPTION_V_SHIFT_CORRECT,              "0",              core_options::option_type::INTEGER,   "Apply vertical shift correction for multi-standard consumer CRT TVs"},
 	{ OSDOPTION_SYNC_REFRESH_TOLERANCE ";srt","2.0",            core_options::option_type::FLOAT,     "Maximum refresh difference, in Hz, allowed in order to synchronize" },
 	{ OSDOPTION_AUTOSYNC,                     "0",              core_options::option_type::BOOLEAN,   "automatically enable syncrefresh if refresh difference is below syncrefresh_tolerance" },
 	{ OSDOPTION_FRAME_DELAY ";fd",            "0",              core_options::option_type::INTEGER,   "Delays the start of each frame to minimize input lag (0-9)"},
