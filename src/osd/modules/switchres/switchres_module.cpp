@@ -80,6 +80,7 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	switchres().set_dotclock_min(options.dotclock_min());
 	switchres().set_refresh_tolerance(options.sync_refresh_tolerance());
 	switchres().set_super_width(options.super_width());
+	switchres().set_v_shift_correct(options.v_shift_correct());
 
 	modeline user_mode = {};
 	user_mode.width = config->width;
