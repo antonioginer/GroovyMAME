@@ -76,6 +76,7 @@ public:
 	void set_monitor_aspect(double value) { ds.gs.monitor_aspect = value; }
 	void set_monitor_aspect(const char* aspect) { set_monitor_aspect(get_aspect(aspect)); }
 	void set_v_shift_correct(int value) { ds.gs.v_shift_correct = value; }
+	void set_pixel_precision(int value) { ds.gs.pixel_precision = value; }
 
 	// interface
 	display_manager* add_display();

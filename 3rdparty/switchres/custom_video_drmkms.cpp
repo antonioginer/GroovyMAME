@@ -50,9 +50,9 @@
 //  shared the privileges of the master fd
 //============================================================
 
-static int m_shared_fd[9]={};
+static int m_shared_fd[10]={};
 static int m_shared_id = 0;
-static int m_shared_count[9]={};
+static int m_shared_count[10]={};
 
 //============================================================
 //  list connector types
@@ -114,7 +114,7 @@ static int static_id = 0;
 //============================================================
 drmkms_timing::drmkms_timing(char *device_name, char *param)
 {
-	m_id = static_id++;
+	m_id = ++static_id;
 
 	log_verbose("DRM/KMS: <%d> (drmkms_timing) creation (%s,%s)\n", m_id, device_name, param);
 	// Copy screen device name and limit size
