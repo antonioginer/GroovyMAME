@@ -38,6 +38,7 @@ class xrandr_timing : public custom_video
 
 	private:
 		int m_id = 0;
+		int m_managed = 0;
 		XRRModeInfo *find_mode(modeline *mode);
 
 		int m_video_modes_position = 0;
@@ -52,6 +53,8 @@ class xrandr_timing : public custom_video
 		int m_crtc_flags = 0;
 
 		XRRCrtcInfo m_last_crtc = {};
+		int m_pos_x = 0;
+		int m_pos_y = 0;
 
 		void *m_xrandr_handle = 0;
 

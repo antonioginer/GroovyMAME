@@ -25,13 +25,13 @@
 //  PROTOTYPES
 //============================================================
 
-int get_line_params(modeline *mode, monitor_range *range);
+int get_line_params(modeline *mode, monitor_range *range, int char_size);
 int scale_into_range (int value, int lower_limit, int higher_limit);
 int scale_into_range (double value, double lower_limit, double higher_limit);
 int scale_into_aspect (int source_res, int tot_res, double original_monitor_aspect, double users_monitor_aspect, double *best_diff);
-int stretch_into_range(double vfreq, monitor_range *range, bool interlace_allowed, double *interlace);
-int total_lines_for_yres(int yres, double vfreq, monitor_range *range, double interlace);
-double max_vfreq_for_yres (int yres, monitor_range *range, double interlace);
+int stretch_into_range(double vfreq, monitor_range *range, double borders, bool interlace_allowed, double *interlace);
+int total_lines_for_yres(int yres, double vfreq, monitor_range *range, double borders, double interlace);
+double max_vfreq_for_yres (int yres, monitor_range *range, double borders, double interlace);
 
 //============================================================
 //  modeline_create
@@ -51,6 +51,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 	double v_diff = 0;
 	double y_ratio = 0;
 	double x_ratio = 0;
+	double borders = 0;
 
 	// ··· Vertical refresh ···
 	// try to fit vertical frequency into current range
@@ -90,8 +91,12 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		}
 		scan_factor = interlace * doublescan;
 
+		// Calculate top border in case of multi-standard consumer TVs
+		if (cs->v_shift_correct)
+			borders = (range->progressive_lines_max - t_mode->vactive * y_scale / interlace) * (1.0 / range->hfreq_min) / 2;
+
 		// calculate expected achievable refresh for this height
-		vfreq_real = min(t_mode->vfreq * v_scale, max_vfreq_for_yres(t_mode->vactive * y_scale, range, scan_factor));
+		vfreq_real = min(t_mode->vfreq * v_scale, max_vfreq_for_yres(t_mode->vactive * y_scale, range, borders, scan_factor));
 		if (vfreq_real != t_mode->vfreq * v_scale && !(t_mode->type & V_FREQ_EDITABLE))
 		{
 			t_mode->result.weight |= R_OUT_OF_RANGE;
@@ -112,8 +117,8 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 			if (t_mode->type & V_FREQ_EDITABLE)
 			{
 				// calculate y borders considering physical lines (instead of logical resolution)
-				int tot_yres = total_lines_for_yres(t_mode->vactive * y_scale, vfreq_real, range, scan_factor);
-				int tot_source = total_lines_for_yres(y_source_scaled, t_mode->vfreq * v_scale, range, scan_factor);
+				int tot_yres = total_lines_for_yres(t_mode->vactive * y_scale, vfreq_real, range, borders, scan_factor);
+				int tot_source = total_lines_for_yres(y_source_scaled, t_mode->vfreq * v_scale, range, borders, scan_factor);
 				y_diff = tot_yres > tot_source?double(tot_yres % tot_source) / tot_yres * 100:0;
 
 				// we penalize for the logical lines we need to add in order to meet the user's lower active lines limit
@@ -184,10 +189,10 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		if (t_mode->type & Y_RES_EDITABLE)
 		{
 			// always try to use the interlaced range first if it exists, for better resolution
-			t_mode->vactive = stretch_into_range(t_mode->vfreq * v_scale, range, cs->interlace, &interlace);
+			t_mode->vactive = stretch_into_range(t_mode->vfreq * v_scale, range, borders, cs->interlace, &interlace);
 
 			// check in case we couldn't achieve the desired refresh
-			vfreq_real = min(t_mode->vfreq * v_scale, max_vfreq_for_yres(t_mode->vactive, range, interlace));
+			vfreq_real = min(t_mode->vfreq * v_scale, max_vfreq_for_yres(t_mode->vactive, range, borders, interlace));
 		}
 
 		// check if we can create a normal aspect resolution
@@ -221,7 +226,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		t_mode->vfreq = vfreq_real;
 
 		// Get total vertical lines
-		vvt_ini = total_lines_for_yres(t_mode->vactive, t_mode->vfreq, range, scan_factor) + (interlace == 2?0.5:0);
+		vvt_ini = total_lines_for_yres(t_mode->vactive, t_mode->vfreq, range, borders, scan_factor) + (interlace == 2?0.5:0);
 
 		// Calculate horizontal frequency
 		t_mode->hfreq = t_mode->vfreq * vvt_ini;
@@ -229,7 +234,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		horizontal_values:
 
 		// Fill horizontal part of modeline
-		get_line_params(t_mode, range);
+		get_line_params(t_mode, range, cs->pixel_precision? 1 : 8);
 
 		// Calculate pixel clock
 		t_mode->pclock = t_mode->htotal * t_mode->hfreq;
@@ -250,22 +255,14 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 
 		// Vertical blanking
 		t_mode->vtotal = vvt_ini * scan_factor;
-		vblank_lines = int(t_mode->hfreq * range->vertical_blank) + (interlace == 2?0.5:0);
-		margin = (t_mode->vtotal - t_mode->vactive - vblank_lines * scan_factor) / 2;
+		vblank_lines = int(t_mode->hfreq * (range->vertical_blank + borders)) + (interlace == 2?0.5:0);
+		margin = (t_mode->vtotal - t_mode->vactive - vblank_lines * scan_factor) / (cs->v_shift_correct? 1 : 2);
+
 		t_mode->vbegin = t_mode->vactive + max(round_near(t_mode->hfreq * range->vfront_porch * scan_factor + margin), 1);
 		t_mode->vend = t_mode->vbegin + max(round_near(t_mode->hfreq * range->vsync_pulse * scan_factor), 1);
 
 		// Recalculate final vfreq
 		t_mode->vfreq = (t_mode->hfreq / t_mode->vtotal) * scan_factor;
-
-		// Calculate offset for consumer TVs
-		if (cs->v_shift_correct)
-		{
-			float refresh_offset = 60.00f - t_mode->vfreq;
-			int v_offset = round(24 * (refresh_offset > 0? refresh_offset : 0) / 10);
-			t_mode->vbegin += v_offset;
-			t_mode->vend += v_offset;
-		}
 
 		t_mode->hsync = range->hsync_polarity;
 		t_mode->vsync = range->vsync_polarity;
@@ -292,7 +289,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 //  get_line_params
 //============================================================
 
-int get_line_params(modeline *mode, monitor_range *range)
+int get_line_params(modeline *mode, monitor_range *range, int char_size)
 {
 	int hhi, hhf, hht;
 	int hh, hs, he, ht;
@@ -305,7 +302,7 @@ int get_line_params(modeline *mode, monitor_range *range)
 
 	line_time = 1 / mode->hfreq * 1000000;
 
-	hh = round(mode->hactive / 8);
+	hh = round(mode->hactive / char_size);
 	hs = he = ht = 1;
 
 	do {
@@ -325,9 +322,9 @@ int get_line_params(modeline *mode, monitor_range *range)
 		new_char_time = line_time / (hh + hs + he + ht);
 	} while (new_char_time != char_time);
 
-	hhi = (hh + hs) * 8;
-	hhf = (hh + hs + he) * 8;
-	hht = (hh + hs + he + ht) * 8;
+	hhi = (hh + hs) * char_size;
+	hhf = (hh + hs + he) * char_size;
+	hht = (hh + hs + he + ht) * char_size;
 
 	mode->hbegin  = hhi;
 	mode->hend    = hhf;
@@ -391,7 +388,7 @@ int scale_into_aspect (int source_res, int tot_res, double original_monitor_aspe
 //  stretch_into_range
 //============================================================
 
-int stretch_into_range(double vfreq, monitor_range *range, bool interlace_allowed, double *interlace)
+int stretch_into_range(double vfreq, monitor_range *range, double borders, bool interlace_allowed, double *interlace)
 {
 	int yres, lower_limit;
 
@@ -407,7 +404,7 @@ int stretch_into_range(double vfreq, monitor_range *range, bool interlace_allowe
 		lower_limit = range->progressive_lines_min;
 	}
 
-	while (yres > lower_limit && max_vfreq_for_yres(yres, range, *interlace) < vfreq)
+	while (yres > lower_limit && max_vfreq_for_yres(yres, range, borders, *interlace) < vfreq)
 		yres -= 8;
 
 	return yres;
@@ -418,9 +415,9 @@ int stretch_into_range(double vfreq, monitor_range *range, bool interlace_allowe
 //  total_lines_for_yres
 //============================================================
 
-int total_lines_for_yres(int yres, double vfreq, monitor_range *range, double interlace)
+int total_lines_for_yres(int yres, double vfreq, monitor_range *range, double borders, double interlace)
 {
-	int vvt = max(yres / interlace + round_near(vfreq * yres / (interlace * (1.0 - vfreq * range->vertical_blank)) * range->vertical_blank), 1);
+	int vvt = max(yres / interlace + round_near(vfreq * yres / (interlace * (1.0 - vfreq * (range->vertical_blank + borders))) * (range->vertical_blank + borders)), 1);
 	while ((vfreq * vvt < range->hfreq_min) && (vfreq * (vvt + 1) < range->hfreq_max)) vvt++;
 	return vvt;
 }
@@ -429,9 +426,9 @@ int total_lines_for_yres(int yres, double vfreq, monitor_range *range, double in
 //  max_vfreq_for_yres
 //============================================================
 
-double max_vfreq_for_yres (int yres, monitor_range *range, double interlace)
+double max_vfreq_for_yres (int yres, monitor_range *range, double borders, double interlace)
 {
-	return range->hfreq_max / (yres / interlace + round_near(range->hfreq_max * range->vertical_blank));
+	return range->hfreq_max / (yres / interlace + round_near(range->hfreq_max * (range->vertical_blank + borders)));
 }
 
 //============================================================
@@ -668,6 +665,16 @@ int modeline_to_monitor_range(monitor_range *range, modeline *mode)
 	range->hfreq_max = range->vfreq_max * mode->vtotal;
 
 	return 1;
+}
+
+//============================================================
+//  modeline_is_different
+//============================================================
+
+int modeline_is_different(modeline *n, modeline *p)
+{
+	// Remove on last fields in modeline comparison
+	return memcmp(n, p, sizeof(modeline) - sizeof(uint64_t) - sizeof(mode_result));
 }
 
 //============================================================

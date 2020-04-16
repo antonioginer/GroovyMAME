@@ -84,6 +84,23 @@ public:
 	bool rotation() { return m_ds.gs.rotation; }
 	double monitor_aspect() { return m_ds.gs.monitor_aspect; }
 	int v_shift_correct() { return m_ds.gs.v_shift_correct; }
+	int pixel_precision() { return m_ds.gs.pixel_precision; }
+
+	// getters (modeline result)
+	bool got_mode() { return (m_best_mode != nullptr); }
+	int width() { return m_best_mode != nullptr? m_best_mode->width : 0; }
+	int height() { return m_best_mode != nullptr? m_best_mode->height : 0; }
+	double refresh() { return m_best_mode != nullptr? m_best_mode->refresh : 0; }
+	int x_scale() { return m_best_mode != nullptr? m_best_mode->result.x_scale : 0; }
+	int y_scale() { return m_best_mode != nullptr? m_best_mode->result.y_scale : 0; }
+	int v_scale() { return m_best_mode != nullptr? m_best_mode->result.v_scale : 0; }
+	bool is_interlaced() { return m_best_mode != nullptr? m_best_mode->interlace : false; }
+	bool is_doublescanned() { return m_best_mode != nullptr? m_best_mode->doublescan : false; }
+	bool is_stretched() { return m_best_mode != nullptr? m_best_mode->result.weight & R_RES_STRETCH : false; }
+	bool is_refresh_off() { return m_best_mode != nullptr? m_best_mode->result.weight & R_V_FREQ_OFF : false; }
+	bool is_switching_required() { return m_switching_required; }
+	bool is_mode_updated() { return m_best_mode != nullptr? m_best_mode->type & MODE_UPDATED : false; }
+	bool is_mode_new() { return m_best_mode != nullptr? m_best_mode->type & MODE_NEW : false; }
 
 	// setters
 	void set_factory(custom_video *factory) { m_factory = factory; }
@@ -94,6 +111,7 @@ public:
 	void set_rotation(bool value) { m_ds.gs.rotation = value; }
 	void set_monitor_aspect(float aspect) { m_ds.gs.monitor_aspect = aspect; }
 	void set_v_shift_correct(int value) { m_ds.gs.v_shift_correct = value; }
+	void set_pixel_precision(int value) { m_ds.gs.pixel_precision = value; }
 
 	// options
 	display_settings m_ds = {};
@@ -130,6 +148,7 @@ private:
 
 	int m_index = 0;
 	bool m_desktop_is_rotated = 0;
+	bool m_switching_required = 0;
 };
 
 #endif
