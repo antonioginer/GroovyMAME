@@ -2,6 +2,7 @@ PLATFORM := $(shell uname)
 
 MAIN = switchres_main
 TARGET_LIB = libswitchres
+GRID = grid
 SRC = monitor.cpp modeline.cpp switchres.cpp display.cpp custom_video.cpp log.cpp
 OBJS = $(SRC:.cpp=.o)
 
@@ -46,6 +47,9 @@ all: $(SRC:.cpp=.o) $(MAIN).cpp
 $(TARGET_LIB): $(OBJS)
 	$(FINAL_CXX) $(LDFLAGS) $(CPPFLAGS) -o $@.$(DYNAMIC_LIB_EXT) $^
 	$(FINAL_AR) rcs $@.$(STATIC_LIB_EXT) $(^)
+
+$(GRID):
+	$(FINAL_CXX) grid.cpp -lSDL2 -o grid
 
 clean:
 	$(REMOVE) $(OBJS) $(MAIN) $(TARGET_LIB).*

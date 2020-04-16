@@ -101,6 +101,7 @@
 #define OSDOPTION_REFRESH_DONT_CARE     "refresh_dont_care"
 #define OSDOPTION_DOTCLOCK_MIN          "dotclock_min"
 #define OSDOPTION_V_SHIFT_CORRECT       "v_shift_correct"
+#define OSDOPTION_PIXEL_PRECISION       "pixel_precision"
 #define OSDOPTION_SYNC_REFRESH_TOLERANCE "sync_refresh_tolerance"
 #define OSDOPTION_AUTOSYNC              "autosync"
 #define OSDOPTION_FRAME_DELAY           "frame_delay"
@@ -169,6 +170,7 @@ public:
 	bool refresh_dont_care() const { return bool_value(OSDOPTION_REFRESH_DONT_CARE); }
 	float dotclock_min() const { return float_value(OSDOPTION_DOTCLOCK_MIN); }
 	int v_shift_correct() const { return int_value(OSDOPTION_V_SHIFT_CORRECT); }
+	bool pixel_precision() const { return bool_value(OSDOPTION_PIXEL_PRECISION); }
 	float sync_refresh_tolerance() const { return float_value(OSDOPTION_SYNC_REFRESH_TOLERANCE); }
 	bool autosync() const { return bool_value(OSDOPTION_AUTOSYNC); }
 	int frame_delay() const { return int_value(OSDOPTION_FRAME_DELAY); }
