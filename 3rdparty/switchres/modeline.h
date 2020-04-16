@@ -112,6 +112,7 @@ typedef struct generator_settings
 	double   refresh_tolerance;
 	int      super_width;
 	int      v_shift_correct;
+	int      pixel_precision;
 } generator_settings;
 
 //============================================================
@@ -125,6 +126,7 @@ char * modeline_result(modeline *mode, char *result);
 int modeline_vesa_gtf(modeline *m);
 int modeline_parse(const char *user_modeline, modeline *mode);
 int modeline_to_monitor_range(monitor_range *range, modeline *mode);
+int modeline_is_different(modeline *n, modeline *p);
 
 int round_near(double number);
 int normalize(int a, int b);
