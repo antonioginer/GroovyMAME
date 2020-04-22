@@ -46,7 +46,7 @@ bool windows_display::init()
 			break;
 
 		if ((!strcmp(m_ds.screen, "auto") && (lpDisplayDevice[idev].StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE))
-			|| !strcmp(m_ds.screen, lpDisplayDevice[idev].DeviceName))
+			|| !strcmp(m_ds.screen, lpDisplayDevice[idev].DeviceName) || m_ds.screen[0] - '0' == idev)
 			found = idev;
 
 		idev++;

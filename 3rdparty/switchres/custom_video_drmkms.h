@@ -39,6 +39,8 @@ class drmkms_timing : public custom_video
 
 		int m_drm_fd = 0;
 		drmModeCrtc *mp_crtc_desktop = NULL;
+		int m_card_id = 0;
+		int drm_master_hook(int fd);
 
 		char m_device_name[32];
 		unsigned int m_desktop_output = 0;
@@ -70,4 +72,6 @@ class drmkms_timing : public custom_video
 		__typeof__(drmIoctl) *p_drmIoctl;
 		__typeof__(drmGetCap) *p_drmGetCap;
 		__typeof__(drmIsMaster) *p_drmIsMaster;
+		__typeof__(drmSetMaster) *p_drmSetMaster;
+		__typeof__(drmDropMaster) *p_drmDropMaster;
 };

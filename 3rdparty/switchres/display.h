@@ -90,7 +90,9 @@ public:
 	bool got_mode() { return (m_best_mode != nullptr); }
 	int width() { return m_best_mode != nullptr? m_best_mode->width : 0; }
 	int height() { return m_best_mode != nullptr? m_best_mode->height : 0; }
-	double refresh() { return m_best_mode != nullptr? m_best_mode->refresh : 0; }
+	int refresh() { return m_best_mode != nullptr? m_best_mode->refresh : 0; }
+	double v_freq() { return m_best_mode != nullptr? m_best_mode->vfreq : 0; }
+	double h_freq() { return m_best_mode != nullptr? m_best_mode->hfreq : 0; }
 	int x_scale() { return m_best_mode != nullptr? m_best_mode->result.x_scale : 0; }
 	int y_scale() { return m_best_mode != nullptr? m_best_mode->result.y_scale : 0; }
 	int v_scale() { return m_best_mode != nullptr? m_best_mode->result.v_scale : 0; }
