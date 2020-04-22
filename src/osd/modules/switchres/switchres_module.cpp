@@ -95,8 +95,8 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	get_game_info(display, target);
 
 	osd_printf_verbose("Switchres: get_mode(%d) %d %d %f %f\n", index, width(index), height(index), refresh(index), display->monitor_aspect());
-	modeline *mode = display->get_mode(width(index), height(index), refresh(index), 0);
-	if (mode != nullptr) set_mode(index, monitor, target, config);
+	display->get_mode(width(index), height(index), refresh(index), 0);
+	if (display->got_mode()) set_mode(index, monitor, target, config);
 
 	m_num_screens ++;
 	return display;
@@ -156,12 +156,11 @@ bool switchres_module::check_resolution_change(int i, osd_monitor_info *monitor,
 		osd_printf_verbose("Switchres: Resolution change from %dx%d@%f %s to %dx%d@%f %s\n",
 			old_width, old_height, old_refresh, old_rotation?"rotated":"normal", width(i), height(i), refresh(i), display->rotation()?"rotated":"normal");
 
-		modeline old_mode = *display->best_mode();
-		modeline *mode = display->get_mode(width(i), height(i), refresh(i), 0);
+		display->get_mode(width(i), height(i), refresh(i), 0);
 
-		if (mode != nullptr)
+		if (display->got_mode())
 		{
-			if (memcmp(mode, &old_mode, sizeof(modeline) - sizeof(mode_result)) != 0)
+			if (display->is_switching_required())
 			{
 				set_mode(i, monitor, target, config);
 				return true;
@@ -187,21 +186,20 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 	#endif
 
 	display_manager *display = switchres().display(i);
-	modeline *mode = display->best_mode();
 
-	if (mode != nullptr)
+	if (display->got_mode())
 	{
-		if (mode->type & MODE_UPDATED) display->update_mode(mode);
+		if (display->is_mode_updated()) display->update_mode(display->best_mode());
 
-		else if (mode->type & MODE_NEW) display->add_mode(mode);
+		else if (display->is_mode_new()) display->add_mode(display->best_mode());
 
-		config->width = mode->width;
-		config->height = mode->height;
-		config->refresh = mode->refresh;
+		config->width = display->width();
+		config->height = display->height();
+		config->refresh = display->refresh();
 
 		if (options.mode_setting())
 		{
-			display->set_mode(mode);
+			display->set_mode(display->best_mode());
 			monitor->refresh();
 		}
 
@@ -225,12 +223,10 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 		sdl_options &options = downcast<sdl_options &>(machine().options());
 	#endif
 
-	modeline *best_mode = display->best_mode();
-
 	// Set scaling/stretching options
 	set_option(OPTION_KEEPASPECT, true);
-	set_option(OPTION_UNEVENSTRETCH, best_mode->result.weight & R_RES_STRETCH);
-	set_option(OPTION_UNEVENSTRETCHX, (!(best_mode->result.weight & R_RES_STRETCH) && (best_mode->width >= display->super_width())));
+	set_option(OPTION_UNEVENSTRETCH, display->is_stretched());
+	set_option(OPTION_UNEVENSTRETCHX, (!(display->is_stretched()) && (display->width() >= display->super_width())));
 
 	// Update target if it's already initialized
 	if (target)
@@ -246,14 +242,14 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 	}
 
 	// Black frame insertion / multithreading
-	bool black_frame_insertion = options.black_frame_insertion() && best_mode->result.v_scale > 1 && best_mode->vfreq > 100;
+	bool black_frame_insertion = options.black_frame_insertion() && display->v_scale() > 1 && display->v_freq() > 100;
 	set_option(OSDOPTION_BLACK_FRAME_INSERTION, black_frame_insertion);
 
 	// Set MAME OSD specific options
 
 	// Vertical synchronization management (autosync)
 	// Disable -syncrefresh if our vfreq is scaled or out of syncrefresh_tolerance
-	bool sync_refresh_effective = black_frame_insertion || !((best_mode->result.weight & R_V_FREQ_OFF) || best_mode->result.v_scale > 1);
+	bool sync_refresh_effective = black_frame_insertion || !((display->is_refresh_off()) || display->v_scale() > 1);
 	set_option(OSDOPTION_WAITVSYNC, options.autosync()? sync_refresh_effective : options.wait_vsync());
 	set_option(OPTION_THROTTLE, options.autosync()? !sync_refresh_effective : options.throttle());
 
