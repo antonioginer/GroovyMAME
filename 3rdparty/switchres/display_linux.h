@@ -27,4 +27,5 @@ class linux_display : public display_manager
 		bool set_desktop_mode(modeline *mode, int flags);
 		bool restore_desktop_mode();
 		int get_available_video_modes();
+		bool m_restore_desktop_mode_at_exit = true;
 };

@@ -3,7 +3,7 @@ PLATFORM := $(shell uname)
 MAIN = switchres_main
 TARGET_LIB = libswitchres
 GRID = grid
-SRC = monitor.cpp modeline.cpp switchres.cpp display.cpp custom_video.cpp log.cpp
+SRC = monitor.cpp modeline.cpp switchres.cpp display.cpp custom_video.cpp log.cpp switchres_wrapper.cpp
 OBJS = $(SRC:.cpp=.o)
 
 CROSS_COMPILE ?=

@@ -59,6 +59,7 @@ public:
 	custom_video *video() const { return m_video; }
 	modeline user_mode() const { return m_user_mode; }
 	modeline *best_mode() const { return m_best_mode; }
+	modeline *current_mode() const { return m_current_mode; }
 	int index() const { return m_index; }
 	bool desktop_is_rotated() const { return m_desktop_is_rotated; }
 
@@ -108,6 +109,7 @@ public:
 	void set_factory(custom_video *factory) { m_factory = factory; }
 	void set_custom_video(custom_video *video) { m_video = video; }
 	void set_user_mode(modeline *mode) { m_user_mode = *mode; filter_modes(); }
+	void set_current_mode(modeline *mode) { m_current_mode = mode; }
 	void set_index(int index) { m_index = index; }
 	void set_desktop_is_rotated(bool value) { m_desktop_is_rotated = value; }
 	void set_rotation(bool value) { m_ds.gs.rotation = value; }
@@ -147,6 +149,7 @@ private:
 
 	modeline m_user_mode = {};
 	modeline *m_best_mode = 0;
+	modeline *m_current_mode = 0;
 
 	int m_index = 0;
 	bool m_desktop_is_rotated = 0;

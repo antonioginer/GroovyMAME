@@ -8,13 +8,15 @@
 
 	License     GPL-2.0+
 	Copyright   2010-2020 Chris Kennedy, Antonio Giner,
-	                     Alexandre Wodarczyk, Gil Delescluse
+						  Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 
 #include <functional>
 #include "resync_windows.h"
 #include "log.h"
+
+GUID GUID_DEVINTERFACE_MONITOR = { 0xe6f07b5f, 0xee97, 0x4a90, 0xb0, 0x76, 0x33, 0xf5, 0x7b, 0xf4, 0xea, 0xa7 };
 
 //============================================================
 //  resync_handler::resync_handler
@@ -63,6 +65,16 @@ void resync_handler::handler_thread()
 	m_hwnd = CreateWindowEx(0, "resync_handler", NULL, WS_POPUP, CW_USEDEFAULT, CW_USEDEFAULT, 640, 480, NULL, NULL, hinst, NULL);
 	SetWindowLongPtr(m_hwnd, GWLP_USERDATA, (LONG_PTR)this);
 
+	// Register notifications of display monitor events
+	DEV_BROADCAST_DEVICEINTERFACE filter;
+	ZeroMemory(&filter, sizeof(filter));
+	filter.dbcc_size = sizeof(DEV_BROADCAST_DEVICEINTERFACE);
+	filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
+	filter.dbcc_classguid = GUID_DEVINTERFACE_MONITOR;
+	HDEVNOTIFY hDeviceNotify = RegisterDeviceNotification(m_hwnd, &filter, DEVICE_NOTIFY_WINDOW_HANDLE);
+	if (hDeviceNotify == NULL)
+		log_error("Error registering notification\n");
+
 	while (GetMessage(&msg, NULL, 0, 0))
 	{
 		TranslateMessage(&msg);
@@ -82,7 +94,7 @@ void resync_handler::wait()
 	auto start = std::chrono::steady_clock::now();
 
 	while (!m_is_notified)
-		m_event.wait_for(lock, std::chrono::milliseconds(1000));
+		m_event.wait_for(lock, std::chrono::milliseconds(10));
 
 	auto end = std::chrono::steady_clock::now();
 	log_verbose("resync time elapsed %I64d ms\n", std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
@@ -105,10 +117,33 @@ LRESULT CALLBACK resync_handler::my_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
 	switch (msg)
 	{
 		case WM_DEVICECHANGE:
-		//case WM_DISPLAYCHANGE:
 		{
-			m_is_notified = true;
-			m_event.notify_one();
+			switch (wparam)
+			{
+				case DBT_DEVICEARRIVAL:
+				{
+					log_verbose("Message: DBT_DEVICEARRIVAL\n");
+					PDEV_BROADCAST_DEVICEINTERFACE db = (PDEV_BROADCAST_DEVICEINTERFACE) lparam;
+					if (db != nullptr)
+					{
+						if (db->dbcc_classguid == GUID_DEVINTERFACE_MONITOR)
+						{
+							m_is_notified = true;
+							m_event.notify_one();
+						}
+					}
+					break;
+				}
+				case DBT_DEVICEREMOVECOMPLETE:
+					log_verbose("Message: DBT_DEVICEREMOVECOMPLETE\n");
+					break;
+				case DBT_DEVNODES_CHANGED:
+					log_verbose("Message: DBT_DEVNODES_CHANGED\n");
+					break;
+				default:
+					log_verbose("Message: WM_DEVICECHANGE message received, value %d unhandled.\n", wparam);
+					break;
+			}
 			return 0;
 		}
 		break;
