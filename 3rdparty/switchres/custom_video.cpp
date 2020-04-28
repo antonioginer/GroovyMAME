@@ -76,6 +76,9 @@ custom_video *custom_video::make(char *device_name, char *device_id, int method,
 			log_info("Video chipset is not compatible.\n");
 	}
 #elif defined(__linux__)
+	if (device_id != NULL)
+		log_info("Device value is %s.\n", device_id);
+
 	if (method == CUSTOM_VIDEO_TIMING_XRANDR || method == 0)
 	{
 		try 

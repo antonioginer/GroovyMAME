@@ -74,11 +74,12 @@ int main(int argc, char **argv)
 			{"force",       required_argument, 0, 'f'},
 			{"ini",         required_argument, 0, 'i'},
 			{"verbose",     no_argument,       0, 'v'},
+			{"backend",      required_argument, 0, 'b'},
 			{0, 0, 0, 0}
 		};
 
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "vhcsl:m:a:rd:f:i:", long_options, &option_index);
+		int c = getopt_long(argc, argv, "vhcsl:m:a:rd:f:i:b:", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -140,6 +141,10 @@ int main(int argc, char **argv)
 			case 'i':
 				user_ini_flag = true;
 				ini_file = optarg;
+				break;
+
+			case 'b':
+				switchres.set_api(optarg);
 				break;
 
 			default:
@@ -232,7 +237,7 @@ int show_version()
 	{
 		"Switchres " SWITCHRES_VERSION "\n"
 		"Modeline generation engine for emulation\n"
-		"Copyright (C) 2010-2019 - Chris Kennedy, Antonio Giner\n"
+		"Copyright (C) 2010-2020 - Chris Kennedy, Antonio Giner, Alexandre Wodarczyk, Gil Delescluse\n"
 		"License GPL-2.0+\n"
 		"This is free software: you are free to change and redistribute it.\n"
 		"There is NO WARRANTY, to the extent permitted by law.\n"
@@ -261,6 +266,7 @@ int show_usage()
 		"  -d, --display <OS_display_name>   Use target display (Windows: \\\\.\\DISPLAY1, ... Linux: VGA-0, ...)\n"
 		"  -f, --force <w>x<h>@<r>           Force a specific video mode from display mode list\n"
 		"  -i, --ini <file.ini>              Specify a ini file\n"
+		"  -b, --backend <api_name>          Specify the api name\n"
 	};
 
 	log_info("%s", usage);
