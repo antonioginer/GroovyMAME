@@ -8,7 +8,7 @@
 
    License     GPL-2.0+
    Copyright   2010-2020 Chris Kennedy, Antonio Giner,
-	                     Alexandre Wodarczyk, Gil Delescluse
+                         Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 

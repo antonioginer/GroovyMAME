@@ -19,7 +19,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/stat.h> 
+#include <sys/stat.h>
 #include "custom_video_drmkms.h"
 #include "log.h"
 
@@ -333,6 +333,8 @@ bool drmkms_timing::init()
 	// Handle the screen name, "auto", "screen[0-9]" and device name
 	if (strlen(m_device_name) == 7 && !strncmp(m_device_name, "screen", 6) && m_device_name[6]>='0' && m_device_name[6]<='9')
 		screen_pos = m_device_name[6]-'0';
+	else if (strlen(m_device_name) == 1 && m_device_name[0]>='0' && m_device_name[0]<='9')
+		screen_pos = m_device_name[0]-'0';
 
 	char drm_name[15]="/dev/dri/card_";
 	drmModeRes *p_res;
@@ -416,7 +418,7 @@ bool drmkms_timing::init()
 				if ( drmIsMaster(m_drm_fd) )
 				{
 					s_shared_fd[m_card_id] = m_drm_fd;
-					s_shared_count[m_card_id] = 1; 
+					s_shared_count[m_card_id] = 1;
 					drmDropMaster(m_drm_fd);
 				}
 				else
@@ -425,7 +427,7 @@ bool drmkms_timing::init()
 					{
 						close(m_drm_fd);
 						m_drm_fd = s_shared_fd[m_card_id];
-						s_shared_count[m_card_id]++; 
+						s_shared_count[m_card_id]++;
 					}
 					else if (m_id == 1)
 					{
@@ -786,7 +788,7 @@ bool drmkms_timing::get_timing(modeline *mode)
 				{
 					log_verbose("DRM/KMS: <%d> (get_timing) [WARNING] modeline %s detected\n", m_id, pdmode->name);
 				}
-				else if (!strcmp(pdmode->name, mp_crtc_desktop->mode.name) && pdmode->clock == mp_crtc_desktop->mode.clock && pdmode->vrefresh == mp_crtc_desktop->mode.vrefresh) 
+				else if (!strcmp(pdmode->name, mp_crtc_desktop->mode.name) && pdmode->clock == mp_crtc_desktop->mode.clock && pdmode->vrefresh == mp_crtc_desktop->mode.vrefresh)
 				{
 					// Add the desktop flag to desktop modeline
 					log_verbose("DRM/KMS: <%d> (get_timing) desktop mode name %s refresh %d found\n", m_id, mp_crtc_desktop->mode.name, mp_crtc_desktop->mode.vrefresh);

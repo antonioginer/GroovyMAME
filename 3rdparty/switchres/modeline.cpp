@@ -14,6 +14,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <cstddef>
 #include "modeline.h"
 #include "log.h"
 
@@ -52,6 +53,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 	double y_ratio = 0;
 	double x_ratio = 0;
 	double borders = 0;
+	t_mode->result.weight = 0;
 
 	// ··· Vertical refresh ···
 	// try to fit vertical frequency into current range
@@ -505,7 +507,7 @@ int modeline_compare(modeline *t, modeline *best)
 			int b_y_score = best->result.y_scale + best->result.scan_penalty;
 			double xy_diff = roundf((t->result.x_diff + t->result.y_diff) * 100) / 100;
 			double best_xy_diff = roundf((best->result.x_diff + best->result.y_diff) * 100) / 100;
-			
+
 			if	((t_y_score < b_y_score) ||
 				((t_y_score == b_y_score) && (xy_diff < best_xy_diff)) ||
 				((t_y_score == b_y_score) && (xy_diff == best_xy_diff) && (t->result.x_scale < best->result.x_scale)) ||
