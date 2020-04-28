@@ -141,7 +141,7 @@ LRESULT CALLBACK resync_handler::my_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
 					log_verbose("Message: DBT_DEVNODES_CHANGED\n");
 					break;
 				default:
-					log_verbose("Message: WM_DEVICECHANGE message received, value %d unhandled.\n", wparam);
+					log_verbose("Message: WM_DEVICECHANGE message received, value %x unhandled.\n", (int)wparam);
 					break;
 			}
 			return 0;
