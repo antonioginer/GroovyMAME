@@ -12,10 +12,32 @@
 
  **************************************************************/
 
+#ifndef __CUSTOM_VIDEO_XRANDR__
+#define __CUSTOM_VIDEO_XRANDR__
+
 // X11 Xrandr headers
 #include <X11/extensions/Xrandr.h>
-#include <string.h>
-#include "display.h"
+#include "custom_video.h"
+
+// Set timing option flags
+#define XRANDR_DISABLE_CRTC_RELOCATION		0x00000001
+#define XRANDR_ENABLE_SCREEN_REORDERING		0x00000002
+#define XRANDR_ENABLE_DESKTOP_PREPARATION	0x00000004
+
+// Set timing internal flags
+#define XRANDR_SETMODE_IS_DESKTOP		0x00000001
+#define XRANDR_SETMODE_RESTORE_DESKTOP		0x00000002
+#define XRANDR_SETMODE_UPDATE_DESKTOP_CRTC	0x00000010
+#define XRANDR_SETMODE_UPDATE_OTHER_CRTC	0x00000020
+#define XRANDR_SETMODE_UPDATE_PREPARE_DESKTOP	0x00000040
+#define XRANDR_SETMODE_UPDATE_REORDERING	0x00000080
+
+#define XRANDR_SETMODE_INFO_MASK		0x0000000F
+#define XRANDR_SETMODE_UPDATE_MASK		0x000000F0
+
+// Super resolution placement, vertical stacking, reserved XRANDR_REORDERING_MAXIMUM_HEIGHT pixels
+//TODO confirm 1024 height is sufficient
+#define XRANDR_REORDERING_MAXIMUM_HEIGHT	1024
 
 class xrandr_timing : public custom_video
 {
@@ -33,14 +55,19 @@ class xrandr_timing : public custom_video
 		bool get_timing(modeline *mode);
 		bool set_timing(modeline *mode);
 
-		static int m_xerrors;
-		static int m_xerrors_flag;
+		static int ms_xerrors;
+		static int ms_xerrors_flag;
 
 	private:
 		int m_id = 0;
 		int m_managed = 0;
+		int m_enable_screen_reordering = 0;
+		int m_enable_screen_compositing = 0;
+
 		XRRModeInfo *find_mode(modeline *mode);
 		XRRModeInfo *find_mode_by_name(char *name);
+
+		bool set_timing(modeline *mode, int flags);
 
 		int m_video_modes_position = 0;
 		char m_device_name[32];
@@ -54,8 +81,6 @@ class xrandr_timing : public custom_video
 		int m_crtc_flags = 0;
 
 		XRRCrtcInfo m_last_crtc = {};
-		int m_pos_x = 0;
-		int m_pos_y = 0;
 
 		void *m_xrandr_handle = 0;
 
@@ -85,3 +110,5 @@ class xrandr_timing : public custom_video
 		__typeof__(XUngrabServer) *p_XUngrabServer;
 		__typeof__(XSetErrorHandler) *p_XSetErrorHandler;
 };
+
+#endif

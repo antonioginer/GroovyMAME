@@ -12,11 +12,13 @@
 
  **************************************************************/
 
+#ifndef __CUSTOM_VIDEO_DRMKMS_
+#define __CUSTOM_VIDEO_DRMKMS_
+
 // DRM headers
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-
-#include "display.h"
+#include "custom_video.h"
 
 class drmkms_timing : public custom_video
 {
@@ -75,3 +77,5 @@ class drmkms_timing : public custom_video
 		__typeof__(drmSetMaster) *p_drmSetMaster;
 		__typeof__(drmDropMaster) *p_drmDropMaster;
 };
+
+#endif
