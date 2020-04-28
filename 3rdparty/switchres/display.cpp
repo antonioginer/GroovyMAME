@@ -375,9 +375,6 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 
 	log_verbose("%s\n", modeline_result(&best_mode, result));
 
-	// Check if new best mode is different than previous one
-	m_switching_required = modeline_is_different(&best_mode, m_best_mode) != 0;
-
 	// Copy the new modeline to our mode list
 	if (m_ds.modeline_generation && (best_mode.type & V_FREQ_EDITABLE))
 	{
@@ -389,12 +386,15 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 			// lock new mode
 			best_mode.type &= ~(X_RES_EDITABLE | Y_RES_EDITABLE | (caps() & CUSTOM_VIDEO_CAPS_UPDATE? 0 : V_FREQ_EDITABLE));
 		}
-		else if (m_switching_required)
+		else if (modeline_is_different(&best_mode, m_best_mode) != 0)
 			best_mode.type |= MODE_UPDATED;
 
 		char modeline[256]={'\x00'};
 		log_info("Switchres: Modeline %s\n", modeline_print(&best_mode, modeline, MS_FULL));
 	}
+
+	// Check if new best mode is different than previous one
+	m_switching_required = (m_current_mode != m_best_mode || best_mode.type & MODE_UPDATED);
 
 	if (m_switching_required) *m_best_mode = best_mode;
 	return m_best_mode;

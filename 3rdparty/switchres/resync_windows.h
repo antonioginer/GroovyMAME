@@ -20,6 +20,7 @@
 #include <mutex>
 #include <chrono>
 #include <windows.h>
+#include <dbt.h>
 
 class resync_handler
 {

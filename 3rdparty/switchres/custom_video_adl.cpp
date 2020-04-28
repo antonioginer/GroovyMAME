@@ -438,7 +438,7 @@ bool adl_timing::set_timing_override(modeline *m, int update_mode)
 
 	if (ADL2_Display_ModeTimingOverride_Set(m_adl, m_adapter_index, m_display_index, &mode_info, (update_mode & TIMING_UPDATE_LIST)? 1 : 0) != ADL_OK) return false;
 
-	//ADL_Flush_Driver_Data(display_index);
+	//ADL2_Flush_Driver_Data(m_adl, m_adapter_index);
 
 	// read modeline to trigger timing refresh on modded drivers
 	memcpy(&m_temp, m, sizeof(modeline));
@@ -474,6 +474,8 @@ bool adl_timing::delete_mode(modeline *mode)
 	{
 		return false;
 	}
+
+	m_resync.wait();
 
 	return true;
 }
