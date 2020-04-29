@@ -28,6 +28,40 @@
 
 
 //============================================================
+//  logging wrappers
+//============================================================
+
+static void sr_printf_verbose(const char *format, ...)
+{
+	char buffer[1024];
+	va_list args;
+	va_start(args, format);
+	vsprintf(buffer, format, args);
+	osd_vprintf_verbose(util::make_format_argument_pack(std::forward<char*>(buffer)));
+	va_end(args);
+}
+
+static void sr_printf_info(const char *format, ...)
+{
+	char buffer[1024];
+	va_list args;
+	va_start(args, format);
+	vsprintf(buffer, format, args);
+	osd_vprintf_info(util::make_format_argument_pack(std::forward<char*>(buffer)));
+	va_end(args);
+}
+
+static void sr_printf_error(const char *format, ...)
+{
+	char buffer[1024];
+	va_list args;
+	va_start(args, format);
+	vsprintf(buffer, format, args);
+	osd_vprintf_error(util::make_format_argument_pack(std::forward<char*>(buffer)));
+	va_end(args);
+}
+
+//============================================================
 //  switchres_module::init
 //============================================================
 
@@ -37,9 +71,9 @@ void switchres_module::init(running_machine &machine)
 	m_switchres = new switchres_manager;
 
 	// Set logging functions
-	if (machine.options().verbose()) switchres().set_log_verbose_fn((void *)printf);
-	switchres().set_log_info_fn((void *)printf);
-	switchres().set_log_error_fn((void *)printf);
+	if (machine.options().verbose()) switchres().set_log_verbose_fn((void *)sr_printf_verbose);
+	switchres().set_log_info_fn((void *)sr_printf_info);
+	switchres().set_log_error_fn((void *)sr_printf_error);
 }
 
 //============================================================
