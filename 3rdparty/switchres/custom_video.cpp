@@ -34,12 +34,12 @@ extern bool ati_is_legacy(int vendor, int device);
 //  custom_video::make
 //============================================================
 
-custom_video *custom_video::make(char *device_name, char *device_id, int method, char *s_param)
+custom_video *custom_video::make(char *device_name, char *device_id, int method, custom_video_settings *vs)
 {
 #if defined(_WIN32)
 	if (method == CUSTOM_VIDEO_TIMING_POWERSTRIP)
 	{
-		m_custom_video = new pstrip_timing(device_name, s_param);
+		m_custom_video = new pstrip_timing(device_name, vs);
 		if (m_custom_video)
 		{
 			m_custom_method = CUSTOM_VIDEO_TIMING_POWERSTRIP;
@@ -55,7 +55,7 @@ custom_video *custom_video::make(char *device_name, char *device_id, int method,
 		{
 			if (ati_is_legacy(vendor, device))
 			{
-				m_custom_video = new ati_timing(device_name, s_param);
+				m_custom_video = new ati_timing(device_name, vs);
 				if (m_custom_video)
 				{
 					m_custom_method = CUSTOM_VIDEO_TIMING_ATI_LEGACY;
@@ -64,7 +64,7 @@ custom_video *custom_video::make(char *device_name, char *device_id, int method,
 			}
 			else
 			{
-				m_custom_video = new adl_timing(device_name, s_param);
+				m_custom_video = new adl_timing(device_name, vs);
 				if (m_custom_video)
 				{
 					m_custom_method = CUSTOM_VIDEO_TIMING_ATI_ADL;
@@ -83,7 +83,7 @@ custom_video *custom_video::make(char *device_name, char *device_id, int method,
 	{
 		try 
 		{
-			m_custom_video = new xrandr_timing(device_name, s_param);
+			m_custom_video = new xrandr_timing(device_name, vs);
 		} 
 		catch (...) {};
 		if (m_custom_video)
@@ -95,7 +95,7 @@ custom_video *custom_video::make(char *device_name, char *device_id, int method,
 
 	if (method == CUSTOM_VIDEO_TIMING_DRMKMS || method == 0)
 	{
-		m_custom_video = new drmkms_timing(device_name, s_param);
+		m_custom_video = new drmkms_timing(device_name, vs);
 		if (m_custom_video)
 		{
 			m_custom_method = CUSTOM_VIDEO_TIMING_DRMKMS;

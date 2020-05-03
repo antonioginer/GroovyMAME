@@ -248,8 +248,8 @@ bool switchres_manager::parse_config(const char *file_name)
 				case s2i("refresh_dont_care"):
 					set_refresh_dont_care(atoi(value.c_str()));
 					break;
-				case s2i("ps_timing"):
-					set_ps_timing(value.c_str());
+				case s2i("keep_changes"):
+					set_keep_changes(atoi(value.c_str()));
 					break;
 
 				// Modeline generation options
@@ -290,6 +290,20 @@ bool switchres_manager::parse_config(const char *file_name)
 
 				case s2i("pixel_precision"):
 					set_pixel_precision(atoi(value.c_str()));
+					break;
+
+				// Custom video backend options
+				case s2i("screen_compositing"):
+					set_screen_compositing(atoi(value.c_str()));
+					break;
+				case s2i("screen_reordering"):
+					set_screen_reordering(atoi(value.c_str()));
+					break;
+				case s2i("allow_hardware_refresh"):
+					set_allow_hardware_refresh(atoi(value.c_str()));
+					break;
+				case s2i("custom_timing"):
+					set_custom_timing(value.c_str());
 					break;
 
 				default:

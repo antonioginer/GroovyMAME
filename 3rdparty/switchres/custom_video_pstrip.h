@@ -46,7 +46,7 @@ typedef struct
 class pstrip_timing : public custom_video
 {
 	public:
-		pstrip_timing(char *device_name, char *ps_timing);
+		pstrip_timing(char *device_name, custom_video_settings *vs);
 		~pstrip_timing();
 		const char *api_name() { return "PowerStrip"; }
 		bool init();

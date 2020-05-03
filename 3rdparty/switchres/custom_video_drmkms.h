@@ -23,7 +23,7 @@
 class drmkms_timing : public custom_video
 {
 	public:
-		drmkms_timing(char *device_name, char *param);
+		drmkms_timing(char *device_name, custom_video_settings *vs);
 		~drmkms_timing();
 		const char *api_name() { return "DRMKMS"; }
 		int caps() { return CUSTOM_VIDEO_CAPS_ADD; }
