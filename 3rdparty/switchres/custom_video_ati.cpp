@@ -21,12 +21,12 @@
 //  ati_timing::ati_timing
 //============================================================
 
-ati_timing::ati_timing(char *device_name, char *device_key)
+ati_timing::ati_timing(char *device_name, custom_video_settings *vs)
 {
+	m_vs = *vs;
 	strcpy (m_device_name, device_name);
-	strcpy (m_device_key, device_key);
+	strcpy (m_device_key, m_vs.device_reg_key);
 }
-
 
 //============================================================
 //  ati_timing::ati_timing

@@ -43,10 +43,11 @@ void __stdcall ADL_Main_Memory_Free(void** lpBuffer)
 //  adl_timing::adl_timing
 //============================================================
 
-adl_timing::adl_timing(char *display_name, char *device_key)
+adl_timing::adl_timing(char *display_name, custom_video_settings *vs)
 {
+	m_vs = *vs;
 	strcpy (m_display_name, display_name);
-	strcpy (m_device_key, device_key);
+	strcpy (m_device_key, m_vs.device_reg_key);
 }
 
 //============================================================
