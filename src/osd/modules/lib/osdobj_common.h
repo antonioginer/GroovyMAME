@@ -87,15 +87,14 @@
 #define OSDOPTION_BGFX_LUT              "bgfx_lut"
 #define OSDOPTION_BGFX_AVI_NAME         "bgfx_avi_name"
 
-#define OSDOPTION_MODELINE_GENERATION   "modeline_generation"
+#define OSDOPTION_SWITCHRES_BACKEND     "switchres_backend"
 #define OSDOPTION_MODE_SETTING          "modesetting"
+#define OSDOPTION_MODELINE_GENERATION   "modeline_generation"
 #define OSDOPTION_MONITOR               "monitor"
-#define OSDOPTION_CONNECTOR             "connector"
 #define OSDOPTION_INTERLACE             "interlace"
 #define OSDOPTION_DOUBLESCAN            "doublescan"
 #define OSDOPTION_SUPER_WIDTH           "super_width"
 #define OSDOPTION_CHANGERES             "changeres"
-#define OSDOPTION_POWERSTRIP            "powerstrip"
 #define OSDOPTION_LOCK_SYSTEM_MODES     "lock_system_modes"
 #define OSDOPTION_LOCK_UNSUPPORTED_MODES "lock_unsupported_modes"
 #define OSDOPTION_REFRESH_DONT_CARE     "refresh_dont_care"
@@ -107,6 +106,9 @@
 #define OSDOPTION_FRAME_DELAY           "frame_delay"
 #define OSDOPTION_VSYNC_OFFSET          "vsync_offset"
 #define OSDOPTION_BLACK_FRAME_INSERTION "black_frame_insertion"
+#define OSDOPTION_SCREEN_COMPOSITING    "screen_compositing"
+#define OSDOPTION_SCREEN_REORDERING     "screen_reordering"
+#define OSDOPTION_ALLOW_HW_REFRESH      "allow_hw_refresh"
 #define OSDOPTION_MODELINE              "modeline"
 #define OSDOPTION_PS_TIMING             "ps_timing"
 #define OSDOPTION_LCD_RANGE             "lcd_range"
@@ -157,6 +159,7 @@ public:
 
 	// full screen options
 	bool switch_res() const { return bool_value(OSDOPTION_SWITCHRES); }
+	const char *switchres_backend() const { return value(OSDOPTION_SWITCHRES_BACKEND); }
 	bool mode_setting() const { return bool_value(OSDOPTION_MODE_SETTING); }
 	bool modeline_generation() const { return bool_value(OSDOPTION_MODELINE_GENERATION); }
 	const char *monitor() const { return value(OSDOPTION_MONITOR); }
@@ -164,7 +167,6 @@ public:
 	bool interlace() const { return bool_value(OSDOPTION_INTERLACE); }
 	int super_width() const { return int_value(OSDOPTION_SUPER_WIDTH); }
 	bool changeres() const { return int_value(OSDOPTION_CHANGERES); }
-	bool powerstrip() const { return bool_value(OSDOPTION_POWERSTRIP); }
 	bool lock_system_modes() const { return bool_value(OSDOPTION_LOCK_SYSTEM_MODES); }
 	bool lock_unsupported_modes() const { return bool_value(OSDOPTION_LOCK_UNSUPPORTED_MODES); }
 	bool refresh_dont_care() const { return bool_value(OSDOPTION_REFRESH_DONT_CARE); }
@@ -176,6 +178,9 @@ public:
 	int frame_delay() const { return int_value(OSDOPTION_FRAME_DELAY); }
 	int vsync_offset() const { return int_value(OSDOPTION_VSYNC_OFFSET); }
 	bool black_frame_insertion() const { return bool_value(OSDOPTION_BLACK_FRAME_INSERTION); }
+	bool screen_compositing() const { return bool_value(OSDOPTION_SCREEN_COMPOSITING); }
+	bool screen_reordering() const { return bool_value(OSDOPTION_SCREEN_REORDERING); }
+	bool allow_hw_refresh() const { return bool_value(OSDOPTION_ALLOW_HW_REFRESH); }
 	const char *modeline() const { return value(OSDOPTION_MODELINE); }
 	const char *ps_timing() const { return value(OSDOPTION_PS_TIMING); }
 	const char *lcd_range() const { return value(OSDOPTION_LCD_RANGE); }
