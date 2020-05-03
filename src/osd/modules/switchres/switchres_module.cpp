@@ -116,6 +116,11 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	switchres().set_super_width(options.super_width());
 	switchres().set_v_shift_correct(options.v_shift_correct());
 
+	switchres().set_api(options.switchres_backend());
+	switchres().set_screen_compositing(options.screen_compositing());
+	switchres().set_screen_reordering(options.screen_reordering());
+	switchres().set_allow_hardware_refresh(options.allow_hw_refresh());
+
 	modeline user_mode = {};
 	user_mode.width = config->width;
 	user_mode.height = config->height;
