@@ -64,9 +64,9 @@ public:
 	void set_lock_unsupported_modes(bool value) { ds.lock_unsupported_modes = value; }
 	void set_lock_system_modes(bool value) { ds.lock_system_modes = value; }
 	void set_refresh_dont_care(bool value) { ds.refresh_dont_care = value; }
-	void set_ps_timing(const char *ps_timing) { strncpy(ds.ps_timing, ps_timing, sizeof(ds.ps_timing)-1); }
+	void set_keep_changes(bool value) { ds.keep_changes = value; }
 
-	//setters (modeline generator)
+	// setters (modeline generator)
 	void set_interlace(bool value) { ds.gs.interlace = value; }
 	void set_doublescan(bool value) { ds.gs.doublescan = value; }
 	void set_dotclock_min(double value) { ds.gs.pclock_min = value * 1000000; }
@@ -77,6 +77,12 @@ public:
 	void set_monitor_aspect(const char* aspect) { set_monitor_aspect(get_aspect(aspect)); }
 	void set_v_shift_correct(int value) { ds.gs.v_shift_correct = value; }
 	void set_pixel_precision(int value) { ds.gs.pixel_precision = value; }
+
+	// setters (custom_video backend)
+	void set_screen_compositing(bool value) { ds.vs.screen_compositing = value; }
+	void set_screen_reordering(bool value) { ds.vs.screen_reordering = value; }
+	void set_allow_hardware_refresh(bool value) { ds.vs.allow_hardware_refresh = value; }
+	void set_custom_timing(const char *custom_timing) { strncpy(ds.vs.custom_timing, custom_timing, sizeof(ds.vs.custom_timing)-1); }
 
 	// interface
 	display_manager* add_display();

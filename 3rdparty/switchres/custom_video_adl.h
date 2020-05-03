@@ -143,7 +143,7 @@ typedef int (*ADL2_FLUSH_DRIVER_DATA) (ADL_CONTEXT_HANDLE, int iAdapterIndex);
 class adl_timing : public custom_video
 {
 	public:
-		adl_timing(char *display_name, char *device_key);
+		adl_timing(char *display_name, custom_video_settings *vs);
 		~adl_timing();
 		const char *api_name() { return "AMD ADL"; }
 		bool init();
