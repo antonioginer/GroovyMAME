@@ -15,7 +15,7 @@
 #ifndef __CUSTOM_VIDEO__
 #define __CUSTOM_VIDEO__
 
-
+#include <cstring>
 #include "modeline.h"
 
 #define CUSTOM_VIDEO_TIMING_MASK        0x00000ff0
@@ -39,6 +39,14 @@
 #define TIMING_UPDATE      0x004
 #define TIMING_UPDATE_LIST 0x008 
 
+typedef struct custom_video_settings
+{
+	bool screen_compositing;
+	bool screen_reordering;
+	bool allow_hardware_refresh;
+	char device_reg_key[128];
+	char custom_timing[256];
+} custom_video_settings;
 
 class custom_video
 {
@@ -54,7 +62,7 @@ public:
 		}
 	}
 
-	custom_video *make(char *device_name, char *device_id, int method, char *s_param);
+	custom_video *make(char *device_name, char *device_id, int method, custom_video_settings *vs);
 	virtual const char *api_name() { return "empty"; }
 	virtual bool init();
 	virtual int caps() { return 0; }
@@ -65,6 +73,21 @@ public:
 
 	virtual bool get_timing(modeline *mode);
 	virtual bool set_timing(modeline *mode);
+
+	// getters
+	bool screen_compositing() { return m_vs.screen_compositing; }
+	bool screen_reordering() { return m_vs.screen_reordering; }
+	bool allow_hardware_refresh() { return m_vs.allow_hardware_refresh; }
+	const char *custom_timing() { return (const char*) &m_vs.custom_timing; }
+
+	// setters
+	void set_screen_compositing(bool value) { m_vs.screen_compositing = value; }
+	void set_screen_reordering(bool value) { m_vs.screen_reordering = value; }
+	void set_allow_hardware_refresh(bool value) { m_vs.allow_hardware_refresh = value; }
+	void set_custom_timing(const char *custom_timing) { strncpy(m_vs.custom_timing, custom_timing, sizeof(m_vs.custom_timing)-1); }
+
+	// options
+	custom_video_settings m_vs = {};
 
 	modeline m_user_mode = {};
 	modeline m_backup_mode = {};

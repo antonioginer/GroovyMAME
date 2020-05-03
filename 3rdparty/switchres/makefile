@@ -1,6 +1,7 @@
 PLATFORM := $(shell uname)
 
 MAIN = switchres_main
+STANDALONE = switchres
 TARGET_LIB = libswitchres
 GRID = grid
 SRC = monitor.cpp modeline.cpp switchres.cpp display.cpp custom_video.cpp log.cpp switchres_wrapper.cpp
@@ -42,7 +43,7 @@ endif
 
 all: $(SRC:.cpp=.o) $(MAIN).cpp
 	@echo $(OSFLAG)
-	$(FINAL_CXX) $(CPPFLAGS) $(CXXFLAGS) $(SRC:.cpp=.o) $(MAIN).cpp $(LIBS) -o $(MAIN)
+	$(FINAL_CXX) $(CPPFLAGS) $(CXXFLAGS) $(SRC:.cpp=.o) $(MAIN).cpp $(LIBS) -o $(STANDALONE)
 
 $(TARGET_LIB): $(OBJS)
 	$(FINAL_CXX) $(LDFLAGS) $(CPPFLAGS) -o $@.$(DYNAMIC_LIB_EXT) $^
@@ -52,4 +53,4 @@ $(GRID):
 	$(FINAL_CXX) grid.cpp -lSDL2 -o grid
 
 clean:
-	$(REMOVE) $(OBJS) $(MAIN) $(TARGET_LIB).*
+	$(REMOVE) $(OBJS) $(STANDALONE) $(TARGET_LIB).*
