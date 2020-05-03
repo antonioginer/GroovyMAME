@@ -34,7 +34,7 @@ windows_display::windows_display(display_settings *ds)
 windows_display::~windows_display()
 {
 	// Restore previous settings
-	ChangeDisplaySettingsExA(m_device_name, NULL, NULL, 0, 0);
+	if (!m_ds.keep_changes) ChangeDisplaySettingsExA(m_device_name, NULL, NULL, 0, 0);
 }
 
 //============================================================
@@ -97,14 +97,12 @@ bool windows_display::init()
 	
 	// Initialize custom video
 	int method = CUSTOM_VIDEO_TIMING_AUTO;
+	if(!strcmp(m_ds.api, "powerstrip"))	method = CUSTOM_VIDEO_TIMING_POWERSTRIP;
+	strcpy(m_ds.vs.device_reg_key, m_device_key);
 
-	if(!strcmp(m_ds.api, "powerstrip"))
-		method = CUSTOM_VIDEO_TIMING_POWERSTRIP;
-
-	char *s_param = (method == CUSTOM_VIDEO_TIMING_POWERSTRIP)? (char *)&m_ds.ps_timing : m_device_key;
-
+	// Create custom video backend
 	set_factory(new custom_video);
-	set_custom_video(factory()->make(m_device_name, m_device_id, method, s_param));
+	set_custom_video(factory()->make(m_device_name, m_device_id, method, &m_ds.vs));
 	if (video()) video()->init();
 
 	// Build our display's mode list
@@ -124,7 +122,7 @@ bool windows_display::init()
 
 bool windows_display::set_mode(modeline *mode)
 {
-	if (mode && set_desktop_mode(mode, CDS_FULLSCREEN | CDS_RESET))
+	if (mode && set_desktop_mode(mode, (m_ds.keep_changes? CDS_UPDATEREGISTRY : CDS_FULLSCREEN) | CDS_RESET))
 	{
 		set_current_mode(mode);
 		return true;

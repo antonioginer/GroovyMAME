@@ -148,10 +148,11 @@
 //  pstrip_timing::pstrip_timing
 //============================================================
 
-pstrip_timing::pstrip_timing(char *device_name, char *ps_timing)
+pstrip_timing::pstrip_timing(char *device_name, custom_video_settings *vs)
 {
+	m_vs = *vs;
 	strcpy (m_device_name, device_name);
-	strcpy (m_ps_timing, ps_timing);
+	strcpy (m_ps_timing, m_vs.custom_timing);
 }
 
 //============================================================
