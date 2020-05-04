@@ -387,10 +387,7 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 			best_mode.type &= ~(X_RES_EDITABLE | Y_RES_EDITABLE | (caps() & CUSTOM_VIDEO_CAPS_UPDATE? 0 : V_FREQ_EDITABLE));
 		}
 		else if (modeline_is_different(&best_mode, m_best_mode) != 0)
-		{
-			log_info("dotclock: %d %d\n", (int)best_mode.pclock, (int)m_best_mode->pclock);
 			best_mode.type |= MODE_UPDATED;
-		}
 
 		char modeline[256]={'\x00'};
 		log_info("Switchres: Modeline %s\n", modeline_print(&best_mode, modeline, MS_FULL));

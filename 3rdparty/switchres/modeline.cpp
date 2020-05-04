@@ -443,7 +443,7 @@ char * modeline_print(modeline *mode, char *modeline, int flags)
 	char params[192]={'\x00'};
 
 	if (flags & MS_LABEL)
-		sprintf(label, "\"%dx%d_%d %.6fKHz %.6fHz\"", mode->hactive, mode->vactive, mode->refresh, mode->hfreq/1000, mode->vfreq);
+		sprintf(label, "\"%dx%d_%d%s %.6fKHz %.6fHz\"", mode->hactive, mode->vactive, mode->refresh, mode->interlace?"i":"", mode->hfreq/1000, mode->vfreq);
 
 	if (flags & MS_LABEL_SDL)
 		sprintf(label, "\"%dx%d_%.6f\"", mode->hactive, mode->vactive, mode->vfreq);
