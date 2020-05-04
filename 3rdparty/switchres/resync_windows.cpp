@@ -89,11 +89,12 @@ void resync_handler::handler_thread()
 void resync_handler::wait()
 {
 	std::unique_lock<std::mutex> lock(m_mutex);
-	m_is_notified = false;
+	m_is_notified_1 = false;
+	m_is_notified_2 = false;
 
 	auto start = std::chrono::steady_clock::now();
 
-	while (!m_is_notified)
+	while (!m_is_notified_1 || !m_is_notified_2)
 		m_event.wait_for(lock, std::chrono::milliseconds(10));
 
 	auto end = std::chrono::steady_clock::now();
@@ -128,7 +129,7 @@ LRESULT CALLBACK resync_handler::my_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
 					{
 						if (db->dbcc_classguid == GUID_DEVINTERFACE_MONITOR)
 						{
-							m_is_notified = true;
+							m_is_notified_1 = true;
 							m_event.notify_one();
 						}
 					}
@@ -139,6 +140,8 @@ LRESULT CALLBACK resync_handler::my_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
 					break;
 				case DBT_DEVNODES_CHANGED:
 					log_verbose("Message: DBT_DEVNODES_CHANGED\n");
+					m_is_notified_2 = true;
+					m_event.notify_one();
 					break;
 				default:
 					log_verbose("Message: WM_DEVICECHANGE message received, value %x unhandled.\n", (int)wparam);

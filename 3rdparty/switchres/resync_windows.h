@@ -37,7 +37,8 @@ class resync_handler
 
 		HWND m_hwnd;
 		std::thread	my_thread;
-		bool m_is_notified;
+		bool m_is_notified_1;
+		bool m_is_notified_2;
 		std::mutex m_mutex;
 		std::condition_variable m_event;
 };
