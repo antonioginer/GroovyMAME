@@ -573,7 +573,7 @@ bool drmkms_timing::set_timing(modeline *mode)
 	drmModeModeInfo dmode = {};
 
 	// Create specific mode name
-	snprintf(dmode.name, 32, "SR-%d_%dx%d", m_id, mode->hactive, mode->vactive);
+	snprintf(dmode.name, 32, "SR-%d_%dx%d@%.02f%s", m_id, mode->hactive, mode->vactive, mode->vfreq, mode->interlace ? "i" : "");
 	dmode.clock       = mode->pclock / 1000;
 	dmode.hdisplay    = mode->hactive;
 	dmode.hsync_start = mode->hbegin;

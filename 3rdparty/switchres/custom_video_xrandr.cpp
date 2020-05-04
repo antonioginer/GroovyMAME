@@ -554,7 +554,7 @@ bool xrandr_timing::add_mode(modeline *mode)
 
 	// Create specific mode name
 	char name[48];
-	sprintf(name, "SR-%d_%dx%d_%f", m_id, mode->hactive, mode->vactive, mode->vfreq);
+	sprintf(name, "SR-%d_%dx%d@%.02f%s", m_id, mode->hactive, mode->vactive, mode->vfreq, mode->interlace ? "i" : "");
 
 	// Check if mode is available from the SR name (should not be the case, otherwise it means that we recevied twice the same mode request)
 	pxmode = find_mode_by_name(name);
