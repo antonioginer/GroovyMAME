@@ -260,6 +260,10 @@ bool display_manager::filter_modes()
 		if (m_ds.lock_system_modes && (mode.type & CUSTOM_VIDEO_TIMING_SYSTEM))
 			mode.type |= MODE_DISABLED;
 
+		// Make sure to unlock the desktop mode as fallback
+		if (mode.type & MODE_DESKTOP)
+			mode.type &= ~MODE_DISABLED;
+
 		// Lock all modes that don't match the user's -resolution rules
 		if (m_user_mode.width != 0 || m_user_mode.height != 0 || m_user_mode.refresh == !0)
 		{
@@ -270,10 +274,6 @@ bool display_manager::filter_modes()
 			else
 				mode.type &= ~MODE_DISABLED;
 		}
-
-		// Make sure to unlock the desktop mode as fallback
-		if (mode.type & MODE_DESKTOP)
-			mode.type &= ~MODE_DISABLED;
 	}
 
 	return true;
