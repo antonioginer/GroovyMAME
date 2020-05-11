@@ -70,9 +70,14 @@ class xrandr_timing : public custom_video
 		int m_video_modes_position = 0;
 		char m_device_name[32];
 		Rotation m_desktop_rotation;
+		unsigned int m_min_width;
+		unsigned int m_max_width;
+		unsigned int m_min_height;
+		unsigned int m_max_height;
 
 		Display *m_pdisplay = NULL;
 		Window m_root;
+		int m_screen;
 
 		int m_desktop_output = -1;
 		XRRModeInfo m_desktop_mode = {};
@@ -98,6 +103,7 @@ class xrandr_timing : public custom_video
 		__typeof__(XRRQueryVersion) *p_XRRQueryVersion;
 		__typeof__(XRRSetCrtcConfig) *p_XRRSetCrtcConfig;
 		__typeof__(XRRSetScreenSize) *p_XRRSetScreenSize;
+		__typeof__(XRRGetScreenSizeRange) *p_XRRGetScreenSizeRange;
 
 		void *m_x11_handle = 0;
 
@@ -107,6 +113,9 @@ class xrandr_timing : public custom_video
 		__typeof__(XSync) *p_XSync;
 		__typeof__(XUngrabServer) *p_XUngrabServer;
 		__typeof__(XSetErrorHandler) *p_XSetErrorHandler;
+		__typeof__(XClearWindow) *p_XClearWindow;
+		__typeof__(XFillRectangle) *p_XFillRectangle;
+		__typeof__(XCreateGC) *p_XCreateGC;
 };
 
 #endif
