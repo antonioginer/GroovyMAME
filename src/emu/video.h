@@ -30,6 +30,7 @@
 constexpr int FRAMESKIP_LEVELS = 12;
 constexpr int MAX_FRAMESKIP = FRAMESKIP_LEVELS - 2;
 
+constexpr int FD_BINS = 10;
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -52,6 +53,8 @@ public:
 	int frameskip() const { return m_auto_frameskip ? -1 : m_frameskip_level; }
 	bool throttled() const { return m_throttled; }
 	float throttle_rate() const { return m_throttle_rate; }
+	bool sync_refresh() const { return m_syncrefresh; }
+	int32_t framedelay() const { return m_framedelay; }
 	bool fastforward() const { return m_fastforward; }
 
 	// setters
@@ -60,6 +63,8 @@ public:
 	void set_throttle_rate(float throttle_rate) { m_throttle_rate = throttle_rate; }
 	void set_fastforward(bool ffwd) { m_fastforward = ffwd; }
 	void set_output_changed() { m_output_changed = true; }
+	void set_sync_refresh(bool syncrefresh) { m_syncrefresh = syncrefresh; }
+	void set_framedelay(int framedelay) { m_framedelay = framedelay; }
 
 	// misc
 	void toggle_record_movie(movie_recording::format format);
@@ -140,6 +145,8 @@ private:
 	// configuration
 	bool                m_throttled;                // flag: true if we're currently throttled
 	float               m_throttle_rate;            // target rate for throttling
+	bool                m_syncrefresh;              // flag: TRUE if we're currently refresh-synced
+	int32_t             m_framedelay;               // tenths of frame to delay emulation start
 	bool                m_fastforward;              // flag: true if we're currently fast-forwarding
 	u32                 m_seconds_to_run;           // number of seconds to run before quitting
 	bool                m_auto_frameskip;           // flag: true if we're automatically frameskipping
@@ -164,6 +171,9 @@ private:
 
 	// movie recordings
 	std::vector<movie_recording::ptr> m_movie_recordings;
+
+	// frame delay statistics
+	static int          s_fd_speeds[FD_BINS];
 
 	static const bool   s_skiptable[FRAMESKIP_LEVELS][FRAMESKIP_LEVELS];
 

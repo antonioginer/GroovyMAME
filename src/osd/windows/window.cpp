@@ -809,10 +809,26 @@ void win_window_info::update()
 		}
 	}
 
+	bool reset_required = false;
+
 	// check if we need to change the video mode
 	auto &options = downcast<windows_options &>(m_machine.options());
 	if (options.switch_res() && options.changeres())
-		WINOSD(m_machine)->switchres()->check_resolution_change(m_index, m_monitor.get(), m_target, &m_win_config);
+		reset_required = WINOSD(m_machine)->switchres()->check_resolution_change(m_index, m_monitor.get(), m_target, &m_win_config);
+
+	// check if frame delay has changed
+	int new_frame_delay = machine().video().framedelay();
+	if (new_frame_delay != video_config.framedelay)
+	{
+		reset_required |= ((bool)video_config.framedelay != (bool)new_frame_delay);
+		video_config.framedelay = new_frame_delay;
+	}
+
+	if (reset_required)
+	{
+		reset_fullscreen_renderer();
+		return;
+	}
 
 	// if we're visible and running and not in the middle of a resize, draw
 	if (platform_window() != nullptr && target() != nullptr && has_renderer())
@@ -1879,6 +1895,24 @@ void win_window_info::set_fullscreen(int fullscreen)
 
 	// ensure we're still adjusted correctly
 	adjust_window_position_after_major_change();
+}
+
+
+//============================================================
+//  reset_fullscreen_renderer
+//============================================================
+
+void win_window_info::reset_fullscreen_renderer()
+{
+	// if we're in the right state, punt
+	if (!m_fullscreen)
+		return;
+
+	if (video_config.mode == VIDEO_MODE_D3D)
+	{
+		renderer().restart();
+		return;
+	}
 }
 
 

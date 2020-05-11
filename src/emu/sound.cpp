@@ -1545,13 +1545,13 @@ void sound_manager::update(int param)
 	stream_buffer::sample_t lprev = 0, rprev = 0;
 
 	// now downmix the final result
-	u32 finalmix_step = machine().video().speed_factor();
+	u32 finalmix_step = machine().video().speed_factor() * 100;
 	u32 finalmix_offset = 0;
 	s16 *finalmix = &m_finalmix[0];
 	int sample;
-	for (sample = m_finalmix_leftover; sample < m_samples_this_update * 1000; sample += finalmix_step)
+	for (sample = m_finalmix_leftover; sample < m_samples_this_update * 100000; sample += finalmix_step)
 	{
-		int sampindex = sample / 1000;
+		int sampindex = sample / 100000;
 
 		// ensure that changing the compression won't reverse direction to reduce "pops"
 		stream_buffer::sample_t lsamp = m_leftmix[sampindex];
@@ -1585,7 +1585,7 @@ void sound_manager::update(int param)
 			rsamp = -1.0;
 		finalmix[finalmix_offset++] = s16(rsamp * 32767.0);
 	}
-	m_finalmix_leftover = sample - m_samples_this_update * 1000;
+	m_finalmix_leftover = sample - m_samples_this_update * 100000;
 
 	// play the result
 	if (finalmix_offset > 0)

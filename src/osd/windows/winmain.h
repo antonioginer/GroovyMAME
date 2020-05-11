@@ -110,7 +110,6 @@
 #define WINOPTION_UI_LUT_ENABLE "ui_lut_enable"
 
 // full screen options
-#define WINOPTION_TRIPLEBUFFER          "triplebuffer"
 #define WINOPTION_FULLSCREENBRIGHTNESS  "full_screen_brightness"
 #define WINOPTION_FULLSCREENCONTRAST    "full_screen_contrast"
 #define WINOPTION_FULLSCREENGAMMA       "full_screen_gamma"
@@ -222,7 +221,6 @@ public:
 	bool ui_lut_enable() const { return bool_value(WINOPTION_UI_LUT_ENABLE); }
 
 	// full screen options
-	bool triple_buffer() const { return bool_value(WINOPTION_TRIPLEBUFFER); }
 	float full_screen_brightness() const { return float_value(WINOPTION_FULLSCREENBRIGHTNESS); }
 	float full_screen_contrast() const { return float_value(WINOPTION_FULLSCREENCONTRAST); }
 	float full_screen_gamma() const { return float_value(WINOPTION_FULLSCREENGAMMA); }

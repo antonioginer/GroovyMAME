@@ -302,7 +302,7 @@ public:
 
 	bool init(d3d_base *d3dintf, running_machine *machine, renderer_d3d9 *renderer);
 
-	bool enabled() { return post_fx_enable && d3dintf->post_fx_available; }
+	bool enabled() { return (this != nullptr) && post_fx_enable && d3dintf->post_fx_available; }
 	void toggle() { post_fx_enable = initialized && !post_fx_enable; }
 
 	void begin_draw();

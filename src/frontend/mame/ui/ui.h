@@ -60,6 +60,63 @@ class laserdisc_device;
 /* cancel return value for a UI handler */
 #define UI_HANDLER_CANCEL       ((uint32_t)~0)
 
+#define SLIDER_DEVICE_SPACING   0x0ff
+#define SLIDER_SCREEN_SPACING   0x0f
+#define SLIDER_INPUT_SPACING    0x0f
+
+enum
+{
+	SLIDER_ID_VOLUME                = 0,
+	SLIDER_ID_FRAMEDELAY,
+	SLIDER_ID_MIXERVOL,
+	SLIDER_ID_MIXERVOL_LAST         = SLIDER_ID_MIXERVOL + SLIDER_DEVICE_SPACING,
+	SLIDER_ID_ADJUSTER,
+	SLIDER_ID_ADJUSTER_LAST         = SLIDER_ID_ADJUSTER + SLIDER_DEVICE_SPACING,
+	SLIDER_ID_OVERCLOCK,
+	SLIDER_ID_OVERCLOCK_LAST        = SLIDER_ID_OVERCLOCK + SLIDER_DEVICE_SPACING,
+	SLIDER_ID_REFRESH,
+	SLIDER_ID_REFRESH_LAST          = SLIDER_ID_REFRESH + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_BRIGHTNESS,
+	SLIDER_ID_BRIGHTNESS_LAST       = SLIDER_ID_BRIGHTNESS + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_CONTRAST,
+	SLIDER_ID_CONTRAST_LAST         = SLIDER_ID_CONTRAST + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_GAMMA,
+	SLIDER_ID_GAMMA_LAST            = SLIDER_ID_GAMMA + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_XSCALE,
+	SLIDER_ID_XSCALE_LAST           = SLIDER_ID_XSCALE + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_YSCALE,
+	SLIDER_ID_YSCALE_LAST           = SLIDER_ID_YSCALE + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_XOFFSET,
+	SLIDER_ID_XOFFSET_LAST          = SLIDER_ID_XOFFSET + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_YOFFSET,
+	SLIDER_ID_YOFFSET_LAST          = SLIDER_ID_YOFFSET + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_OVERLAY_XSCALE,
+	SLIDER_ID_OVERLAY_XSCALE_LAST   = SLIDER_ID_OVERLAY_XSCALE + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_OVERLAY_YSCALE,
+	SLIDER_ID_OVERLAY_YSCALE_LAST   = SLIDER_ID_OVERLAY_YSCALE + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_OVERLAY_XOFFSET,
+	SLIDER_ID_OVERLAY_XOFFSET_LAST  = SLIDER_ID_OVERLAY_XOFFSET + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_OVERLAY_YOFFSET,
+	SLIDER_ID_OVERLAY_YOFFSET_LAST  = SLIDER_ID_OVERLAY_YOFFSET + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_FLICKER,
+	SLIDER_ID_FLICKER_LAST          = SLIDER_ID_FLICKER + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_BEAM_WIDTH_MIN,
+	SLIDER_ID_BEAM_WIDTH_MIN_LAST   = SLIDER_ID_BEAM_WIDTH_MIN + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_BEAM_WIDTH_MAX,
+	SLIDER_ID_BEAM_WIDTH_MAX_LAST   = SLIDER_ID_BEAM_WIDTH_MAX + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_BEAM_INTENSITY,
+	SLIDER_ID_BEAM_INTENSITY_LAST   = SLIDER_ID_BEAM_INTENSITY + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_BEAM_DOT_SIZE,
+	SLIDER_ID_BEAM_DOT_SIZE_LAST    = SLIDER_ID_BEAM_DOT_SIZE + SLIDER_SCREEN_SPACING,
+	SLIDER_ID_CROSSHAIR_SCALE,
+	SLIDER_ID_CROSSHAIR_SCALE_LAST  = SLIDER_ID_CROSSHAIR_SCALE + SLIDER_INPUT_SPACING,
+	SLIDER_ID_CROSSHAIR_OFFSET,
+	SLIDER_ID_CROSSHAIR_OFFSET_LAST = SLIDER_ID_CROSSHAIR_OFFSET + SLIDER_INPUT_SPACING,
+
+	SLIDER_ID_CORE_LAST         = SLIDER_ID_CROSSHAIR_OFFSET,
+	SLIDER_ID_CORE_COUNT
+};
+
 /***************************************************************************
     TYPE DEFINITIONS
 ***************************************************************************/
@@ -190,6 +247,11 @@ public:
 	void start_save_state();
 	void start_load_state();
 
+	// config callbacks
+	void config_load(config_type cfg_type, util::xml::data_node const *parentnode);
+	void config_save(config_type cfg_type, util::xml::data_node *parentnode);
+	void config_apply(void);
+
 	// slider controls
 	std::vector<ui::menu_item>&  get_slider_list(void);
 
@@ -278,6 +340,7 @@ private:
 
 	// slider controls
 	int32_t slider_volume(std::string *str, int32_t newval);
+	int32_t slider_framedelay(running_machine &machine, void *arg, int id, std::string *str, int32_t newval);
 	int32_t slider_mixervol(int item, std::string *str, int32_t newval);
 	int32_t slider_adjuster(ioport_field &field, std::string *str, int32_t newval);
 	int32_t slider_overclock(device_t &device, std::string *str, int32_t newval);
@@ -305,6 +368,7 @@ private:
 #endif
 
 	std::vector<std::unique_ptr<slider_state>> m_sliders;
+	std::vector<std::unique_ptr<slider_state>> m_sliders_saved;
 };
 
 
