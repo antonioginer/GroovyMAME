@@ -39,6 +39,7 @@
 #define XRRQueryVersion p_XRRQueryVersion
 #define XRRSetCrtcConfig p_XRRSetCrtcConfig
 #define XRRSetScreenSize p_XRRSetScreenSize
+#define XRRGetScreenSizeRange p_XRRGetScreenSizeRange
 
 #define XCloseDisplay p_XCloseDisplay
 #define XGrabServer p_XGrabServer
@@ -46,6 +47,9 @@
 #define XSync p_XSync
 #define XUngrabServer p_XUngrabServer
 #define XSetErrorHandler p_XSetErrorHandler
+#define XClearWindow p_XClearWindow
+#define XFillRectangle p_XFillRectangle
+#define XCreateGC p_XCreateGC
 
 //============================================================
 //  error_handler
@@ -154,6 +158,19 @@ xrandr_timing::xrandr_timing(char *device_name, custom_video_settings *vs)
 
 xrandr_timing::~xrandr_timing()
 {
+	s_total_managed_screen--;
+	if (s_total_managed_screen == 0)
+	{
+		if (sp_desktop_crtc)
+			delete[]sp_desktop_crtc;
+
+		if (sp_shared_screen_manager)
+			delete[]sp_shared_screen_manager;
+
+		// Restore default desktop background
+		XClearWindow(m_pdisplay, m_root);
+	}
+
 	// Free the display
 	if (m_pdisplay != NULL)
 		XCloseDisplay(m_pdisplay);
@@ -165,16 +182,6 @@ xrandr_timing::~xrandr_timing()
 	// close X11 library
 	if (m_x11_handle)
 		dlclose(m_x11_handle);
-
-	s_total_managed_screen--;
-	if (s_total_managed_screen == 0)
-	{
-		if (sp_desktop_crtc)
-			delete[]sp_desktop_crtc;
-
-		if (sp_shared_screen_manager)
-			delete[]sp_shared_screen_manager;
-	}
 }
 
 //============================================================
@@ -299,6 +306,13 @@ bool xrandr_timing::init()
 			log_error("XRANDR: <%d> (init) [ERROR] missing func %s in %s", m_id, "XRRSetScreenSize", "XRANDR_LIBRARY");
 			return false;
 		}
+
+		p_XRRGetScreenSizeRange = (__typeof__(XRRGetScreenSizeRange)) dlsym(m_xrandr_handle, "XRRGetScreenSizeRange");
+		if (p_XRRGetScreenSizeRange == NULL)
+		{
+			log_error("XRANDR: <%d> (init) [ERROR] missing func %s in %s", m_id, "XRRSetScreenSize", "XRANDR_LIBRARY");
+			return false;
+		}
 	}
 	else
 	{
@@ -359,6 +373,27 @@ bool xrandr_timing::init()
 			log_error("XRANDR: <%d> (init) [ERROR] missing func %s in %s\n", m_id, "XGetErrorText", "X11_LIBRARY");
 			return false;
 		}
+
+		p_XClearWindow = (__typeof__(XClearWindow)) dlsym(m_x11_handle, "XClearWindow");
+		if (p_XClearWindow == NULL)
+		{
+			log_error("XRANDR: <%d> (init) [ERROR] missing func %s in %s", m_id, "XClearWindow", "X11_LIBRARY");
+			return false;
+		}
+
+		p_XFillRectangle = (__typeof__(XFillRectangle)) dlsym(m_x11_handle, "XFillRectangle");
+		if (p_XFillRectangle == NULL)
+		{
+			log_error("XRANDR: <%d> (init) [ERROR] missing func %s in %s", m_id, "XFillRectangle", "X11_LIBRARY");
+			return false;
+		}
+
+		p_XCreateGC = (__typeof__(XCreateGC)) dlsym(m_x11_handle, "XCreateGC");
+		if (p_XCreateGC == NULL)
+		{
+			log_error("XRANDR: <%d> (init) [ERROR] missing func %s in %s", m_id, "XCreateGC", "X11_LIBRARY");
+			return false;
+		}
 	}
 	else
 	{
@@ -382,6 +417,12 @@ bool xrandr_timing::init()
 	XRRQueryVersion(m_pdisplay, &major_version, &minor_version);
 	log_verbose("XRANDR: <%d> (init) version %d.%d\n", m_id, major_version, minor_version);
 
+	if (major_version < 1 || (major_version == 1 && minor_version < 2))
+	{
+		log_error("XRANDR: <%d> (init) [ERROR] Xrandr version 1.2 or above is required\n", m_id);
+		return false;
+	}
+
 	// screen_pos defines screen position, 0 is default first screen position and equivalent to 'auto'
 	int screen_pos = -1;
 	bool detected = false;
@@ -398,6 +439,7 @@ bool xrandr_timing::init()
 	for (int screen = 0; !detected && screen < ScreenCount(m_pdisplay); screen++)
 	{
 		log_verbose("XRANDR: <%d> (init) check screen number %d\n", m_id, screen);
+		m_screen = screen;
 		m_root = RootWindow(m_pdisplay, screen);
 
 		XRRScreenResources *resources = XRRGetScreenResourcesCurrent(m_pdisplay, m_root);
@@ -438,6 +480,17 @@ bool xrandr_timing::init()
 				{
 					// store the output connector
 					m_desktop_output = o;
+
+					// store screen minium and maximum resolutions
+					int min_width;
+					int max_width;
+					int min_height;
+					int max_height;
+					XRRGetScreenSizeRange (m_pdisplay, m_root, &min_width, &min_height, &max_width, &max_height); 
+					m_min_width = min_width;
+					m_max_width = max_width;
+					m_min_height = min_height;
+					m_max_height = max_height;
 
 					if (sp_shared_screen_manager[m_desktop_output] == 0)
 					{
@@ -748,8 +801,8 @@ bool xrandr_timing::set_timing(modeline *mode, int flags)
 	// Grab X server to prevent unwanted interaction from the window manager
 	XGrabServer(m_pdisplay);
 
-	unsigned int width = 0;
-	unsigned int height = 0;
+	unsigned int width = m_min_width;
+	unsigned int height = m_min_height;
 
 	unsigned int active_crtc = 0;
 
@@ -836,7 +889,7 @@ bool xrandr_timing::set_timing(modeline *mode, int flags)
 		// Skip unused crtc
 		if (output_info->crtc != 0 && crtc_info0->mode != 0)
 		{
-			if ((flags & XRANDR_DISABLE_CRTC_RELOCATION) == 0 && (crtc_info1->timestamp & (XRANDR_SETMODE_IS_DESKTOP)) == 0)
+			if ((flags & XRANDR_DISABLE_CRTC_RELOCATION) == 0 && (crtc_info1->timestamp & XRANDR_SETMODE_IS_DESKTOP) == 0)
 			{
 				// relocate crtc impacted by new width
 				if (crtc_info1->x >= crtc_info->x + (int)crtc_info->width)
@@ -860,6 +913,18 @@ bool xrandr_timing::set_timing(modeline *mode, int flags)
 			if (crtc_info1->y + crtc_info1->height > height)
 				height = crtc_info1->y + crtc_info1->height;
 
+			if (width > m_max_width)
+			{
+				log_error("XRANDR: <%d> (set_timing) [ERROR] width is above allowed maximum (%d > %d)\n", m_id, width, m_max_width);
+				width = m_max_width;
+			}
+
+			if (height > m_max_height)
+			{
+				log_error("XRANDR: <%d> (set_timing) [ERROR] height is above allowed maximum (%d > %d)\n", m_id, height, m_max_height);
+				height = m_max_height;
+			}
+
 			if (crtc_info1->timestamp & XRANDR_SETMODE_UPDATE_MASK)
 				log_verbose("XRANDR: <%d> (set_timing) crtc %d%s [%04lx] %ux%u+%d+%d --> [%04lx] %ux%u+%d+%d flags [%02lx]\n", m_id, c, crtc_info1->timestamp & 1 ? "*" : " ", crtc_info0->mode, crtc_info0->width, crtc_info0->height, crtc_info0->x, crtc_info0->y, crtc_info1->mode, crtc_info1->width, crtc_info1->height, crtc_info1->x, crtc_info1->y, crtc_info1->timestamp);
 			else if (crtc_info1->timestamp & XRANDR_SETMODE_INFO_MASK)
@@ -873,7 +938,6 @@ bool xrandr_timing::set_timing(modeline *mode, int flags)
 	for (int c = 0; c < resources->ncrtc; c++)
 	{
 		// Modified state
-		XRRCrtcInfo *crtc_info1 = XRRGetCrtcInfo(m_pdisplay, resources, resources->crtcs[c]);
 		if (global_crtc[c].timestamp & XRANDR_SETMODE_UPDATE_MASK)
 		{
 			if (XRRSetCrtcConfig(m_pdisplay, resources, resources->crtcs[c], CurrentTime, 0, 0, None, RR_Rotate_0, NULL, 0) != RRSetConfigSuccess)
@@ -883,17 +947,16 @@ bool xrandr_timing::set_timing(modeline *mode, int flags)
 				ms_xerrors |= ms_xerrors_flag;
 			}
 		}
-		XRRFreeCrtcInfo(crtc_info1);
 	}
 
 	// Set the framebuffer screen size to enable all crtc
 	if (ms_xerrors == 0)
 	{
-		log_verbose("XRANDR: <%d> (set_timing) changing size to %d x %d\n", m_id, width, height);
+		log_verbose("XRANDR: <%d> (set_timing) setting screen size to %d x %d\n", m_id, width, height);
 		XSync(m_pdisplay, False);
 		ms_xerrors_flag = 0x02;
 		old_error_handler = XSetErrorHandler(error_handler);
-		XRRSetScreenSize(m_pdisplay, m_root, width, height, (25.4 * width) / 96.0, (25.4 * height) / 96.0);
+		XRRSetScreenSize(m_pdisplay, m_root, width, height, (int) ((25.4 * width) / 96.0), (int) ((25.4 * height) / 96.0));
 		XSync(m_pdisplay, False);
 		XSetErrorHandler(old_error_handler);
 		if (ms_xerrors & ms_xerrors_flag)
@@ -907,6 +970,8 @@ bool xrandr_timing::set_timing(modeline *mode, int flags)
 		XRRCrtcInfo *crtc_info1 = &global_crtc[c];
 		if (crtc_info1->timestamp & XRANDR_SETMODE_UPDATE_MASK)
 		{
+			if (crtc_info1->timestamp & XRANDR_SETMODE_IS_DESKTOP)
+				XFillRectangle(m_pdisplay, m_root, XCreateGC(m_pdisplay, m_root, 0, 0), crtc_info1->x, crtc_info1->y, crtc_info1->width, crtc_info1->height);
 			// enable crtc with updated parameters
 			XSync(m_pdisplay, False);
 			ms_xerrors_flag = 0x14;
