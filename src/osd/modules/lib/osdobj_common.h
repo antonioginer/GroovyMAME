@@ -45,7 +45,6 @@
 #define OSDOPTION_WINDOW                "window"
 #define OSDOPTION_MAXIMIZE              "maximize"
 #define OSDOPTION_WAITVSYNC             "waitvsync"
-#define OSDOPTION_SYNCREFRESH           "syncrefresh"
 
 #define OSDOPTION_SCREEN                "screen"
 #define OSDOPTION_ASPECT                "aspect"
@@ -103,7 +102,6 @@
 #define OSDOPTION_PIXEL_PRECISION       "pixel_precision"
 #define OSDOPTION_SYNC_REFRESH_TOLERANCE "sync_refresh_tolerance"
 #define OSDOPTION_AUTOSYNC              "autosync"
-#define OSDOPTION_FRAME_DELAY           "frame_delay"
 #define OSDOPTION_VSYNC_OFFSET          "vsync_offset"
 #define OSDOPTION_BLACK_FRAME_INSERTION "black_frame_insertion"
 #define OSDOPTION_SCREEN_COMPOSITING    "screen_compositing"
@@ -145,7 +143,6 @@ public:
 	bool window() const { return bool_value(OSDOPTION_WINDOW); }
 	bool maximize() const { return bool_value(OSDOPTION_MAXIMIZE); }
 	bool wait_vsync() const { return bool_value(OSDOPTION_WAITVSYNC); }
-	bool sync_refresh() const { return bool_value(OSDOPTION_SYNCREFRESH); }
 
 	// per-window options
 	const char *screen() const { return value(OSDOPTION_SCREEN); }
@@ -175,7 +172,6 @@ public:
 	bool pixel_precision() const { return bool_value(OSDOPTION_PIXEL_PRECISION); }
 	float sync_refresh_tolerance() const { return float_value(OSDOPTION_SYNC_REFRESH_TOLERANCE); }
 	bool autosync() const { return bool_value(OSDOPTION_AUTOSYNC); }
-	int frame_delay() const { return int_value(OSDOPTION_FRAME_DELAY); }
 	int vsync_offset() const { return int_value(OSDOPTION_VSYNC_OFFSET); }
 	bool black_frame_insertion() const { return bool_value(OSDOPTION_BLACK_FRAME_INSERTION); }
 	bool screen_compositing() const { return bool_value(OSDOPTION_SCREEN_COMPOSITING); }

@@ -131,7 +131,7 @@ std::vector<submenu::option> submenu::video_options()
 			{ option_type::OSD,  N_("Window Mode"),                             OSDOPTION_WINDOW },
 			{ option_type::EMU,  N_("Enforce Aspect Ratio"),                    OPTION_KEEPASPECT },
 			{ option_type::OSD,  N_("Start Out Maximized"),                     OSDOPTION_MAXIMIZE },
-			{ option_type::OSD,  N_("Synchronized Refresh"),                    OSDOPTION_SYNCREFRESH },
+			{ option_type::EMU,  N_("Synchronized Refresh"),                    OPTION_SYNCREFRESH },
 			{ option_type::OSD,  N_("Wait Vertical Sync"),                      OSDOPTION_WAITVSYNC } };
 }
 

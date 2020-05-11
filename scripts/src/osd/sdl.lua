@@ -53,6 +53,12 @@ function maintargetosdoptions(_target,_subtarget)
 		addoptionsfromstring(str)
 	end
 
+	if BASE_TARGETOS=="unix" and _OPTIONS["targetos"]=="linux" then
+		local str = backtick("pkg-config --libs libdrm")
+		addlibfromstring(str)
+		addoptionsfromstring(str)
+	end
+
 	if _OPTIONS["targetos"]=="windows" then
 		if _OPTIONS["with-bundled-sdl2"]~=nil then
 			configuration { "mingw*"}

@@ -75,7 +75,9 @@
 #define OPTION_SLEEP                "sleep"
 #define OPTION_SPEED                "speed"
 #define OPTION_REFRESHSPEED         "refreshspeed"
+#define OPTION_SYNCREFRESH          "syncrefresh"
 #define OPTION_LOWLATENCY           "lowlatency"
+#define OPTION_FRAMEDELAY           "framedelay"
 
 // core render options
 #define OPTION_KEEPASPECT           "keepaspect"
@@ -360,7 +362,9 @@ public:
 	bool sleep() const { return m_sleep; }
 	float speed() const { return float_value(OPTION_SPEED); }
 	bool refresh_speed() const { return m_refresh_speed; }
+	bool sync_refresh() const { return bool_value(OPTION_SYNCREFRESH); }
 	bool low_latency() const { return bool_value(OPTION_LOWLATENCY); }
+	int frame_delay() const { return int_value(OPTION_FRAMEDELAY); }
 
 	// core render options
 	bool keep_aspect() const { return bool_value(OPTION_KEEPASPECT); }
