@@ -497,7 +497,16 @@ std::string machine_info::game_info_string() const
 					get_screen_desc(screen), detail);
 		}
 	}
-
+/*
+	// display Switchres information
+	modeline *mode = &m_machine.switchres.best_mode;
+	if (mode->hactive)
+	{
+		buf << _("\nSwitchres:\n");
+		util::stream_format(buf, "%d " UTF8_MULTIPLY " %d%s%s %2.3f Hz %2.3f kHz\n",
+			mode->hactive, mode->vactive, mode->interlace?"i":"p", mode->doublescan?"d":"", mode->vfreq, mode->hfreq/1000);
+	}
+*/
 	return buf.str();
 }
 

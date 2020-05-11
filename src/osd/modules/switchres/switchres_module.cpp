@@ -240,6 +240,7 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 		{
 			display->set_mode(display->best_mode());
 			monitor->refresh();
+			monitor->update_resolution(display->width(), display->height());
 		}
 
 		set_options(display, target);
@@ -290,7 +291,7 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 	// Disable -syncrefresh if our vfreq is scaled or out of syncrefresh_tolerance
 	bool sync_refresh_effective = black_frame_insertion || !((display->is_refresh_off()) || display->v_scale() > 1);
 	set_option(OSDOPTION_WAITVSYNC, options.autosync()? sync_refresh_effective : options.wait_vsync());
-	set_option(OPTION_THROTTLE, options.autosync()? !sync_refresh_effective : options.throttle());
+	set_option(OPTION_SYNCREFRESH, options.autosync()? sync_refresh_effective : options.sync_refresh());
 
 	#if defined(OSD_WINDOWS)
 		downcast<windows_osd_interface &>(machine().osd()).extract_video_config();
