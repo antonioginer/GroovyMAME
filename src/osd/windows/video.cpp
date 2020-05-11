@@ -190,9 +190,8 @@ void windows_osd_interface::extract_video_config()
 		video_config.mode = VIDEO_MODE_GDI;
 	}
 	video_config.waitvsync     = options().wait_vsync();
-	video_config.syncrefresh   = options().sync_refresh();
-	video_config.triplebuf     = options().triple_buffer();
 	video_config.switchres     = options().switch_res();
+	video_config.framedelay    = options().frame_delay();
 
 	if (video_config.prescale < 1 || video_config.prescale > 8)
 	{

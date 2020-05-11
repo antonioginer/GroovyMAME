@@ -217,6 +217,7 @@ public:
 	virtual void record() { }
 	virtual void toggle_fsfx() { }
 	virtual bool sliders_dirty() { return m_sliders_dirty; }
+	virtual int restart() { return 0; }
 
 	static std::unique_ptr<osd_renderer> make_for_type(int mode, std::shared_ptr<osd_window> window, int extra_flags = FLAG_NONE);
 
@@ -260,8 +261,8 @@ struct osd_video_config
 	// hardware options
 	int                 mode;                       // output mode
 	int                 waitvsync;                  // spin until vsync
-	int                 syncrefresh;                // sync only to refresh rate
 	int                 switchres;                  // switch resolutions
+	int                 framedelay;					// frame delay
 
 	// d3d, accel, opengl
 	int                 filter;                     // enable filtering
@@ -278,9 +279,6 @@ struct osd_video_config
 	int                 vbo;
 	int                 allowtexturerect;   // allow GL_ARB_texture_rectangle, default: no
 	int                 forcepow2texture;   // force power of two textures, default: no
-
-	// dd, d3d
-	int                 triplebuf;                  // triple buffer
 
 	//============================================================
 	// SDL - options

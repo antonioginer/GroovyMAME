@@ -43,6 +43,7 @@
 #include "uiinput.h"
 
 #include "../osd/modules/lib/osdobj_common.h"
+#include "config.h"
 
 #include <chrono>
 #include <functional>
@@ -226,6 +227,9 @@ void mame_ui_manager::init()
 			"ui_warnings",
 			configuration_manager::load_delegate(&mame_ui_manager::config_load, this),
 			configuration_manager::save_delegate(&mame_ui_manager::config_save, this));
+
+	// register callbacks
+	machine().configuration().config_register("sliders", config_load_delegate(&mame_ui_manager::config_load, this), config_save_delegate(&mame_ui_manager::config_save, this));
 
 	// create mouse bitmap
 	uint32_t *dst = &m_mouse_bitmap.pix(0);
@@ -1459,6 +1463,9 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 	// add overall volume
 	slider_alloc(_("Master Volume"), -32, 0, 0, 1, std::bind(&mame_ui_manager::slider_volume, this, _1, _2));
 
+	// add frame delay
+	m_sliders.push_back(slider_alloc(SLIDER_ID_FRAMEDELAY, _("Frame Delay"), 0, machine.options().frame_delay(), 9, 1, nullptr));
+
 	// add per-channel volume
 	mixer_input info;
 	for (int item = 0; machine.sound().indexed_mixer_input(item, info); item++)
@@ -1594,6 +1601,8 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 	}
 #endif
 
+	config_apply();
+
 	std::vector<ui::menu_item> items;
 	for (auto &slider : m_sliders)
 	{
@@ -1603,6 +1612,66 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 	}
 
 	return items;
+}
+
+//----------------------------------------------------
+//  slider_changed - global slider-modified callback
+//----------------------------------------------------
+
+int32_t mame_ui_manager::slider_changed(running_machine &machine, void *arg, int id, std::string *str, int32_t newval)
+{
+	if (id == SLIDER_ID_VOLUME)
+		return slider_volume(machine, arg, id, str, newval);
+	else if (id == SLIDER_ID_FRAMEDELAY)
+		return slider_framedelay(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_MIXERVOL && id <= SLIDER_ID_MIXERVOL_LAST)
+		return slider_mixervol(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_ADJUSTER && id <= SLIDER_ID_ADJUSTER_LAST)
+			return slider_adjuster(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_OVERCLOCK && id <= SLIDER_ID_OVERCLOCK_LAST)
+			return slider_overclock(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_REFRESH && id <= SLIDER_ID_REFRESH_LAST)
+			return slider_refresh(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_BRIGHTNESS && id <= SLIDER_ID_BRIGHTNESS_LAST)
+			return slider_brightness(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_CONTRAST && id <= SLIDER_ID_CONTRAST_LAST)
+			return slider_contrast(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_GAMMA && id <= SLIDER_ID_GAMMA_LAST)
+			return slider_gamma(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_XSCALE && id <= SLIDER_ID_XSCALE_LAST)
+			return slider_xscale(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_YSCALE && id <= SLIDER_ID_YSCALE_LAST)
+			return slider_yscale(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_XOFFSET && id <= SLIDER_ID_XOFFSET_LAST)
+			return slider_xoffset(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_YOFFSET && id <= SLIDER_ID_YOFFSET_LAST)
+			return slider_yoffset(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_OVERLAY_XSCALE && id <= SLIDER_ID_OVERLAY_XSCALE_LAST)
+			return slider_overxscale(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_OVERLAY_YSCALE && id <= SLIDER_ID_OVERLAY_YSCALE_LAST)
+			return slider_overyscale(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_OVERLAY_XOFFSET && id <= SLIDER_ID_OVERLAY_XOFFSET_LAST)
+			return slider_overxoffset(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_OVERLAY_YOFFSET && id <= SLIDER_ID_OVERLAY_YOFFSET_LAST)
+			return slider_overyoffset(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_FLICKER && id <= SLIDER_ID_FLICKER_LAST)
+			return slider_flicker(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_BEAM_WIDTH_MIN && id <= SLIDER_ID_BEAM_WIDTH_MIN_LAST)
+			return slider_beam_width_min(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_BEAM_WIDTH_MAX && id <= SLIDER_ID_BEAM_WIDTH_MAX_LAST)
+			return slider_beam_width_max(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_BEAM_DOT_SIZE && id <= SLIDER_ID_BEAM_DOT_SIZE_LAST)
+			return slider_beam_dot_size(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_BEAM_INTENSITY && id <= SLIDER_ID_BEAM_INTENSITY_LAST)
+			return slider_beam_intensity_weight(machine, arg, id, str, newval);
+#ifdef MAME_DEBUG
+	else if (id >= SLIDER_ID_CROSSHAIR_SCALE && id <= SLIDER_ID_CROSSHAIR_SCALE_LAST)
+			return slider_crossscale(machine, arg, id, str, newval);
+	else if (id >= SLIDER_ID_CROSSHAIR_OFFSET && id <= SLIDER_ID_CROSSHAIR_OFFSET_LAST)
+			return slider_crossoffset(machine, arg, id, str, newval);
+#endif
+
+	return 0;
 }
 
 
@@ -1617,6 +1686,21 @@ int32_t mame_ui_manager::slider_volume(std::string *str, int32_t newval)
 	if (str)
 		*str = string_format(_("%1$3ddB"), machine().sound().attenuation());
 	return machine().sound().attenuation();
+}
+
+
+//-------------------------------------------------
+//  slider_framedelay - global frame delay slider
+//  callback
+//-------------------------------------------------
+
+int32_t mame_ui_manager::slider_framedelay(running_machine &machine, void *arg, int id, std::string *str, int32_t newval)
+{
+	if (newval != SLIDER_NOCHANGE)
+		machine.video().set_framedelay(newval);
+	if (str)
+		*str = string_format(_("%1$3d"), machine.video().framedelay());
+	return machine.video().framedelay();
 }
 
 
@@ -2225,4 +2309,84 @@ void ui_colors::refresh(const ui_options &options)
 	m_mousedown_bg_color = options.mousedown_bg_color();
 	m_dipsw_color = options.dipsw_color();
 	m_slider_color = options.slider_color();
+}
+
+//-------------------------------------------------
+//  config_load - read data from the
+//  configuration file
+//-------------------------------------------------
+
+void mame_ui_manager::config_load(config_type cfg_type, util::xml::data_node const *parentnode)
+{
+	// we only care about game files
+	if (cfg_type != config_type::GAME)
+		return;
+
+	// might not have any data
+	if (parentnode == nullptr)
+		return;
+
+	// iterate over slider nodes
+	for (util::xml::data_node const *slider_node = parentnode->get_child("slider"); slider_node; slider_node = slider_node->get_next_sibling("slider"))
+	{
+		const char *desc = slider_node->get_attribute_string("desc", "");
+		int32_t saved_val = slider_node->get_attribute_int("value", 0);
+
+		// create a dummy slider to store the saved value
+		m_sliders_saved.push_back(slider_alloc(0, desc, 0, saved_val, 0, 0, 0));
+	}
+}
+
+
+//-------------------------------------------------
+//  config_appy - apply data from the conf. file
+//  This currently needs to be done on a separate
+//  step because sliders are not created yet when
+//  configuration file is loaded
+//-------------------------------------------------
+
+void mame_ui_manager::config_apply(void)
+{
+	// iterate over sliders and restore saved values
+	for (auto &slider : m_sliders)
+	{
+		for (auto &slider_saved : m_sliders_saved)
+		{
+			if (!strcmp(slider->description.c_str(), slider_saved->description.c_str()))
+			{
+				std::string tempstring;
+				slider->update(machine(), slider->arg, slider->id, &tempstring, slider_saved->defval);
+				break;
+
+			}
+		}
+	}
+}
+
+
+//-------------------------------------------------
+//  config_save - save data to the configuration
+//  file
+//-------------------------------------------------
+
+void mame_ui_manager::config_save(config_type cfg_type, util::xml::data_node *parentnode)
+{
+	// we only care about game files
+	if (cfg_type != config_type::GAME)
+		return;
+
+	std::string tempstring;
+	util::xml::data_node *slider_node;
+
+	// save UI sliders
+	for (auto &slider : m_sliders)
+	{
+		int32_t curval = slider->update(machine(), slider->arg, slider->id, &tempstring, SLIDER_NOCHANGE);
+		if (curval != slider->defval)
+		{
+			slider_node = parentnode->add_child("slider", nullptr);
+			slider_node->set_attribute("desc", slider->description.c_str());
+			slider_node->set_attribute_int("value", curval);
+		}
+	}
 }

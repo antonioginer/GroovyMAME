@@ -40,6 +40,13 @@
 #include "modules/opengl/gl_shader_tool.h"
 #include "modules/opengl/gl_shader_mgr.h"
 
+#ifdef SDLMAME_X11
+// DRM
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+#include <fcntl.h>
+#endif
+
 #if defined(SDLMAME_MACOSX) || defined(OSD_MAC)
 #include <cstring>
 #include <cstdio>
@@ -244,6 +251,10 @@ void renderer_ogl::set_blendmode(int blendmode)
 //============================================================
 //  STATIC VARIABLES
 //============================================================
+
+#ifdef SDLMAME_X11
+static int drawogl_drm_open(void);
+#endif
 
 // OGL 1.3
 #if defined(GL_ARB_multitexture) && !defined(OSD_MAC)
@@ -578,7 +589,11 @@ int renderer_ogl::create()
 		osd_printf_error("%s\n", m_gl_context->LastErrorMsg());
 		return 1;
 	}
-	m_gl_context->SetSwapInterval(video_config.waitvsync ? 1 : 0);
+#ifdef SDLMAME_X11
+	// Try to open DRM device
+	m_fd = drawogl_drm_open();
+#endif
+	m_gl_context->SetSwapInterval((video_config.waitvsync && m_fd == 0) ? 1 : 0);
 
 
 	m_blittimer = 0;
@@ -605,6 +620,26 @@ int renderer_ogl::create()
 	return 0;
 }
 
+#ifdef SDLMAME_X11
+//============================================================
+//  drawogl_drm_open
+//============================================================
+
+static int drawogl_drm_open(void)
+{
+	int fd = 0;
+	const char *node = {"/dev/dri/card0"};
+
+	fd = open(node, O_RDWR | O_CLOEXEC);
+	if (fd < 0)
+	{
+		fprintf(stderr, "cannot open %s\n", node);
+		return 0;
+	}
+	osd_printf_verbose("%s successfully opened\n", node);
+	return fd;
+}
+#endif
 
 //============================================================
 //  drawsdl_xy_to_render_target
@@ -1409,6 +1444,20 @@ int renderer_ogl::draw(const int update)
 
 	win->m_primlist->release_lock();
 	m_init_context = 0;
+
+#ifdef SDLMAME_X11
+	// wait for vertical retrace
+	if (video_config.waitvsync && m_fd)
+	{
+		drmVBlank vbl;
+		memset(&vbl, 0, sizeof(vbl));
+		//vbl.request.type = DRM_VBLANK_RELATIVE;
+		vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
+		vbl.request.sequence = 1;
+		if (drmWaitVBlank(m_fd, &vbl) != 0)
+			osd_printf_verbose("drmWaitVBlank failed\n");
+	}
+#endif
 
 	m_gl_context->SwapBuffer();
 

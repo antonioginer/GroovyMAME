@@ -269,7 +269,6 @@ const options_entry windows_options::s_option_entries[] =
 
 	// full screen options
 	{ nullptr,                                        nullptr,    core_options::option_type::HEADER,     "FULL SCREEN OPTIONS" },
-	{ WINOPTION_TRIPLEBUFFER ";tb",                   "0",        core_options::option_type::BOOLEAN,    "enable triple buffering" },
 	{ WINOPTION_FULLSCREENBRIGHTNESS ";fsb(0.1-2.0)", "1.0",      core_options::option_type::FLOAT,      "brightness value in full screen mode" },
 	{ WINOPTION_FULLSCREENCONTRAST ";fsc(0.1-2.0)",   "1.0",      core_options::option_type::FLOAT,      "contrast value in full screen mode" },
 	{ WINOPTION_FULLSCREENGAMMA ";fsg(0.1-3.0)",      "1.0",      core_options::option_type::FLOAT,      "gamma value in full screen mode" },

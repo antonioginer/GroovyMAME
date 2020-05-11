@@ -229,12 +229,7 @@ void sdl_osd_interface::extract_video_config()
 	video_config.centerh       = options().centerh();
 	video_config.centerv       = options().centerv();
 	video_config.waitvsync     = options().wait_vsync();
-	video_config.syncrefresh   = options().sync_refresh();
-	if (!video_config.waitvsync && video_config.syncrefresh)
-	{
-		osd_printf_warning("-syncrefresh specified without -waitvsync. Reverting to -nosyncrefresh\n");
-		video_config.syncrefresh = 0;
-	}
+	video_config.framedelay    = options().frame_delay();
 
 	if (video_config.prescale < 1 || video_config.prescale > 8)
 	{
