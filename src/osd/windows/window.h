@@ -132,6 +132,7 @@ private:
 	void maximize_window();
 	void adjust_window_position_after_major_change();
 	void set_fullscreen(int fullscreen);
+	void reset_fullscreen_renderer();
 
 	static POINT        s_saved_cursor_pos;
 

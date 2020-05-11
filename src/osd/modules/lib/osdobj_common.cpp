@@ -69,7 +69,6 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_WINDOW ";w",                  "0",              core_options::option_type::BOOLEAN,   "enable window mode; otherwise, full screen mode is assumed" },
 	{ OSDOPTION_MAXIMIZE ";max",              "1",              core_options::option_type::BOOLEAN,   "default to maximized windows" },
 	{ OSDOPTION_WAITVSYNC ";vs",              "0",              core_options::option_type::BOOLEAN,   "enable waiting for the start of VBLANK before flipping screens (reduces tearing effects)" },
-	{ OSDOPTION_SYNCREFRESH ";srf",           "0",              core_options::option_type::BOOLEAN,   "enable using the start of VBLANK for throttling instead of the game time" },
 	{ OSD_MONITOR_PROVIDER,                   OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "monitor discovery method: " },
 
 	// per-window options
@@ -117,7 +116,6 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_PIXEL_PRECISION,              "1",              core_options::option_type::BOOLEAN,   "Calculate horizontal values with 1-pixel precision to improve horizontal centering" },
 	{ OSDOPTION_SYNC_REFRESH_TOLERANCE ";srt","2.0",            core_options::option_type::FLOAT,     "Maximum refresh difference, in Hz, allowed in order to synchronize" },
 	{ OSDOPTION_AUTOSYNC,                     "0",              core_options::option_type::BOOLEAN,   "automatically enable syncrefresh if refresh difference is below syncrefresh_tolerance" },
-	{ OSDOPTION_FRAME_DELAY ";fd",            "0",              core_options::option_type::INTEGER,   "Delays the start of each frame to minimize input lag (0-9)"},
 	{ OSDOPTION_VSYNC_OFFSET,                 "0",              core_options::option_type::INTEGER,	  "Offset vsync position by this many lines to prevent tearing with frame_delay and high-resolution displays" },
 	{ OSDOPTION_BLACK_FRAME_INSERTION ";bfi", "0",              core_options::option_type::BOOLEAN,   "Inserts a black frame after each normal frame, intended to reduce motion blur on 120 Hz monitors" },
 	{ OSDOPTION_SCREEN_COMPOSITING,           "0",              core_options::option_type::BOOLEAN,   "Readjust relative screen positions of a multi-display setup after mode switching (Linux)" },
