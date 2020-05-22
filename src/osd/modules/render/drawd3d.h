@@ -39,7 +39,7 @@
 struct d3d_base
 {
 	// internal objects
-	IDirect3D9 *d3dobj;
+	IDirect3D9Ex *d3dobj;
 	bool        post_fx_available;
 
 	osd::dynamic_module::ptr d3d9_dll;
@@ -117,7 +117,7 @@ public:
 	int                     get_height() const { return m_height; }
 	int                     get_refresh() const { return m_refresh; }
 
-	IDirect3DDevice9 *      get_device() const { return m_device; }
+	IDirect3DDevice9Ex *    get_device() const { return m_device; }
 	D3DPRESENT_PARAMETERS * get_presentation() { return &m_presentation; }
 
 	IDirect3DVertexBuffer9 *get_vertex_buffer() const { return m_vertexbuf; }
@@ -126,7 +126,7 @@ public:
 
 	D3DFORMAT               get_screen_format() const { return m_screen_format; }
 	D3DFORMAT               get_pixel_format() const { return m_pixformat; }
-	D3DDISPLAYMODE          get_origmode() const { return m_origmode; }
+	D3DDISPLAYMODEEX        get_origmode() const { return m_origmode; }
 
 	uint32_t                  get_last_texture_flags() const { return m_last_texture_flags; }
 
@@ -149,10 +149,11 @@ private:
 	int                     m_break_scanline;           // break scanline number, for vsync offset
 	int                     m_create_error_count;       // number of consecutive create errors
 
-	IDirect3DDevice9 *      m_device;                   // pointer to the Direct3DDevice object
+	IDirect3DDevice9Ex *    m_device;                   // pointer to the Direct3DDevice object
 	int                     m_gamma_supported;          // is full screen gamma supported?
 	D3DPRESENT_PARAMETERS   m_presentation;             // set of presentation parameters
-	D3DDISPLAYMODE          m_origmode;                 // original display mode for the adapter
+	D3DDISPLAYMODEEX        m_origmode;                 // original display mode for the adapter
+	D3DDISPLAYMODEEX        m_display_mode;             // full screen display mode
 	D3DFORMAT               m_pixformat;                // pixel format we are using
 	IDirect3DQuery9 *		m_query;
 
