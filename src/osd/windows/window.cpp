@@ -1908,11 +1908,15 @@ void win_window_info::reset_fullscreen_renderer()
 	if (!m_fullscreen)
 		return;
 
+	// D3D renderer needs a reset
 	if (video_config.mode == VIDEO_MODE_D3D)
 	{
 		renderer().restart();
 		return;
 	}
+
+	// Resize our window if required
+	adjust_window_position_after_major_change();
 }
 
 
