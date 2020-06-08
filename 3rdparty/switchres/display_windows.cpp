@@ -222,7 +222,7 @@ int windows_display::get_available_video_modes()
 
 			for (auto &mode : video_modes) if (mode.width == m.width && mode.height == m.height && mode.refresh == m.refresh && m.interlace == mode.interlace) goto found;
 
-			if (m.width == desktop_mode.width && m.height == desktop_mode.height && m.refresh == desktop_mode.refresh)
+			if (m.width == desktop_mode.width && m.height == desktop_mode.height && m.refresh == desktop_mode.refresh && m.interlace == desktop_mode.interlace)
 			{
 				m.type |= MODE_DESKTOP;
 				if (m.type & MODE_ROTATED) set_desktop_is_rotated(true);
