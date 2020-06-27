@@ -1451,11 +1451,44 @@ int renderer_ogl::draw(const int update)
 	{
 		drmVBlank vbl;
 		memset(&vbl, 0, sizeof(vbl));
-		//vbl.request.type = DRM_VBLANK_RELATIVE;
-		vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
+		// handle vblank for all SR managed crtc
+		int managed_crtc = 0; // TODO set the number of mame screens
 		vbl.request.sequence = 1;
-		if (drmWaitVBlank(m_fd, &vbl) != 0)
-			osd_printf_verbose("drmWaitVBlank failed\n");
+		if (managed_crtc == 0) // single screen
+		{
+			vbl.request.type = DRM_VBLANK_RELATIVE;
+			if (drmWaitVBlank(m_fd, &vbl) != 0)
+				osd_printf_verbose("drmWaitVBlank failed\n");
+		}
+		else if (managed_crtc == 1) // two screens
+		{
+			vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
+			if (drmWaitVBlank(m_fd, &vbl) != 0)
+				osd_printf_verbose("drmWaitVBlank failed\n");
+		}
+		else if (managed_crtc > 1) // multi-screen
+		{
+			uint64_t caps;
+			if (drmGetCap(m_fd, DRM_CAP_VBLANK_HIGH_CRTC, &caps))
+				osd_printf_error("A newer kernel is needed for vblank syncing on multi screen\n");
+			else
+			{
+				if (caps)
+					for (int c=2; c<managed_crtc; c++)
+					{
+						vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | ((c << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
+						if (drmWaitVBlank(m_fd, &vbl) != 0)
+							osd_printf_verbose("drmWaitVBlank failed\n");
+						vbl.request.sequence = 1;
+					}
+				else
+				{
+					vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
+					if (drmWaitVBlank(m_fd, &vbl) != 0)
+						osd_printf_verbose("drmWaitVBlank failed\n");
+				}
+			}
+		}
 	}
 #endif
 
