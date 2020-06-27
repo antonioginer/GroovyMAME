@@ -2125,9 +2125,7 @@ texture_info::texture_info(d3d_texture_manager *manager, const render_texinfo* t
 	if (!PRIMFLAG_GET_SCREENTEX(flags))
 	{
 		assert(PRIMFLAG_TEXFORMAT(flags) != TEXFORMAT_YUY16);
-		DWORD usage = m_texture_manager->is_dynamic_supported() ? D3DUSAGE_DYNAMIC : 0;
-		D3DPOOL pool = m_texture_manager->is_dynamic_supported() ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED;
-		result = m_renderer->get_device()->CreateTexture(m_rawdims.c.x, m_rawdims.c.y, 1, usage, D3DFMT_A8R8G8B8, pool, &m_d3dtex, nullptr);
+		result = m_renderer->get_device()->CreateTexture(m_rawdims.c.x, m_rawdims.c.y, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &m_d3dtex, nullptr);
 		if (FAILED(result))
 			goto error;
 		m_d3dfinaltex = m_d3dtex;
