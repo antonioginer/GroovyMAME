@@ -93,6 +93,7 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_SYNCREFRESH ";srf",                         "0",         core_options::option_type::BOOLEAN,    "enable using the start of VBLANK for throttling instead of the game time" },
 	{ OPTION_LOWLATENCY ";lolat",                        "0",         core_options::option_type::BOOLEAN,    "draws new frame before throttling to reduce input latency" },
 	{ OPTION_FRAMEDELAY ";fd",                           "0",         core_options::option_type::INTEGER,    "delays the start of each frame to minimize input lag (0-9)"},
+	{ OPTION_VSYNC_OFFSET,                               "0",         core_options::option_type::INTEGER,	 "offset vsync position by this many lines to prevent tearing with frame_delay and high-resolution displays" },
 
 	// render options
 	{ nullptr,                                           nullptr,     core_options::option_type::HEADER,     "CORE RENDER OPTIONS" },
