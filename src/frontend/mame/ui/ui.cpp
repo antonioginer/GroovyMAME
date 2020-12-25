@@ -1466,6 +1466,11 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 	// add frame delay
 	m_sliders.push_back(slider_alloc(SLIDER_ID_FRAMEDELAY, _("Frame Delay"), 0, machine.options().frame_delay(), 9, 1, nullptr));
 
+#ifdef _WIN32
+	// add vsync offset
+	m_sliders.push_back(slider_alloc(SLIDER_ID_VSYNC_OFFSET, _("V-Sync Offset"), 0, machine.options().vsync_offset(), 1024, 1, nullptr));
+#endif
+
 	// add per-channel volume
 	mixer_input info;
 	for (int item = 0; machine.sound().indexed_mixer_input(item, info); item++)
@@ -1624,6 +1629,8 @@ int32_t mame_ui_manager::slider_changed(running_machine &machine, void *arg, int
 		return slider_volume(machine, arg, id, str, newval);
 	else if (id == SLIDER_ID_FRAMEDELAY)
 		return slider_framedelay(machine, arg, id, str, newval);
+	else if (id == SLIDER_ID_VSYNC_OFFSET)
+		return slider_vsync_offset(machine, arg, id, str, newval);
 	else if (id >= SLIDER_ID_MIXERVOL && id <= SLIDER_ID_MIXERVOL_LAST)
 		return slider_mixervol(machine, arg, id, str, newval);
 	else if (id >= SLIDER_ID_ADJUSTER && id <= SLIDER_ID_ADJUSTER_LAST)
@@ -1701,6 +1708,21 @@ int32_t mame_ui_manager::slider_framedelay(running_machine &machine, void *arg, 
 	if (str)
 		*str = string_format(_("%1$3d"), machine.video().framedelay());
 	return machine.video().framedelay();
+}
+
+
+//--------------------------------------------------
+//  slider_vsync_offset - global vsync_offset slider
+//  callback
+//--------------------------------------------------
+
+int32_t mame_ui_manager::slider_vsync_offset(running_machine &machine, void *arg, int id, std::string *str, int32_t newval)
+{
+	if (newval != SLIDER_NOCHANGE)
+		machine.options().set_value(OPTION_VSYNC_OFFSET, newval, OPTION_PRIORITY_HIGH);
+	if (str)
+		*str = string_format(_("%1$3d"), machine.options().vsync_offset());
+	return machine.options().vsync_offset();
 }
 
 

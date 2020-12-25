@@ -143,6 +143,7 @@ private:
 	int                     m_refresh;                  // current refresh rate
 	bool                    m_interlace;                // current interlace
 	int                     m_frame_delay;              // current frame delay value
+	int                     m_vsync_offset;             // current vsync_offset value
 	int                     m_first_scanline;           // first scanline number (visible)
 	int                     m_last_scanline;            // last scanline number (visible)
 	int                     m_delay_scanline;           // scanline number supposed to be after frame delay
