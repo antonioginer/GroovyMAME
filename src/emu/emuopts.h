@@ -78,6 +78,7 @@
 #define OPTION_SYNCREFRESH          "syncrefresh"
 #define OPTION_LOWLATENCY           "lowlatency"
 #define OPTION_FRAMEDELAY           "framedelay"
+#define OPTION_VSYNC_OFFSET         "vsync_offset"
 
 // core render options
 #define OPTION_KEEPASPECT           "keepaspect"
@@ -365,6 +366,7 @@ public:
 	bool sync_refresh() const { return bool_value(OPTION_SYNCREFRESH); }
 	bool low_latency() const { return bool_value(OPTION_LOWLATENCY); }
 	int frame_delay() const { return int_value(OPTION_FRAMEDELAY); }
+	int vsync_offset() const { return int_value(OPTION_VSYNC_OFFSET); }
 
 	// core render options
 	bool keep_aspect() const { return bool_value(OPTION_KEEPASPECT); }
