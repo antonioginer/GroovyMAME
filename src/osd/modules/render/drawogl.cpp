@@ -591,7 +591,8 @@ int renderer_ogl::create()
 	}
 #ifdef SDLMAME_X11
 	// Try to open DRM device
-	m_fd = drawogl_drm_open();
+	if (win->m_index == 0)
+		m_fd = drawogl_drm_open();
 #endif
 	m_gl_context->SetSwapInterval((video_config.waitvsync && m_fd == 0) ? 1 : 0);
 
@@ -1446,49 +1447,44 @@ int renderer_ogl::draw(const int update)
 	m_init_context = 0;
 
 #ifdef SDLMAME_X11
+
 	// wait for vertical retrace
 	if (video_config.waitvsync && m_fd)
 	{
 		drmVBlank vbl;
 		memset(&vbl, 0, sizeof(vbl));
-		// handle vblank for all SR managed crtc
-		int managed_crtc = 0; // TODO set the number of mame screens
 		vbl.request.sequence = 1;
-		if (managed_crtc == 0) // single screen
+
+		// handle vblank for all SR managed crtc
+		// this is a hack based on SDL reported screen index
+		// it won't work on multi-gpu
+		// TO DO: find a correct way to map screen to crtc
+		int crtc = win->monitor()->oshandle();
+
+		// single screen (default)
+		vbl.request.type = DRM_VBLANK_RELATIVE;
+
+		// two screens
+		if (crtc == 1) vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
+
+		// multi-screen
+		else if (crtc > 1)
 		{
-			vbl.request.type = DRM_VBLANK_RELATIVE;
-			if (drmWaitVBlank(m_fd, &vbl) != 0)
-				osd_printf_verbose("drmWaitVBlank failed\n");
-		}
-		else if (managed_crtc == 1) // two screens
-		{
-			vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
-			if (drmWaitVBlank(m_fd, &vbl) != 0)
-				osd_printf_verbose("drmWaitVBlank failed\n");
-		}
-		else if (managed_crtc > 1) // multi-screen
-		{
-			uint64_t caps;
-			if (drmGetCap(m_fd, DRM_CAP_VBLANK_HIGH_CRTC, &caps))
-				osd_printf_error("A newer kernel is needed for vblank syncing on multi screen\n");
-			else
+			static uint64_t caps;
+			static bool caps_checked = false;
+
+			if (!caps_checked)
 			{
-				if (caps)
-					for (int c=2; c<managed_crtc; c++)
-					{
-						vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | ((c << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
-						if (drmWaitVBlank(m_fd, &vbl) != 0)
-							osd_printf_verbose("drmWaitVBlank failed\n");
-						vbl.request.sequence = 1;
-					}
-				else
-				{
-					vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
-					if (drmWaitVBlank(m_fd, &vbl) != 0)
-						osd_printf_verbose("drmWaitVBlank failed\n");
-				}
+				caps_checked = true;
+				if (drmGetCap(m_fd, DRM_CAP_VBLANK_HIGH_CRTC, &caps))
+					osd_printf_error("A newer kernel is needed for vblank syncing on multi screen\n");
 			}
+			if (caps)
+				vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | ((crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
 		}
+
+		if (drmWaitVBlank(m_fd, &vbl) != 0)
+			osd_printf_verbose("drmWaitVBlank failed\n");
 	}
 #endif
 
