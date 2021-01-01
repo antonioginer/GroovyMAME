@@ -16,6 +16,15 @@ FINAL_AR=$(CROSS_COMPILE)$(AR)
 CPPFLAGS = -O3 -Wall -Wextra
 
 PKG_CONFIG=pkg-config
+INSTALL=install
+SED=sed
+
+DESTDIR ?=
+PREFIX ?= /usr
+INCDIR = $(DESTDIR)$(PREFIX)/include
+LIBDIR = $(DESTDIR)$(PREFIX)/lib
+BINDIR = $(DESTDIR)$(PREFIX)/bin
+PKGDIR = $(LIBDIR)/pkgconfig
 
 # Linux
 ifeq  ($(PLATFORM),Linux)
@@ -41,7 +50,7 @@ endif
 %.o : %.cpp
 	$(FINAL_CXX) -c $(CPPFLAGS) $< -o $@
 
-all: $(SRC:.cpp=.o) $(MAIN).cpp
+all: $(SRC:.cpp=.o) $(MAIN).cpp $(TARGET_LIB)
 	@echo $(OSFLAG)
 	$(FINAL_CXX) $(CPPFLAGS) $(CXXFLAGS) $(SRC:.cpp=.o) $(MAIN).cpp $(LIBS) -o $(STANDALONE)
 
@@ -54,3 +63,15 @@ $(GRID):
 
 clean:
 	$(REMOVE) $(OBJS) $(STANDALONE) $(TARGET_LIB).*
+
+prepare_pkg_config:
+	$(SED) -e "s+@prefix@+$(PREFIX)+g" \
+	  -e"s+@libdir@+$(LIBDIR)+g" \
+	  -e"s+@includedir@+$(INCDIR)+g" \
+	  switchres.pc.in > switchres.pc
+
+install: prepare_pkg_config
+	$(INSTALL) -Dm644 $(TARGET_LIB).$(DYNAMIC_LIB_EXT) $(LIBDIR)/$(TARGET_LIB).$(DYNAMIC_LIB_EXT)
+	$(INSTALL) -Dm644 switchres_wrapper.h $(INCDIR)/switchres/switchres_wrapper.h
+	$(INSTALL) -Dm644 switchres.h $(INCDIR)/switchres/switchres.h
+	$(INSTALL) -Dm644 switchres.pc $(PKGDIR)/switchres.pc

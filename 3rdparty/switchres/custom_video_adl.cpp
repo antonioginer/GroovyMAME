@@ -397,7 +397,7 @@ bool adl_timing::get_timing(modeline *m)
 
 bool adl_timing::set_timing(modeline *m)
 {
-	return adl_timing::set_timing_override(m, TIMING_UPDATE);
+	return set_timing_override(m, TIMING_UPDATE);
 }
 
 //============================================================
@@ -497,4 +497,36 @@ bool adl_timing::update_mode(modeline *mode)
 	if (refresh_required) m_resync.wait();
 	mode->type |= CUSTOM_VIDEO_TIMING_ATI_ADL;
 	return true;
+}
+
+//============================================================
+//  adl_timing::process_modelist
+//============================================================
+
+bool adl_timing::process_modelist(std::vector<modeline *> modelist)
+{
+	bool refresh_required = false;
+	bool error = false;
+
+	for (auto &mode : modelist)
+	{
+		if (mode->type & MODE_DELETE || mode->type & MODE_ADD || (mode->type & MODE_UPDATE && (!is_patched || (mode->type & MODE_DESKTOP))))
+			refresh_required = true;
+
+		bool is_last = (mode == modelist.back());
+
+		if (!set_timing_override(mode, (mode->type & MODE_DELETE? TIMING_DELETE : TIMING_UPDATE) | (is_last && refresh_required? TIMING_UPDATE_LIST : 0)))
+		{
+			mode->type |= MODE_ERROR;
+			error = true;
+		}
+		else
+		{
+			mode->type &= ~MODE_ERROR;
+			mode->type |= CUSTOM_VIDEO_TIMING_ATI_ADL;
+		}
+	}
+
+	if (refresh_required) m_resync.wait();
+	return !error;
 }

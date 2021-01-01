@@ -148,7 +148,7 @@ class adl_timing : public custom_video
 		const char *api_name() { return "AMD ADL"; }
 		bool init();
 		void close();
-		int caps() { return CUSTOM_VIDEO_CAPS_UPDATE | CUSTOM_VIDEO_CAPS_ADD | CUSTOM_VIDEO_CAPS_DESKTOP_EDITABLE; }
+		int caps() { return allow_hardware_refresh()? CUSTOM_VIDEO_CAPS_UPDATE | CUSTOM_VIDEO_CAPS_ADD | CUSTOM_VIDEO_CAPS_DESKTOP_EDITABLE : is_patched? CUSTOM_VIDEO_CAPS_UPDATE : 0; }
 
 		bool add_mode(modeline *mode);
 		bool delete_mode(modeline *mode);
@@ -156,6 +156,8 @@ class adl_timing : public custom_video
 
 		bool get_timing(modeline *m);
 		bool set_timing(modeline *m);
+
+		bool process_modelist(std::vector<modeline *>);
 
 	private:
 		int open();

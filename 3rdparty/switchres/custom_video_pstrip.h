@@ -61,7 +61,7 @@ class pstrip_timing : public custom_video
 
 		int ps_reset();
 		int ps_get_modeline(modeline *modeline);
-		int ps_set_modeline(modeline *modeline);
+		bool ps_set_modeline(modeline *modeline);
 		int ps_get_monitor_timing(MonitorTiming *timing);
 		int ps_set_monitor_timing(MonitorTiming *timing);
 		int ps_set_monitor_timing_string(char *in);
@@ -70,7 +70,7 @@ class pstrip_timing : public custom_video
 		int ps_create_resolution(modeline *modeline);
 		bool ps_read_timing_string(char *in, MonitorTiming *timing);
 		void ps_fill_timing_string(char *out, MonitorTiming *timing);
-		int ps_modeline_to_pstiming(modeline *modeline, MonitorTiming *timing);
+		bool ps_modeline_to_pstiming(modeline *modeline, MonitorTiming *timing);
 		int ps_pstiming_to_modeline(MonitorTiming *timing, modeline *modeline);
 		int ps_monitor_index (const char *display_name);
 
@@ -78,6 +78,6 @@ class pstrip_timing : public custom_video
 		char m_ps_timing[256];
 		int m_monitor_index = 0;
 		modeline m_user_mode = {};
-		MonitorTiming m_timing_backup;
-		HWND hPSWnd;
+		MonitorTiming m_timing_backup = {};
+		HWND hPSWnd = 0;
 };
