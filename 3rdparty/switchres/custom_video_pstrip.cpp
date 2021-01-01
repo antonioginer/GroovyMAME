@@ -285,18 +285,19 @@ int pstrip_timing::ps_get_modeline(modeline *modeline)
 //  pstrip_timing::ps_set_modeline
 //============================================================
 
-int pstrip_timing::ps_set_modeline(modeline *modeline)
+bool pstrip_timing::ps_set_modeline(modeline *modeline)
 {
 	MonitorTiming timing = {};
 
-	ps_modeline_to_pstiming(modeline, &timing);
+	if (!ps_modeline_to_pstiming(modeline, &timing))
+		return false;
 
 	timing.PixelClockInKiloHertz = ps_best_pclock(&timing, timing.PixelClockInKiloHertz);
 
 	if (ps_set_monitor_timing(&timing))
-		return 1;
+		return true;
 	else
-		return 0;
+		return false;
 }
 
 //============================================================
@@ -374,7 +375,7 @@ int pstrip_timing::ps_set_monitor_timing(MonitorTiming *timing)
 
 int pstrip_timing::ps_set_monitor_timing_string(char *in)
 {
-	MonitorTiming timing;
+	MonitorTiming timing = {};
 
 	ps_read_timing_string(in, &timing);
 	return ps_set_monitor_timing(&timing);
@@ -423,7 +424,7 @@ int pstrip_timing::ps_set_refresh(double vfreq)
 
 int pstrip_timing::ps_best_pclock(MonitorTiming *timing, int desired_pclock)
 {
-	MonitorTiming timing_read;
+	MonitorTiming timing_read = {};
 	int best_pclock = 0;
 
 	log_verbose("PStrip: ps_best_pclock(%d), getting stable dotclocks for %d...\n", m_monitor_index, desired_pclock);
@@ -527,8 +528,14 @@ void pstrip_timing::ps_fill_timing_string(char *out, MonitorTiming *timing)
 //  pstrip_timing::ps_modeline_to_pstiming
 //============================================================
 
-int pstrip_timing::ps_modeline_to_pstiming(modeline *modeline, MonitorTiming *timing)
+bool pstrip_timing::ps_modeline_to_pstiming(modeline *modeline, MonitorTiming *timing)
 {
+	if (modeline->pclock == 0 || modeline->hactive == 0 || modeline->vactive == 0)
+	{
+		log_verbose("ps_modeline_to_pstiming error: invalid modeline\n");
+		return false;
+	}
+
 	timing->HorizontalActivePixels = modeline->hactive;
 	timing->HorizontalFrontPorch = modeline->hbegin - modeline->hactive;
 	timing->HorizontalSyncWidth = modeline->hend - modeline->hbegin;
@@ -548,7 +555,7 @@ int pstrip_timing::ps_modeline_to_pstiming(modeline *modeline, MonitorTiming *ti
 	if (modeline->interlace)
 		timing->TimingFlags.w |= Interlace;
 
-	return 0;
+	return true;
 }
 
 //============================================================

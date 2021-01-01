@@ -89,8 +89,8 @@ public:
 	bool parse_config(const char *file_name);
 
 	//settings
-	config_settings cs;
-	display_settings ds;
+	config_settings cs = {};
+	display_settings ds = {};
 
 	// display list
 	std::vector<display_manager *> displays;

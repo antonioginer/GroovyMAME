@@ -53,6 +53,8 @@ class xrandr_timing : public custom_video
 		bool get_timing(modeline *mode);
 		bool set_timing(modeline *mode);
 
+		bool process_modelist(std::vector<modeline *>);
+
 		static int ms_xerrors;
 		static int ms_xerrors_flag;
 
