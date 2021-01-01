@@ -1158,3 +1158,33 @@ bool xrandr_timing::get_timing(modeline *mode)
 
 	return true;
 }
+
+//============================================================
+//  xrandr_timing::process_modelist
+//============================================================
+
+bool xrandr_timing::process_modelist(std::vector<modeline *> modelist)
+{
+	bool error = false;
+	bool result = false;
+
+	for (auto &mode : modelist)
+	{
+		if (mode->type & MODE_DELETE)
+			result = delete_mode(mode);
+
+		else if (mode->type & MODE_ADD)
+			result = add_mode(mode);
+
+		if (!result)
+		{
+			mode->type |= MODE_ERROR;
+			error = true;
+		}
+		else
+			// succeed
+			mode->type &= ~MODE_ERROR;
+	}
+
+	return !error;
+}

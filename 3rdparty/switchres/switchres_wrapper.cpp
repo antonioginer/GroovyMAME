@@ -32,6 +32,10 @@ MODULE_API void sr_init() {
 	swr->set_log_info_fn((void *)printf);
 	swr->set_log_error_fn((void *)printf);
 	swr->parse_config("switchres.ini");
+}
+
+
+MODULE_API void sr_init_disp() {
 	swr->add_display();
 	for (auto &display : swr->displays)
 		display->init();
@@ -151,11 +155,25 @@ MODULE_API unsigned char sr_switch_to_mode(int width, int height, double refresh
 }
 
 
+MODULE_API void sr_set_rotation (unsigned char r) {
+	if (r > 0)
+	{
+		swr->set_rotation(true);
+	}
+	else
+	{
+		swr->set_rotation(false);
+	}
+}
+
+
 MODULE_API srAPI srlib = { 
 	sr_init,
 	sr_deinit,
+	sr_init_disp,
 	sr_add_mode,
-	sr_switch_to_mode
+	sr_switch_to_mode,
+	sr_set_rotation
 };
 
 #ifdef __cplusplus
