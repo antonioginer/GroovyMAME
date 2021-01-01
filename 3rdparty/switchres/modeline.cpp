@@ -116,7 +116,8 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		// otherwise we try to perform integer scaling
 		else
 		{
-			if (t_mode->type & V_FREQ_EDITABLE)
+			// exclude lcd ranges from raw border computation
+			if (t_mode->type & V_FREQ_EDITABLE && range->progressive_lines_max - range->progressive_lines_min > 0)
 			{
 				// calculate y borders considering physical lines (instead of logical resolution)
 				int tot_yres = total_lines_for_yres(t_mode->vactive * y_scale, vfreq_real, range, borders, scan_factor);
