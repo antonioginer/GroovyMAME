@@ -119,7 +119,7 @@ bool display_manager::add_mode(modeline *mode)
 		return false;		
 	}
 
-	mode->type &= ~MODE_NEW;
+	mode->type &= ~MODE_ADD;
 
 	log_verbose("Switchres: added ");
 	log_mode(mode);
@@ -165,7 +165,7 @@ bool display_manager::update_mode(modeline *mode)
 		return false;
 	}
 
-	mode->type &= ~MODE_UPDATED;
+	mode->type &= ~MODE_UPDATE;
 
 	log_verbose("Switchres: updated ");
 	log_mode(mode);
@@ -197,36 +197,66 @@ void display_manager::log_mode(modeline *mode)
 
 bool display_manager::restore_modes()
 {
-	bool error = false;
-
-	// First, delete all modes we've added
-	while (video_modes.size() > backup_modes.size())
-	{
-		delete_mode(&video_modes.back());
-		video_modes.pop_back();
-	}
-
-	// Now restore all modes which timings have been modified
+	// Compare each mode in our table with its original state
 	for (unsigned i = video_modes.size(); i-- > 0; )
 	{
-		// Reset work fields
-		video_modes[i].type = backup_modes[i].type = 0;
-		video_modes[i].range = backup_modes[i].range = 0;
+		// First, delete all modes we've added
+		if (i + 1 > backup_modes.size())
+			video_modes[i].type |= MODE_DELETE;
 
-		if (modeline_is_different(&video_modes[i], &backup_modes[i]))
+		// Now restore all modes which timings have been modified
+		else if (modeline_is_different(&video_modes[i], &backup_modes[i]))
 		{
 			video_modes[i] = backup_modes[i];
-			if (!video()->update_mode(&video_modes[i]))
-			{
-				log_verbose("Switchres: error restoring mode ");
-				log_mode(&video_modes[i]);
+			video_modes[i].type |= MODE_UPDATE;
+		}
+	}
+	// Finally, flush pending changes to driver
+	return flush_modes();
+}
+
+//============================================================
+//  display_manager::flush_modes
+//============================================================
+
+bool display_manager::flush_modes()
+{
+	bool error = false;
+	std::vector<modeline *> modified_modes = {};
+
+	// Loop through our mode table to collect all pending changes
+	for (auto &mode : video_modes)
+		if (mode.type & (MODE_UPDATE | MODE_ADD | MODE_DELETE))
+			modified_modes.push_back(&mode);
+
+	// Flush pending changes to driver
+	if (modified_modes.size() > 0)
+	{
+		video()->process_modelist(modified_modes);
+
+		// Log error/success result for each mode
+		for (auto &mode : modified_modes)
+		{
+			log_verbose("Switchres: %s %s mode ", mode->type & MODE_ERROR? "error" : "success", mode->type & MODE_DELETE? "deleting" : mode->type & MODE_ADD? "adding" : "updating");
+			log_mode(mode);
+
+			if (mode->type & MODE_ERROR)
 				error = true;
+		}
+
+		// Update our internal mode table to reflect the changes
+		for (unsigned i = video_modes.size(); i-- > 0; )
+		{
+			if (video_modes[i].type & MODE_ERROR)
+				continue;
+
+			if (video_modes[i].type & MODE_DELETE)
+			{
+				video_modes.erase(video_modes.begin() + i);
+				m_best_mode = 0;
 			}
 			else
-			{
-				log_verbose("Switchres: restored ");
-				log_mode(&video_modes[i]);
-			}
+				video_modes[i].type &= ~(MODE_UPDATE | MODE_ADD);
 		}
 	}
 
@@ -307,7 +337,7 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 	if (caps() & CUSTOM_VIDEO_CAPS_ADD && m_ds.modeline_generation)
 	{
 		modeline new_mode = {};
-		new_mode.type = XYV_EDITABLE | V_FREQ_EDITABLE | SCAN_EDITABLE | MODE_NEW | (desktop_is_rotated()? MODE_ROTATED : MODE_OK);
+		new_mode.type = XYV_EDITABLE | V_FREQ_EDITABLE | SCAN_EDITABLE | MODE_ADD | (desktop_is_rotated()? MODE_ROTATED : MODE_OK);
 		video_modes.push_back(new_mode);
 	}
 
@@ -378,7 +408,7 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 	// Copy the new modeline to our mode list
 	if (m_ds.modeline_generation && (best_mode.type & V_FREQ_EDITABLE))
 	{
-		if (best_mode.type & MODE_NEW)
+		if (best_mode.type & MODE_ADD)
 		{
 			best_mode.width = best_mode.hactive;
 			best_mode.height = best_mode.vactive;
@@ -387,14 +417,14 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 			best_mode.type &= ~(X_RES_EDITABLE | Y_RES_EDITABLE | (caps() & CUSTOM_VIDEO_CAPS_UPDATE? 0 : V_FREQ_EDITABLE));
 		}
 		else if (modeline_is_different(&best_mode, m_best_mode) != 0)
-			best_mode.type |= MODE_UPDATED;
+			best_mode.type |= MODE_UPDATE;
 
 		char modeline[256]={'\x00'};
 		log_info("Switchres: Modeline %s\n", modeline_print(&best_mode, modeline, MS_FULL));
 	}
 
 	// Check if new best mode is different than previous one
-	m_switching_required = (m_current_mode != m_best_mode || best_mode.type & MODE_UPDATED);
+	m_switching_required = (m_current_mode != m_best_mode || best_mode.type & MODE_UPDATE);
 
 	*m_best_mode = best_mode;
 	return m_best_mode;

@@ -159,3 +159,12 @@ bool custom_video::update_mode(modeline *)
 {
 	return false;
 }
+
+//============================================================
+//  custom_video::process_modelist
+//============================================================
+
+bool custom_video::process_modelist(std::vector<modeline *>)
+{
+	return false;
+}

@@ -33,7 +33,8 @@ class ati_timing : public custom_video
 
 		bool get_timing(modeline *mode);
 		bool set_timing(modeline *mode);
-		
+
+		bool process_modelist(std::vector<modeline *>);
 
 	private:
 		void refresh_timings(void);
