@@ -135,6 +135,10 @@ if _OPTIONS["targetos"]=="windows" then
 
 	configuration { }
 
+elseif _OPTIONS["targetos"]=="linux" then
+	buildoptions {
+		backtick("pkg-config --cflags libdrm"),
+	}
 elseif _OPTIONS["targetos"]=="macosx" then
 	defines {
 		"SDLMAME_MACOSX",
