@@ -158,7 +158,7 @@ void switchres_module::get_game_info(display_manager* display, render_target *ta
 	set_height(display->index(), minheight);
 
 	// determine the refresh rate of the primary screen
-	const screen_device *primary_screen = screen_device_iterator(machine().root_device()).first();
+	const screen_device *primary_screen = screen_device_enumerator(machine().root_device()).first();
 	if (primary_screen != nullptr) set_refresh(display->index(), ATTOSECONDS_TO_HZ(primary_screen->refresh_attoseconds()));
 }
 
