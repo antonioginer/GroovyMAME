@@ -24,6 +24,7 @@
 // OSD common headers
 #include "modules/lib/osdlib.h"
 #include "modules/lib/osdobj_common.h"
+#include "modules/monitor/monitor_common.h"
 #include "modules/opengl/gl_shader_mgr.h"
 #include "osdcomm.h"
 
@@ -60,6 +61,13 @@ typedef uint64_t HashT;
 #include <memory>
 #include <utility>
 
+
+#ifdef SDLMAME_X11
+// DRM
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+#include <fcntl.h>
+#endif
 
 #if defined(SDLMAME_MACOSX) || defined(OSD_MAC)
 
@@ -554,6 +562,12 @@ static int glsl_shader_feature = glsl_shader_info::FEAT_PLAIN; // FIXME: why is 
 
 bool renderer_ogl::s_shown_video_info = false;
 
+#ifdef SDLMAME_X11
+static int drm_open();
+static void drm_waitvblank(int crtc);
+static int fd = 0;
+#endif
+
 //============================================================
 // Load the OGL function addresses
 //============================================================
@@ -762,7 +776,17 @@ int renderer_ogl::create()
 		osd_printf_error("Creating OpenGL context failed: %s\n", msg ? msg : "unknown error");
 		return 1;
 	}
-	m_gl_context->set_swap_interval(video_config.waitvsync ? 1 : 0);
+#ifdef SDLMAME_X11
+	if (window().index() == 0 && video_config.syncrefresh && video_config.sync_mode != 0)
+	{
+		// Try to open DRM device
+		fd = drm_open();
+		if (fd != 0)
+			m_gl_context->set_swap_interval((video_config.sync_mode == 2 || video_config.sync_mode == 4)? 1 : 0);
+	}
+	else
+#endif
+	m_gl_context->set_swap_interval((video_config.waitvsync) ? 1 : 0);
 
 	m_blittimer = 0;
 	m_surf_w = 0;
@@ -787,6 +811,68 @@ int renderer_ogl::create()
 	return 0;
 }
 
+#ifdef SDLMAME_X11
+//============================================================
+//  drm_open
+//============================================================
+
+static int drm_open()
+{
+	int fd = 0;
+	const char *node = {"/dev/dri/card0"};
+
+	fd = open(node, O_RDWR | O_CLOEXEC);
+	if (fd < 0)
+	{
+		fprintf(stderr, "cannot open %s\n", node);
+		return 0;
+	}
+	osd_printf_verbose("%s successfully opened\n", node);
+	return fd;
+}
+
+//============================================================
+//  drm_waitvblank
+//============================================================
+
+static void drm_waitvblank(int crtc)
+{
+
+	drmVBlank vbl;
+	memset(&vbl, 0, sizeof(vbl));
+	vbl.request.sequence = 1;
+
+	// handle vblank for all SR managed crtc
+	// this is a hack based on SDL reported screen index
+	// it won't work on multi-gpu
+	// TO DO: find a correct way to map screen to crtc
+
+	// single screen (default)
+	vbl.request.type = DRM_VBLANK_RELATIVE;
+
+	// two screens
+	if (crtc == 1) vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
+
+	// multi-screen
+	else if (crtc > 1)
+	{
+		static uint64_t caps;
+		static bool caps_checked = false;
+
+		if (!caps_checked)
+		{
+			caps_checked = true;
+			if (drmGetCap(fd, DRM_CAP_VBLANK_HIGH_CRTC, &caps))
+				osd_printf_error("A newer kernel is needed for vblank syncing on multi screen\n");
+		}
+		if (caps)
+			vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | ((crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
+	}
+
+	if (drmWaitVBlank(fd, &vbl) != 0)
+		osd_printf_verbose("drmWaitVBlank failed\n");
+}
+#endif
 
 //============================================================
 //  drawsdl_xy_to_render_target
@@ -1531,7 +1617,22 @@ int renderer_ogl::draw(const int update)
 	window().m_primlist->release_lock();
 	m_init_context = 0;
 
+#ifdef SDLMAME_X11
+	// wait for vertical retrace
+	if ((video_config.sync_mode == 3 || video_config.sync_mode == 4) && video_config.syncrefresh && fd)
+		drm_waitvblank(window().monitor()->oshandle());
+#endif
+
 	m_gl_context->swap_buffer();
+
+#ifdef SDLMAME_X11
+	// wait for vertical retrace
+	if ((video_config.sync_mode == 1 || video_config.sync_mode == 2) && video_config.syncrefresh && fd)
+		drm_waitvblank(window().monitor()->oshandle());
+#endif
+
+	// Finish GL to minimize latency
+	glFinish();
 
 	return 0;
 }
