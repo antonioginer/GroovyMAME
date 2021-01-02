@@ -22,6 +22,7 @@
 #include "screen.h"
 #include "softlist.h"
 #include "speaker.h"
+#include "osdepend.h"
 
 #include "util/unicode.h"
 
@@ -595,6 +596,7 @@ std::string machine_info::game_info_string() const
 		buf << _("None\n");
 	else
 	{
+		int i = 0;
 		for (device_video_output_interface &screen : scriter)
 		{
 			const u32 rate = u32(screen.frame_period().as_hz() * 1'000'000 + 0.5);
@@ -624,6 +626,9 @@ std::string machine_info::game_info_string() const
 			util::stream_format(buf,
 					(scrcount > 1) ? _("%1$s: %2$s\n") : _("%2$s\n"),
 					string_format(_("Screen '%1$s'"), screen.device().tag()), detail);
+
+			// display Switchres information
+			buf << _(m_machine.osd().switchres_mode(i++));
 		}
 	}
 
