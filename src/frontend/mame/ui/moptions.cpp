@@ -51,7 +51,7 @@ const options_entry ui_options::s_option_entries[] =
 	// UI options
 	{ nullptr,                              nullptr,        option_type::HEADER,      "UI OPTIONS" },
 	{ OPTION_INFOS_SIZE "(0.20-1.00)",      "0.75",         option_type::FLOAT,       "UI right panel infos text size (0.20 - 1.00)" },
-	{ OPTION_FONT_ROWS "(25-40)",           "30",           option_type::INTEGER,     "UI font lines per screen (25 - 40)" },
+	{ OPTION_FONT_ROWS "(20-40)",           "30",           option_type::INTEGER,     "UI font lines per screen (20 - 40)" },
 	{ OPTION_UI_BORDER_COLOR,               "ffffffff",     option_type::STRING,      "UI border color (ARGB)" },
 	{ OPTION_UI_BACKGROUND_COLOR,           "ef101030",     option_type::STRING,      "UI background color (ARGB)" },
 	{ OPTION_UI_CLONE_COLOR,                "ff808080",     option_type::STRING,      "UI clone color (ARGB)" },
