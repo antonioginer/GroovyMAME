@@ -19,6 +19,7 @@ local extlibs = {
 	glm        = { "glm",       "3rdparty/glm" },
 	rapidjson  = { "rapidjson", "3rdparty/rapidjson/include" },
 	pugixml    = { "pugixml",   "3rdparty/pugixml/src" },
+	switchres  = { "switchres", "3rdparty/switchres" },
 }
 
 -- system lib options
