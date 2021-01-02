@@ -48,6 +48,8 @@ enum class win_window_focus
 };
 
 
+class display_manager;
+
 class win_window_info  : public osd_window_t<HWND>
 {
 public:
@@ -155,6 +157,7 @@ private:
 	void maximize_window();
 	void adjust_window_position_after_major_change();
 	void set_fullscreen(int fullscreen);
+	void reset_fullscreen_renderer();
 
 	// pointer handling helpers
 	void pointer_entered(WPARAM wparam, LPARAM lparam);
@@ -189,6 +192,8 @@ private:
 	std::vector<win_pointer_info> m_active_pointers;
 
 	static POINT        s_saved_cursor_pos;
+
+	display_manager *   m_display_manager = 0;
 };
 
 
