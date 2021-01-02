@@ -124,7 +124,6 @@ std::vector<submenu::option> submenu::video_options()
 			{ option_type::OSD,  N_("Video Mode"),                              OSDOPTION_VIDEO },
 			{ option_type::OSD,  N_("Number Of Screens"),                       OSDOPTION_NUMSCREENS },
 #if defined(UI_WINDOWS) && !defined(UI_SDL)
-			{ option_type::OSD,  N_("Triple Buffering"),                        WINOPTION_TRIPLEBUFFER },
 			{ option_type::OSD,  N_("HLSL"),                                    WINOPTION_HLSL_ENABLE },
 #endif
 			{ option_type::OSD,  N_("GLSL"),                                    OSDOPTION_GL_GLSL },
@@ -133,7 +132,7 @@ std::vector<submenu::option> submenu::video_options()
 			{ option_type::OSD,  N_("Window Mode"),                             OSDOPTION_WINDOW },
 			{ option_type::EMU,  N_("Enforce Aspect Ratio"),                    OPTION_KEEPASPECT },
 			{ option_type::OSD,  N_("Start Out Maximized"),                     OSDOPTION_MAXIMIZE },
-			{ option_type::OSD,  N_("Synchronized Refresh"),                    OSDOPTION_SYNCREFRESH },
+			{ option_type::EMU,  N_("Synchronized Refresh"),                    OPTION_SYNCREFRESH },
 			{ option_type::OSD,  N_("Wait Vertical Sync"),                      OSDOPTION_WAITVSYNC } };
 }
 
@@ -269,7 +268,7 @@ bool submenu::handle(event const *ev)
 				if (ev->iptkey == IPT_UI_CLEAR)
 					sm_option.options->set_value(sm_option.name, sm_option.entry->default_value(), OPTION_PRIORITY_CMDLINE);
 				else
-					sm_option.options->set_value(sm_option.name, sm_option.entry->bool_value() ? 0 : 1, OPTION_PRIORITY_CMDLINE);
+					sm_option.options->set_value(sm_option.name, sm_option.entry->bool_value() ? false : true, OPTION_PRIORITY_CMDLINE);
 				break;
 			case core_options::option_type::INTEGER:
 				if (ev->iptkey == IPT_UI_LEFT || ev->iptkey == IPT_UI_RIGHT)
