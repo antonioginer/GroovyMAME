@@ -96,6 +96,9 @@ public:
 	// midi interface
 	virtual std::unique_ptr<osd_midi_device> create_midi_device() = 0;
 
+	// switchres interface
+	virtual const char *switchres_mode(int i) = 0;
+
 protected:
 	virtual ~osd_interface() { }
 };
