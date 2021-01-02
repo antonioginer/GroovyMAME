@@ -115,6 +115,9 @@ public:
 	virtual std::unique_ptr<osd::network_device> open_network_device(int id, osd::network_handler &handler) = 0;
 	virtual std::vector<osd::network_device_info> list_network_devices() = 0;
 
+	// switchres interface
+	virtual const char *switchres_mode(int i) = 0;
+
 protected:
 	virtual ~osd_interface() { }
 };
