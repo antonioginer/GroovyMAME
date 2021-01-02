@@ -503,6 +503,7 @@ public:
 	u32 width() const { return m_width; }
 	u32 height() const { return m_height; }
 	float pixel_aspect() const { return m_pixel_aspect; }
+	float integer_aspect() const { return m_integer_aspect; }
 	bool keepaspect() const { return m_keepaspect; }
 	int scale_mode() const { return m_scale_mode; }
 	float max_update_rate() const { return m_max_refresh; }
@@ -524,6 +525,7 @@ public:
 	void set_transform_container(bool transform_container) { m_transform_container = transform_container; }
 	void set_keepaspect(bool keepaspect) { m_keepaspect = keepaspect; }
 	void set_scale_mode(int scale_mode) { m_scale_mode = scale_mode; }
+	void set_integer_aspect(float aspect) { m_integer_aspect = aspect; }
 
 	// layer config getters
 	bool screen_overlay_enabled() const { return m_layerconfig.screen_overlay_enabled(); }
@@ -612,6 +614,7 @@ private:
 	bool                    m_keepaspect;               // constrain aspect ratio
 	bool                    m_int_overscan;             // allow overscan on integer scaled targets
 	float                   m_pixel_aspect;             // aspect ratio of individual pixels
+	float                   m_integer_aspect;           // aspect ratio of individual pixels rounded to integers
 	int                     m_scale_mode;               // type of scale to apply
 	int                     m_int_scale_x;              // horizontal integer scale factor
 	int                     m_int_scale_y;              // vertical integer scale factor

@@ -180,6 +180,7 @@ public:
 	virtual void record() { }
 	virtual void toggle_fsfx() { }
 	virtual bool sliders_dirty() { return m_sliders_dirty; }
+	virtual int restart() { return 0; }
 
 protected:
 	virtual void build_slider_list() { }
@@ -217,13 +218,12 @@ struct osd_video_config
 	// hardware options
 	int                 waitvsync;                  // spin until vsync
 	int                 syncrefresh;                // sync only to refresh rate
+	int                 sync_mode;                  // sync refresh mode (0-3)
 	int                 switchres;                  // switch resolutions
+	int                 framedelay;					// frame delay
 
 	// d3d, accel, opengl
 	int                 filter;                     // enable filtering
-
-	// d3d
-	int                 triplebuf;                  // triple buffer
 
 	//============================================================
 	// SDL - options

@@ -377,6 +377,7 @@ void render_texture::set_bitmap(bitmap_t &bitmap, const rectangle &sbounds, text
 	m_bitmap = &bitmap;
 	m_sbounds = sbounds;
 	m_format = format;
+	m_curseq++;
 
 	// invalidate all scaled versions
 	for (auto & elem : m_scaled)
@@ -434,7 +435,7 @@ void render_texture::get_scaled(u32 dwidth, u32 dheight, render_texinfo &texinfo
 		texinfo.width_margin = m_sbounds.left();
 		texinfo.height = sheight;
 		// palette will be set later
-		texinfo.seqid = ++m_curseq;
+		texinfo.seqid = m_curseq;
 	}
 	else
 	{
@@ -489,7 +490,7 @@ void render_texture::get_scaled(u32 dwidth, u32 dheight, render_texinfo &texinfo
 		texinfo.width = dwidth;
 		texinfo.height = dheight;
 		// palette will be set later
-		texinfo.seqid = scaled->seqid;
+		texinfo.seqid = m_curseq;
 	}
 }
 
@@ -903,6 +904,7 @@ template <typename T> render_target::render_target(render_manager &manager, T &&
 	, m_keepaspect(false)
 	, m_int_overscan(false)
 	, m_pixel_aspect(0.0f)
+	, m_integer_aspect(1.0f)
 	, m_int_scale_x(0)
 	, m_int_scale_y(0)
 	, m_max_refresh(0)
@@ -1276,7 +1278,7 @@ void render_target::compute_visible_area(s32 target_width, s32 target_height, fl
 						continue;
 
 					// score the result
-					float new_diff = fabsf(aspect_ratio * (a / b) - (ab / bb));
+					float new_diff = fabsf(aspect_ratio - (a / b) / (ab / bb));
 
 					if (new_diff <= diff)
 					{
@@ -3241,8 +3243,15 @@ float render_manager::ui_aspect(render_container *rc)
 		{
 			float pixel_aspect = m_ui_target->pixel_aspect();
 
+			if (pixel_aspect < 1.0f)
+				pixel_aspect = 1.0f / roundf(1.0f / pixel_aspect);
+			else
+				pixel_aspect = roundf(pixel_aspect);
+
 			if (orient & ORIENTATION_SWAP_XY)
 				pixel_aspect = 1.0f / pixel_aspect;
+
+			m_ui_target->set_integer_aspect(pixel_aspect);
 
 			return aspect /= pixel_aspect;
 		}

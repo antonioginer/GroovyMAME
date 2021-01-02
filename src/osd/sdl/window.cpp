@@ -239,27 +239,24 @@ void sdl_window_info::toggle_full_screen()
 		m_windowed_dim = get_size();
 	}
 
-	// kill off the drawers
-	renderer_reset();
-	bool is_osx = false;
-#ifdef SDLMAME_MACOSX
-	// FIXME: This is weird behaviour and certainly a bug in SDL
-	is_osx = true;
-#endif
-	if (fullscreen() && (video_config.switchres || is_osx))
-	{
-		SDL_SetWindowFullscreen(platform_window(), 0);    // Try to set mode
-		SDL_SetWindowDisplayMode(platform_window(), &m_original_mode->mode);    // Try to set mode
-		SDL_SetWindowFullscreen(platform_window(), SDL_WINDOW_FULLSCREEN);    // Try to set mode
-	}
-	SDL_DestroyWindow(platform_window());
-	set_platform_window(nullptr);
-	downcast<sdl_osd_interface &>(machine().osd()).release_keys();
-
 	// toggle the window mode
 	set_fullscreen(!fullscreen());
 
-	complete_create();
+	SDL_SetWindowFullscreen(platform_window(), fullscreen() ? SDL_WINDOW_FULLSCREEN : 0);
+	SDL_SetWindowBordered(platform_window(), fullscreen() ? SDL_FALSE : SDL_TRUE);
+	SDL_SetWindowResizable(platform_window(), fullscreen() ? SDL_FALSE : SDL_TRUE);
+
+	if (fullscreen() && downcast<sdl_options &>(machine().options()).mode_setting())
+	{
+		if (m_display_manager)
+			downcast<sdl_osd_interface&>(machine().osd()).switchres()->set_mode(index(), monitor(), target(), &m_win_config);
+	}
+
+	if (!fullscreen())
+	{
+		osd_dim temp = m_windowed_dim.width() > 0 ? m_windowed_dim : get_min_bounds(keepaspect());
+		resize(temp.width(), temp.height());
+	}
 }
 
 void sdl_window_info::modify_prescale(int dir)
@@ -379,6 +376,13 @@ void sdl_window_info::complete_destroy()
 	}
 
 	renderer_reset();
+
+	if (m_display_manager)
+	{
+		downcast<sdl_osd_interface&>(machine().osd()).switchres()->delete_display(index());
+		m_display_manager = nullptr;
+	}
+
 	SDL_DestroyWindow(platform_window());
 	set_platform_window(nullptr);
 	downcast<sdl_osd_interface &>(machine().osd()).release_keys();
@@ -471,6 +475,14 @@ void sdl_window_info::update()
 	// if we're visible and running and not in the middle of a resize, draw
 	if (target() != nullptr)
 	{
+		// check if geometry has changed
+		if (this->m_fullscreen && video_config.switchres && downcast<sdl_osd_interface&>(machine().osd()).switchres()->check_geometry_change(index()))
+		{
+			toggle_full_screen();
+			downcast<sdl_osd_interface&>(machine().osd()).switchres()->adjust_mode(index());
+			toggle_full_screen();
+		}
+
 		int tempwidth, tempheight;
 
 		// see if the games video mode has changed
@@ -486,13 +498,23 @@ void sdl_window_info::update()
 			}
 			else if (video_config.switchres)
 			{
-				osd_dim tmp = this->pick_best_mode();
-				resize(tmp.width(), tmp.height());
+				// check if we need to change the video mode
+				if (downcast<sdl_options &>(machine().options()).changeres())
+					if (m_display_manager) downcast<sdl_osd_interface&>(machine().osd()).switchres()->check_resolution_change(index(), monitor(), target(), &m_win_config);
+
+				if (!downcast<sdl_options &>(machine().options()).mode_setting())
+				{
+					SDL_DisplayMode mode = {};
+					mode.w = m_win_config.width;
+					mode.h = m_win_config.height;
+					mode.refresh_rate = m_win_config.refresh;
+					SDL_SetWindowDisplayMode(platform_window(), &mode);
+				}
 			}
 		}
 
 		osd_ticks_t event_wait_ticks;
-		if (video_config.waitvsync && video_config.syncrefresh)
+		if (video_config.syncrefresh)
 			event_wait_ticks = osd_ticks_per_second(); // block at most a second
 		else
 			event_wait_ticks = 0;
@@ -546,16 +568,13 @@ void sdl_window_info::update()
 int sdl_window_info::complete_create()
 {
 	osd_dim temp(0,0);
+	bool mode_setting = downcast<sdl_options &>(machine().options()).mode_setting();
 
 	// clear out original mode. Needed on OSX
 	if (fullscreen())
 	{
 		// default to the current mode exactly
 		temp = monitor()->position_size().dim();
-
-		// if we're allowed to switch resolutions, override with something better
-		if (video_config.switchres)
-			temp = pick_best_mode();
 	}
 	else if (m_windowed_dim.width() > 0)
 	{
@@ -595,9 +614,9 @@ int sdl_window_info::complete_create()
 	m_extra_flags |= (fullscreen() ?
 			SDL_WINDOW_BORDERLESS | SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE);
 
-#if defined(SDLMAME_WIN32)
+//#if defined(SDLMAME_WIN32)
 	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
-#endif
+//#endif
 
 	// get monitor work area for centering
 	osd_rect work = monitor()->usuable_position_size();
@@ -685,12 +704,21 @@ int sdl_window_info::complete_create()
 		//SDL_GetCurrentDisplayMode(window().monitor()->handle, &mode);
 		SDL_GetWindowDisplayMode(platform_window(), &mode);
 		m_original_mode->mode = mode;
-		mode.w = temp.width();
-		mode.h = temp.height();
-		if (m_win_config.refresh)
-			mode.refresh_rate = m_win_config.refresh;
 
-		SDL_SetWindowDisplayMode(platform_window(), &mode);    // Try to set mode
+		// add the switchres display manager
+		m_display_manager = downcast<sdl_osd_interface&>(machine().osd()).switchres()->add_display(index(), monitor(), &m_win_config);
+		downcast <sdl_osd_interface&>(machine().osd()).switchres()->init_display(index(), monitor(), &m_win_config, target(), sdlwindow);
+		temp = osd_dim(m_win_config.width, m_win_config.height);
+
+		if (!mode_setting)
+		{
+			mode.w = temp.width();
+			mode.h = temp.height();
+			if (m_win_config.refresh)
+				mode.refresh_rate = m_win_config.refresh;
+
+			SDL_SetWindowDisplayMode(platform_window(), &mode);    // Try to set mode
+		}
 #ifndef SDLMAME_WIN32
 		/* FIXME: Warp the mouse to 0,0 in case a virtual desktop resolution
 		 * is in place after the mode switch - which will most likely be the case
