@@ -156,6 +156,8 @@ public:
 	virtual void video_exit() override;
 	virtual void window_exit() override;
 
+	void extract_video_config();
+
 	// SDL-specific
 	virtual bool has_focus() const override { return bool(m_focus_window); }
 	void poll_inputs();
@@ -185,7 +187,6 @@ private:
 
 	virtual void osd_exit() override;
 
-	void extract_video_config();
 	void output_oslog(const char *buffer);
 
 	void process_window_event(SDL_Event const &event);
