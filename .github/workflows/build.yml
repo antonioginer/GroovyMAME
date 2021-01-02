@@ -1,0 +1,151 @@
+# This is a basic workflow that is manually triggered
+
+name: Build GroovyMAME on a new tag
+
+# Only build when a tag looks like gm0???sr????
+# It will, in the end, converted to the GM version + SR version
+# eg: gm0223sr017q
+on:
+  push:
+    tags:
+      - gm0*sr*
+
+jobs:
+# GM build jobs : on linux/mingw (corssbuild for windows), on windows/msys2 and linux
+#  mingw-windows-build:
+    # Cross ompilation job, runs on a Ubuntu Linux runner and builds windows binaries
+    # Disabled for now because of https://github.com/mamedev/mame/issues/7240
+    # Take care if you enable this job again, others must have changed since
+#    runs-on: ubuntu-latest
+#    steps:
+#    - uses: actions/checkout@v2
+#    - name: Setup environment
+#      run: |
+#        sudo apt update
+#        sudo apt-get install mingw-w64 wine64 p7zip
+#        sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+#    - name: Build GroovyMAME
+#      run: |
+#        make -j$(nproc) TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=0 SYMLEVEL=1 REGENIE=1 TARGETOS=windows OVERRIDE_CC=x86_64-w64-mingw32-gcc OVERRIDE_CXX=x86_64-w64-mingw32-g++ OVERRIDE_LD=x86_64-w64-mingw32-ld MINGW64=/usr
+#        make -f dist.mak PTR64=1 TARGETOS=windows
+#    - name: Create MAME basic configuration
+#      run: |
+#        cd build/release/x64/Release/mame
+#        wine64 mame64.exe -createconfig
+#    - name: Create Release Asset
+#      run: |
+#        cd build/release/x64/Release/mame
+#        7z a groovymame-mingw-win32-64bits.7z *
+#    - name: Upload artifact
+#      uses: actions/upload-artifact@v2
+#      with:
+#        name: binaries-win32-mingw
+#        path: build/release/x64/Release/mame/groovymame-mingw-win32-64bits.7z
+
+  msys-windows-build:
+    # Windows build in a MSYS2 environment on a Windows runner
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        update: true
+        install: bash git make wget mingw-w64-x86_64-gcc mingw-w64-x86_64-python p7zip
+    - name: Setup MSYS2 for MAME
+      run: |
+        wget https://repo.mamedev.org/x86_64/mame-essentials-1.0.6-1-x86_64.pkg.tar.xz
+        pacman -U --noconfirm mame-essentials-1.0.6-1-x86_64.pkg.tar.xz
+        echo -e "[mame]\nInclude = /etc/pacman.d/mirrorlist.mame" >> /etc/pacman.conf
+        pacman -Sy
+    - uses: actions/checkout@v2
+    - name: Build GroovyMAME
+      run: |
+        export MINGW64=/mingw64
+        export MINGW32=
+        make -j$(nproc) TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=0 SYMLEVEL=1 REGENIE=1
+        make -f dist.mak PTR64=1
+        cp -rf plugins build/release/x64/Release/mame/
+    - name: Create MAME basic configuration
+      run: |
+        cd build/release/x64/Release/mame
+        ./mame64.exe -createconfig
+    - name: Create Release Asset
+      run: |
+        tag="${GITHUB_REF#refs/*/}"
+        # Now tag should be in the shape of gm0XXXsrYYYY, ex: gm0223sr017q
+        mamev="${tag:3:3}"
+        srv="${tag: -4}"
+        cd build/release/x64/Release/mame
+        7z a "groovymame64_0${mamev}.${srv}_win-7-8-10.7z" *
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: binaries-win32-msys
+        path: build/release/x64/Release/mame/groovymame64*.7z
+
+  linux-build:
+    # Simple linux build on ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup environment
+      run: |
+        sudo apt update
+        sudo apt-get install git build-essential python libsdl2-dev libsdl2-ttf-dev libfontconfig-dev qt5-default p7zip
+    - name: Build GroovyMAME
+      run: |
+        make -j$(nproc) TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=0 SYMLEVEL=1 REGENIE=1
+        make -f dist.mak PTR64=1
+    - name: Create Release Asset
+      run: |
+        tag="${GITHUB_REF#refs/*/}"
+        # Now tag should be in the shape of gm0XXXsrYYYY, ex: gm0223sr017q
+        mamev="${tag:3:3}"
+        srv="${tag: -4}"
+        cd build/release/x64/Release/mame
+        mv mame64 groovymame
+        tar cvjf "groovymame64_0${mamev}.${srv}_linux.tar.bz2" groovymame
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: binaries-linux-gcc
+        path: build/release/x64/Release/mame/groovymame64*.tar.bz2
+
+  release:
+    runs-on: ubuntu-latest
+    #needs: [mingw-windows-build, msys-windows-build, linux-build]
+    needs: [msys-windows-build, linux-build]
+    steps:
+      - name: Prepare data
+        id: prepare_data
+        run: |
+          tag="${GITHUB_REF#refs/*/}"
+          # Now tag should be in the shape of gm0XXXsrYYYY, ex: gm0223sr017q
+          mamev="${tag:3:3}"
+          srv="${tag: -4}"
+          echo "GroovyMAME: 0.$mamev"
+          echo "Switchres : 2.$srv"
+          echo "::set-output name=mame_version::${mamev}"
+          echo "::set-output name=switchres_version::${srv}"
+          echo "::set-output name=current_tag::${tag}"
+      - name: Download Artifacts
+        uses: actions/download-artifact@v2.0.5
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAME_VERSION: ${{ steps.prepare_data.outputs.mame_version }}
+          SWITCHRES_VERSION: ${{ steps.prepare_data.outputs.switchres_version }}
+          CURRENT_TAG: ${{ steps.prepare_data.outputs.current_tag }}
+        with:
+          name: GroovyMAME 0.${{ steps.prepare_data.outputs.mame_version }} - Switchres 2.${{ steps.prepare_data.outputs.switchres_version }}
+          draft: true
+          prerelease: false
+          files: |
+            ./binaries-win32-msys/groovymame64_*.7z
+            ./binaries-linux-gcc/groovymame64_*.tar.bz2
+#            ./binaries-win32-mingw/groovymame-mingw-win32-64bits.7z
