@@ -47,7 +47,7 @@ struct hlsl_options;
 class renderer_d3d9 : public osd_renderer, public slider_dirty_notifier
 {
 public:
-	using IDirect3D9Ptr = Microsoft::WRL::ComPtr<IDirect3D9>;
+	using IDirect3D9Ptr = Microsoft::WRL::ComPtr<IDirect3D9Ex>;
 
 	renderer_d3d9(osd_window &window, const IDirect3D9Ptr &d3dobj);
 	virtual ~renderer_d3d9();
@@ -61,6 +61,7 @@ public:
 	virtual void add_audio_to_recording(const int16_t *buffer, int samples_this_frame) override;
 	virtual std::vector<ui::menu_item> get_slider_list() override;
 	virtual void set_sliders_dirty() override;
+	virtual int restart() override;
 
 	int                     initialize();
 
@@ -68,6 +69,8 @@ public:
 	int                     device_create_resources();
 	void                    device_delete();
 	void                    device_delete_resources();
+	void                    device_flush();
+	void                    update_break_scanlines();
 	void                    update_presentation_parameters();
 	void                    update_gamma_ramp();
 
@@ -110,7 +113,7 @@ public:
 	bool                    post_fx_available() const { return m_post_fx_available; }
 	void                    set_post_fx_unavailable() { m_post_fx_available = false; }
 
-	IDirect3DDevice9 *      get_device() const { return m_device.Get(); }
+	IDirect3DDevice9Ex *    get_device() const { return m_device.Get(); }
 	D3DPRESENT_PARAMETERS * get_presentation() { return &m_presentation; }
 
 	IDirect3DVertexBuffer9 *get_vertex_buffer() const { return m_vertexbuf.Get(); }
@@ -119,7 +122,7 @@ public:
 
 	D3DFORMAT               get_screen_format() const { return m_screen_format; }
 	D3DFORMAT               get_pixel_format() const { return m_pixformat; }
-	D3DDISPLAYMODE          get_origmode() const { return m_origmode; }
+	D3DDISPLAYMODEEX        get_origmode() const { return m_origmode; }
 
 	uint32_t                get_last_texture_flags() const { return m_last_texture_flags; }
 
@@ -129,22 +132,39 @@ public:
 	shaders *               get_shaders() const { return m_shaders.get(); }
 
 private:
-	using IDirect3DDevice9Ptr = Microsoft::WRL::ComPtr<IDirect3DDevice9>;
+	using IDirect3DDevice9Ptr = Microsoft::WRL::ComPtr<IDirect3DDevice9Ex>;
 	using IDirect3DVertexBuffer9Ptr = Microsoft::WRL::ComPtr<IDirect3DVertexBuffer9>;
 
 	const IDirect3D9Ptr     m_d3dobj;                   // Direct3D 9 API object
 	int                     m_adapter;                  // ordinal adapter number
+	int                     m_vendor_id;                // adapter vendor id
 	int                     m_width;                    // current width
 	int                     m_height;                   // current height
 	int                     m_refresh;                  // current refresh rate
+	bool                    m_interlace;                // current interlace
+	int                     m_frame_delay;              // current frame delay value
+	int                     m_vsync_offset;             // current vsync_offset value
+	int                     m_first_scanline;           // first scanline number (visible)
+	int                     m_last_scanline;            // last scanline number (visible)
+	int                     m_delay_scanline;           // scanline number supposed to be after frame delay
+	int                     m_break_scanline;           // break scanline number, for vsync offset
 	int                     m_create_error_count;       // number of consecutive create errors
 	bool                    m_post_fx_available;
 
 	IDirect3DDevice9Ptr     m_device;                   // pointer to the Direct3DDevice object
 	int                     m_gamma_supported;          // is full screen gamma supported?
 	D3DPRESENT_PARAMETERS   m_presentation;             // set of presentation parameters
-	D3DDISPLAYMODE          m_origmode;                 // original display mode for the adapter
+	D3DDISPLAYMODEEX        m_origmode;                 // original display mode for the adapter
+	D3DDISPLAYMODEEX        m_display_mode;             // full screen display mode
 	D3DFORMAT               m_pixformat;                // pixel format we are using
+	IDirect3DQuery9 *		m_query;
+	IDirect3DSwapChain9 *   m_swap9;
+	IDirect3DSwapChain9Ex * m_swap;
+	D3DPRESENTSTATS         m_stats;
+	D3DRASTER_STATUS        m_raster_status;
+	int                     m_sync_count;
+	int                     m_enter_line;
+	int                     m_exit_line;
 
 	IDirect3DVertexBuffer9Ptr m_vertexbuf;              // pointer to the vertex buffer object
 	vertex *                m_lockedbuf;                // pointer to the locked vertex buffer

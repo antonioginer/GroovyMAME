@@ -32,6 +32,8 @@ typedef uintptr_t HashT;
 
 #define OSDWORK_CALLBACK(name)  void *name(void *param, int threadid)
 
+class display_manager;
+
 class sdl_window_info : public osd_window_t<SDL_Window*>
 {
 public:
@@ -129,6 +131,8 @@ private:
 	bool m_mouse_inside;
 	std::vector<pointer_dev_info> m_ptrdev_info;
 	std::vector<sdl_pointer_info> m_active_pointers;
+
+	display_manager *   m_display_manager = 0;
 };
 
 #endif // MAME_OSD_SDL_WINDOW_H
