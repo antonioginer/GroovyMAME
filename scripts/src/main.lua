@@ -194,6 +194,7 @@ end
 		"bgfx",
 		"bimg",
 		"bx",
+		"switchres",
 		"ocore_" .. _OPTIONS["osd"],
 	}
 

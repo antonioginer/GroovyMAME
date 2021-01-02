@@ -1928,7 +1928,10 @@ bool menu::check_metrics()
 {
 	render_manager &render(machine().render());
 	render_target &target(render.ui_target());
-	std::pair<uint32_t, uint32_t> const uisize(target.width(), target.height());
+	std::pair<uint32_t, uint32_t> uisize(target.width(), target.height());
+	if (target.orientation() & ORIENTATION_SWAP_XY)
+		std::swap(uisize.first, uisize.second);
+
 	float const aspect = render.ui_aspect(&container());
 	if ((uisize == m_last_size) && (aspect == m_last_aspect))
 		return false;
@@ -2011,6 +2014,7 @@ bool menu::do_handle()
 	machine().osd().check_osd_inputs();
 
 	// recompute metrics if necessary
+
 	if (check_metrics())
 		need_update = true;
 
