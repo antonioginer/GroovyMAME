@@ -100,6 +100,9 @@ public:
 	virtual std::unique_ptr<osd::midi_output_port> create_midi_output(std::string_view name) = 0;
 	virtual std::vector<osd::midi_port_info> list_midi_ports() = 0;
 
+	// switchres interface
+	virtual const char *switchres_mode(int i) = 0;
+
 protected:
 	virtual ~osd_interface() { }
 };

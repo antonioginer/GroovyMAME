@@ -137,6 +137,7 @@ function osdmodulesbuild()
 		MAME_DIR .. "src/osd/modules/sound/sdl_sound.cpp",
 		MAME_DIR .. "src/osd/modules/sound/sound_module.h",
 		MAME_DIR .. "src/osd/modules/sound/xaudio2_sound.cpp",
+		MAME_DIR .. "src/osd/modules/switchres/switchres_module.cpp",
 	}
 	includedirs {
 		MAME_DIR .. "src/osd",
@@ -540,6 +541,7 @@ function osdmodulestargetconf()
 			"dxguid",
 			"oleaut32",
 			"winmm",
+			"hid",
 		}
 	elseif _OPTIONS["targetos"]=="macosx" then
 		links {

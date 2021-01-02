@@ -75,7 +75,12 @@
 #define OPTION_SLEEP                "sleep"
 #define OPTION_SPEED                "speed"
 #define OPTION_REFRESHSPEED         "refreshspeed"
+#define OPTION_SYNCREFRESH          "syncrefresh"
+#define OPTION_SYNCAUDIO            "syncaudio"
 #define OPTION_LOWLATENCY           "lowlatency"
+#define OPTION_FRAMEDELAY           "framedelay"
+#define OPTION_VSYNC_OFFSET         "vsync_offset"
+#define OPTION_BLACK_FRAME_INSERTION "black_frame_insertion"
 
 // core render options
 #define OPTION_KEEPASPECT           "keepaspect"
@@ -361,7 +366,12 @@ public:
 	bool sleep() const { return m_sleep; }
 	float speed() const { return float_value(OPTION_SPEED); }
 	bool refresh_speed() const { return m_refresh_speed; }
+	bool sync_refresh() const { return bool_value(OPTION_SYNCREFRESH); }
+	bool sync_audio() const { return bool_value(OPTION_SYNCAUDIO); }
 	bool low_latency() const { return bool_value(OPTION_LOWLATENCY); }
+	int frame_delay() const { return int_value(OPTION_FRAMEDELAY); }
+	int vsync_offset() const { return int_value(OPTION_VSYNC_OFFSET); }
+	int black_frame_insertion() const { return int_value(OPTION_BLACK_FRAME_INSERTION); }
 
 	// core render options
 	bool keep_aspect() const { return bool_value(OPTION_KEEPASPECT); }
