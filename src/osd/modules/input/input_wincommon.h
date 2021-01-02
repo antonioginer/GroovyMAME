@@ -34,6 +34,15 @@ struct mouse_state
 	BYTE    rgbButtons[8];
 };
 
+// state information for a joystick
+struct joystick_state
+{
+	int32_t axes[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+	bool    bidirectional_trigger_axis[9] = {false, false, false, false, false, false, false, false, false};
+	int32_t buttons[MAX_BUTTONS];
+	int32_t hats[4] = {0, 0, 0, 0};
+};
+
 } // namespace osd
 
 #endif // MAME_OSD_INPUT_INPUT_WINCOMMON_H
