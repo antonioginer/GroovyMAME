@@ -727,7 +727,7 @@ void video_manager::update_throttle(attotime emutime)
 		if (m_framedelay == 0 || m_framedelay > 9)
 			return;
 
-		screen_device *const screen = screen_device_iterator(machine().root_device()).first();
+		screen_device *const screen = screen_device_enumerator(machine().root_device()).first();
 		if (screen)
 		{
 			osd_ticks_t now = osd_ticks();
