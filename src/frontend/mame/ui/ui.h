@@ -337,18 +337,25 @@ private:
 	void set_handler(ui_callback_type callback_type, handler_callback_func &&callback);
 	void frame_update();
 	void exit();
+
 	void increase_frameskip();
 	void decrease_frameskip();
 	void config_load_warnings(config_type cfg_type, config_level cfg_level, util::xml::data_node const *parentnode);
 	void config_save_warnings(config_type cfg_type, util::xml::data_node *parentnode);
 	void config_load_pointers(config_type cfg_type, config_level cfg_level, util::xml::data_node const *parentnode);
 	void config_save_pointers(config_type cfg_type, util::xml::data_node *parentnode);
+	void sliders_load(config_type cfg_type, config_level cfg_level, util::xml::data_node const *parentnode);
+	void sliders_save(config_type cfg_type, util::xml::data_node *parentnode);
+	void sliders_apply(void);
 	template <typename... Params> void slider_alloc(Params &&...args) { m_sliders.push_back(std::make_unique<slider_state>(std::forward<Params>(args)...)); }
+	template <typename... Params> void slider_saved_alloc(Params &&...args) { m_sliders_saved.push_back(std::make_unique<slider_state>(std::forward<Params>(args)...)); }
 
 	// slider controls
 	int32_t slider_volume(std::string *str, int32_t newval);
 	int32_t slider_devvol(device_sound_interface *snd, std::string *str, int32_t newval);
 	int32_t slider_devvol_chan(device_sound_interface *snd, int channel, std::string *str, int32_t newval);
+	int32_t slider_framedelay(std::string *str, int32_t newval);
+	int32_t slider_vsync_offset(std::string *str, int32_t newval);
 	int32_t slider_adjuster(ioport_field &field, std::string *str, int32_t newval);
 	int32_t slider_speed(std::string *str, int32_t newval);
 	int32_t slider_overclock(device_t &device, std::string *str, int32_t newval);
@@ -370,12 +377,16 @@ private:
 	int32_t slider_beam_dot_size(screen_device &screen, std::string *str, int32_t newval);
 	int32_t slider_beam_intensity_weight(screen_device &screen, std::string *str, int32_t newval);
 	std::string slider_get_screen_desc(screen_device &screen);
+	int32_t slider_h_size(std::string *str, int32_t newval);
+	int32_t slider_h_shift(std::string *str, int32_t newval);
+	int32_t slider_v_shift(std::string *str, int32_t newval);
 #ifdef MAME_DEBUG
 	int32_t slider_crossscale(ioport_field &field, std::string *str, int32_t newval);
 	int32_t slider_crossoffset(ioport_field &field, std::string *str, int32_t newval);
 #endif
 
 	std::vector<std::unique_ptr<slider_state>> m_sliders;
+	std::vector<std::unique_ptr<slider_state>> m_sliders_saved;
 };
 
 
