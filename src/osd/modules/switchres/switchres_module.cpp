@@ -281,15 +281,11 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 			target->set_scale_mode(SCALE_INTEGER);
 	}
 
-	// Black frame insertion / multithreading
-	bool black_frame_insertion = options.black_frame_insertion() && display->v_scale() > 1 && display->v_freq() > 100;
-	set_option(OSDOPTION_BLACK_FRAME_INSERTION, black_frame_insertion);
-
 	// Set MAME OSD specific options
 
 	// Vertical synchronization management (autosync)
 	// Disable -syncrefresh if our vfreq is scaled or out of syncrefresh_tolerance
-	bool sync_refresh_effective = black_frame_insertion || !((display->is_refresh_off()) || display->v_scale() > 1);
+	bool sync_refresh_effective = (options.black_frame_insertion() > 0) || !((display->is_refresh_off()) || display->v_scale() > 1);
 	set_option(OSDOPTION_WAITVSYNC, options.autosync()? sync_refresh_effective : options.wait_vsync());
 	set_option(OPTION_SYNCREFRESH, options.autosync()? sync_refresh_effective : options.sync_refresh());
 
