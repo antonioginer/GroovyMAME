@@ -100,7 +100,7 @@ const options_entry osd_options::s_option_entries[] =
 
 	// full screen options
 	{ nullptr,                                nullptr,          core_options::option_type::HEADER,    "OSD FULL SCREEN OPTIONS" },
-	{ OSDOPTION_SWITCHRES,                    "0",              core_options::option_type::BOOLEAN,   "enable resolution switching" },
+	{ OSDOPTION_SWITCHRES,                    "1",              core_options::option_type::BOOLEAN,   "enable resolution switching" },
 	{ OSDOPTION_MODE_SETTING,                 "0",              core_options::option_type::BOOLEAN,   "force resolution switching through Switchres backend" },
 	{ OSDOPTION_MODELINE_GENERATION ";ml",    "1",              core_options::option_type::BOOLEAN,   "Automatic generation of modelines based on the specified monitor type" },
 	{ OSDOPTION_MONITOR ";m",                 "generic_15",     core_options::option_type::STRING,    "Monitor type, e.g.: generic_15, arcade_15, lcd, custom, etc." },
@@ -115,7 +115,7 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_V_SHIFT_CORRECT,              "0",              core_options::option_type::INTEGER,   "Apply vertical shift correction for multi-standard consumer CRT TVs"},
 	{ OSDOPTION_PIXEL_PRECISION,              "1",              core_options::option_type::BOOLEAN,   "Calculate horizontal values with 1-pixel precision to improve horizontal centering" },
 	{ OSDOPTION_SYNC_REFRESH_TOLERANCE ";srt","2.0",            core_options::option_type::FLOAT,     "Maximum refresh difference, in Hz, allowed in order to synchronize" },
-	{ OSDOPTION_AUTOSYNC,                     "0",              core_options::option_type::BOOLEAN,   "automatically enable syncrefresh if refresh difference is below syncrefresh_tolerance" },
+	{ OSDOPTION_AUTOSYNC,                     "1",              core_options::option_type::BOOLEAN,   "automatically enable syncrefresh if refresh difference is below syncrefresh_tolerance" },
 	{ OSDOPTION_SCREEN_COMPOSITING,           "0",              core_options::option_type::BOOLEAN,   "Readjust relative screen positions of a multi-display setup after mode switching (Linux)" },
 	{ OSDOPTION_SCREEN_REORDERING,            "0",              core_options::option_type::BOOLEAN,   "Reallocates desktop multiple screens stacked vertically, so super-resolutions fit (Linux)" },
 	{ OSDOPTION_ALLOW_HW_REFRESH,             "0",              core_options::option_type::BOOLEAN,   "Allow on-the-fly mode addition (Windows)" },
