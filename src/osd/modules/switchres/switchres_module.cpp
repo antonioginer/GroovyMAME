@@ -316,3 +316,23 @@ void switchres_module::set_option(const char *option_ID, bool state)
 	options.set_value(option_ID, state, OPTION_PRIORITY_NORMAL+1);
 	osd_printf_verbose("SwitchRes: Setting option -%s%s\n", options.bool_value(option_ID)?"":"no", option_ID);
 }
+
+//============================================================
+//  switchres_module::mode_to_txt
+//============================================================
+
+const char *switchres_module::display_mode_to_txt(int i)
+{
+	if (!downcast<osd_options &>(machine().options()).switch_res())
+		return "Switchres is disabled\n";
+
+	display_manager *display = switchres().display(i);
+
+	if (display->got_mode())
+		sprintf(m_mode_txt, "SR(%d): %d x %d%s%s %2.3f Hz %2.3f kHz\n",
+				i, display->width(), display->height(), display->is_interlaced()?"i":"p", display->is_doublescanned()?"d":"", display->v_freq(), display->h_freq()/1000);
+	else
+		sprintf(m_mode_txt, "SR(%d): could not find a video mode\n", i);
+
+	return m_mode_txt;
+}

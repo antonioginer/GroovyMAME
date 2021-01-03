@@ -20,6 +20,7 @@
 #include "screen.h"
 #include "softlist.h"
 #include "speaker.h"
+#include "osdepend.h"
 
 #include <set>
 #include <sstream>
@@ -465,6 +466,7 @@ std::string machine_info::game_info_string() const
 		buf << _("None\n");
 	else
 	{
+		int i = 0;
 		for (screen_device &screen : scriter)
 		{
 			std::string detail;
@@ -493,18 +495,12 @@ std::string machine_info::game_info_string() const
 			util::stream_format(buf,
 					(scrcount > 1) ? _("%1$s: %2$s\n") : _("%2$s\n"),
 					get_screen_desc(screen), detail);
+
+			// display Switchres information
+			buf << _(m_machine.osd().switchres_mode(i++));
 		}
 	}
-/*
-	// display Switchres information
-	modeline *mode = &m_machine.switchres.best_mode;
-	if (mode->hactive)
-	{
-		buf << _("\nSwitchres:\n");
-		util::stream_format(buf, "%d " UTF8_MULTIPLY " %d%s%s %2.3f Hz %2.3f kHz\n",
-			mode->hactive, mode->vactive, mode->interlace?"i":"p", mode->doublescan?"d":"", mode->vfreq, mode->hfreq/1000);
-	}
-*/
+
 	return buf.str();
 }
 

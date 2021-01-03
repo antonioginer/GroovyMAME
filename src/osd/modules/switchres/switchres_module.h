@@ -50,6 +50,7 @@ public:
 	bool set_mode(int i, osd_monitor_info *monitor, render_target *target, osd_window_config *config);
 	void set_options(display_manager* display, render_target *target);
 	void set_option(const char *option_ID, bool state);
+	const char* display_mode_to_txt(int i);
 
 private:
 	switchres_manager* m_switchres;
@@ -60,7 +61,7 @@ private:
 	int    m_width[MAX_WINDOWS];
 	int    m_height[MAX_WINDOWS];
 	double m_refresh[MAX_WINDOWS];
-
+	char   m_mode_txt[256] = {};
 };
 
 #endif
