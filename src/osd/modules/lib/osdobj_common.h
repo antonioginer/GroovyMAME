@@ -102,8 +102,6 @@
 #define OSDOPTION_PIXEL_PRECISION       "pixel_precision"
 #define OSDOPTION_SYNC_REFRESH_TOLERANCE "sync_refresh_tolerance"
 #define OSDOPTION_AUTOSYNC              "autosync"
-#define OSDOPTION_VSYNC_OFFSET          "vsync_offset"
-#define OSDOPTION_BLACK_FRAME_INSERTION "black_frame_insertion"
 #define OSDOPTION_SCREEN_COMPOSITING    "screen_compositing"
 #define OSDOPTION_SCREEN_REORDERING     "screen_reordering"
 #define OSDOPTION_ALLOW_HW_REFRESH      "allow_hw_refresh"
@@ -172,8 +170,6 @@ public:
 	bool pixel_precision() const { return bool_value(OSDOPTION_PIXEL_PRECISION); }
 	float sync_refresh_tolerance() const { return float_value(OSDOPTION_SYNC_REFRESH_TOLERANCE); }
 	bool autosync() const { return bool_value(OSDOPTION_AUTOSYNC); }
-	int vsync_offset() const { return int_value(OSDOPTION_VSYNC_OFFSET); }
-	bool black_frame_insertion() const { return bool_value(OSDOPTION_BLACK_FRAME_INSERTION); }
 	bool screen_compositing() const { return bool_value(OSDOPTION_SCREEN_COMPOSITING); }
 	bool screen_reordering() const { return bool_value(OSDOPTION_SCREEN_REORDERING); }
 	bool allow_hw_refresh() const { return bool_value(OSDOPTION_ALLOW_HW_REFRESH); }

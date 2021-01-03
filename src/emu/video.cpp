@@ -239,15 +239,19 @@ void video_manager::frame_update(bool from_debugger)
 	g_profiler.start(PROFILER_BLIT);
 	machine().osd().update(!from_debugger && skipped_it);
 	g_profiler.stop();
-/*
+
 	// manage black frame insertion
 	if (machine().options().black_frame_insertion() && machine().options().sync_refresh())
 	{
-		render_container *container = &machine().render().ui_container();
-		container->add_rect(0, 0, 1, 1, 0xff000000, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-		machine().osd().update(!from_debugger && skipped_it);
+		if (phase == machine_phase::RUNNING && (!machine().paused() || machine().options().update_in_pause()))
+		{
+			render_container *container = &machine().render().ui_container();
+			container->add_rect(0, 0, 1, 1, 0xff000000, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+			for (int i = 0; i < machine().options().black_frame_insertion(); i++)
+				machine().osd().update(!from_debugger && skipped_it);
+		}
 	}
-*/
+
 	// we synchronize after rendering instead of before, if low latency mode is enabled
 	if (!from_debugger && !skipped_it && phase > machine_phase::INIT && m_low_latency && effective_throttle())
 		update_throttle(current_time);
