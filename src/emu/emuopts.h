@@ -79,6 +79,7 @@
 #define OPTION_LOWLATENCY           "lowlatency"
 #define OPTION_FRAMEDELAY           "framedelay"
 #define OPTION_VSYNC_OFFSET         "vsync_offset"
+#define OPTION_BLACK_FRAME_INSERTION "black_frame_insertion"
 
 // core render options
 #define OPTION_KEEPASPECT           "keepaspect"
@@ -367,6 +368,7 @@ public:
 	bool low_latency() const { return bool_value(OPTION_LOWLATENCY); }
 	int frame_delay() const { return int_value(OPTION_FRAMEDELAY); }
 	int vsync_offset() const { return int_value(OPTION_VSYNC_OFFSET); }
+	int black_frame_insertion() const { return int_value(OPTION_BLACK_FRAME_INSERTION); }
 
 	// core render options
 	bool keep_aspect() const { return bool_value(OPTION_KEEPASPECT); }
