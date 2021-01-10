@@ -78,14 +78,14 @@ jobs:
         # Now tag should be in the shape of gm0XXXsrYYYY, ex: gm0223sr017q
         mamev="${tag:3:3}"
         srv="${tag: -4}"
-        cd build/release/x64/Release/mame
+        cd build/release/x64/Release
         mv mame "groovymame64_0${mamev}.${srv}_win-7-8-10"
         7z a "groovymame64_0${mamev}.${srv}_win-7-8-10.7z" "groovymame64_0${mamev}.${srv}_win-7-8-10"
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: binaries-win32-msys
-        path: build/release/x64/Release/mame/groovymame64*.7z
+        path: build/release/x64/Release/groovymame64*.7z
 
   linux-build:
     # Simple linux build on ubuntu
