@@ -1501,7 +1501,7 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 		for (device_execute_interface &exec : execute_interface_enumerator(machine.root_device()))
 		{
 			std::string str = string_format(_("Overclock CPU %1$s"), exec.device().tag());
-			slider_alloc(std::move(str), 100, 1000, 4000, 10, std::bind(&mame_ui_manager::slider_overclock, this, std::ref(exec.device()), _1, _2));
+			slider_alloc(std::move(str), 100, 1000, 4000, 1, std::bind(&mame_ui_manager::slider_overclock, this, std::ref(exec.device()), _1, _2));
 		}
 		for (device_sound_interface &snd : sound_interface_enumerator(machine.root_device()))
 		{
@@ -1509,7 +1509,7 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 			if (!snd.device().interface(exec) && snd.device().unscaled_clock() != 0)
 			{
 				std::string str = string_format(_("Overclock %1$s sound"), snd.device().tag());
-				slider_alloc(std::move(str), 100, 1000, 4000, 10, std::bind(&mame_ui_manager::slider_overclock, this, std::ref(snd.device()), _1, _2));
+				slider_alloc(std::move(str), 100, 1000, 4000, 1, std::bind(&mame_ui_manager::slider_overclock, this, std::ref(snd.device()), _1, _2));
 			}
 		}
 	}
@@ -1779,7 +1779,7 @@ int32_t mame_ui_manager::slider_overclock(device_t &device, std::string *str, in
 	if (newval != SLIDER_NOCHANGE)
 		device.set_clock_scale((float)newval * 0.001f);
 	if (str)
-		*str = string_format(_("%1$3.0f%%"), floor(device.clock_scale() * 100.0 + 0.5));
+		*str = string_format(_("%1$3.1f%%"), device.clock_scale() * 100.0);
 	return floor(device.clock_scale() * 1000.0 + 0.5);
 }
 
