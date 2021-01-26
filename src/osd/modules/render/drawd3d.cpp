@@ -798,7 +798,7 @@ void renderer_d3d9::device_flush()
 void renderer_d3d9::update_break_scanlines()
 {
 	auto win = assert_window();
-	modeline *m_switchres_mode = downcast<windows_osd_interface&>(win->machine().osd()).switchres()->switchres().display(win->m_index)->best_mode();
+	modeline *m_switchres_mode = downcast<windows_osd_interface&>(win->machine().osd()).switchres()->switchres().display(win->index())->best_mode();
 
 	switch (m_vendor_id)
 	{
@@ -1428,9 +1428,9 @@ void renderer_d3d9::pick_best_mode()
 	auto win = assert_window();
 
 	// only link window #0 to SwitchRes
-	if (win->m_index == 0)
+	if (win->index() == 0)
 	{
-		modeline *m_switchres_mode = downcast<windows_osd_interface&>(win->machine().osd()).switchres()->switchres().display(win->m_index)->best_mode();
+		modeline *m_switchres_mode = downcast<windows_osd_interface&>(win->machine().osd()).switchres()->switchres().display(win->index())->best_mode();
 		if (m_switchres_mode)
 		{
 			m_width = m_switchres_mode->type & MODE_ROTATED? m_switchres_mode->height : m_switchres_mode->width;

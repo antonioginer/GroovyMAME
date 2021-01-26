@@ -444,8 +444,8 @@ int sdl_window_info::window_init()
 	set_renderer(osd_renderer::make_for_type(video_config.mode, static_cast<osd_window*>(this)->shared_from_this()));
 
 	// add they switchres display manager
-	if (options.switch_res())
-		m_display_manager = downcast<sdl_osd_interface&>(machine().osd()).switchres()->add_display(m_index, monitor(), m_target, &m_win_config);
+	if (downcast<sdl_options &>(machine().options()).switch_res())
+		m_display_manager = downcast<sdl_osd_interface&>(machine().osd()).switchres()->add_display(index(), monitor(), target(), &m_win_config);
 
 	int result = complete_create();
 
@@ -587,7 +587,7 @@ void sdl_window_info::update()
 			{
 				// check if we need to change the video mode
 				if (downcast<sdl_options &>(machine().options()).changeres())
-					downcast<sdl_osd_interface&>(machine().osd()).switchres()->check_resolution_change(m_index, m_monitor.get(), m_target, &m_win_config);
+					downcast<sdl_osd_interface&>(machine().osd()).switchres()->check_resolution_change(index(), monitor(), target(), &m_win_config);
 
 				if (!downcast<sdl_options &>(machine().options()).mode_setting())
 				{
