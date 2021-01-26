@@ -744,8 +744,8 @@ void win_window_info::create(running_machine &machine, int index, std::shared_pt
 	window->m_targetvismask = window->target()->visibility_mask();
 
 	// add they switchres display manager
-	if (window->m_fullscreen_safe && options.switch_res())
-		window->m_display_manager = WINOSD(machine)->switchres()->add_display(index, monitor.get(), window->m_target, &window->m_win_config);
+	if (window->m_fullscreen_safe && downcast<windows_options &>(machine.options()).switch_res())
+		window->m_display_manager = WINOSD(machine)->switchres()->add_display(index, monitor.get(), window->target(), &window->m_win_config);
 
 	// set the initial maximized state
 	window->m_startmaximized = downcast<windows_options &>(machine.options()).maximize();
@@ -812,9 +812,9 @@ void win_window_info::update()
 	bool reset_required = false;
 
 	// check if we need to change the video mode
-	auto &options = downcast<windows_options &>(m_machine.options());
+	auto &options = downcast<windows_options &>(machine().options());
 	if (options.switch_res() && options.changeres())
-		reset_required = WINOSD(m_machine)->switchres()->check_resolution_change(m_index, m_monitor.get(), m_target, &m_win_config);
+		reset_required = WINOSD(machine())->switchres()->check_resolution_change(index(), monitor(), target(), &m_win_config);
 
 	// check if frame delay has changed
 	int new_frame_delay = machine().video().framedelay();
