@@ -591,7 +591,7 @@ int renderer_ogl::create()
 	}
 #ifdef SDLMAME_X11
 	// Try to open DRM device
-	if (win->m_index == 0)
+	if (win->index() == 0)
 		m_fd = drawogl_drm_open();
 #endif
 	m_gl_context->SetSwapInterval((video_config.waitvsync && m_fd == 0) ? 1 : 0);
