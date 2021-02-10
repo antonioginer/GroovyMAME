@@ -1319,6 +1319,9 @@ LRESULT CALLBACK win_window_info::video_window_proc(HWND wnd, UINT message, WPAR
 				{
 					for (const auto &w : osd_common_t::s_window_list)
 						ShowWindow(std::static_pointer_cast<win_window_info>(w)->platform_window(), SW_RESTORE);
+
+					// Set the first window as foreground
+					SetForegroundWindow(std::static_pointer_cast<win_window_info>(osd_common_t::s_window_list.front())->platform_window());
 				}
 				else if ((wparam == WA_INACTIVE) && !is_mame_window(HWND(lparam)))
 				{
