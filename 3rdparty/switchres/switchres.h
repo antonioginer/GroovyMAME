@@ -46,7 +46,7 @@ public:
 
 	// getters
 	display_manager *display() const { return displays[0]; }
-	display_manager *display(int i) const { return displays[i]; }
+	display_manager *display(int i) const { return i < (int)displays.size()? displays[i] : nullptr; }
 
 	// setters (log manager)
 	void set_log_verbose_fn(void *func_ptr);
