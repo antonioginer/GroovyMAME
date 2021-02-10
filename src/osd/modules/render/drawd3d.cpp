@@ -506,7 +506,7 @@ texture_info *d3d_texture_manager::find_texinfo(const render_texinfo *texinfo, u
 }
 
 renderer_d3d9::renderer_d3d9(std::shared_ptr<osd_window> window)
-	: osd_renderer(window, FLAG_NONE), m_adapter(0), m_width(0), m_height(0), m_refresh(0), m_create_error_count(0), m_device(nullptr), m_gamma_supported(0), m_pixformat(),
+	: osd_renderer(window, FLAG_NONE), m_adapter(0), m_width(0), m_height(0), m_refresh(0), m_frame_delay(0), m_create_error_count(0), m_device(nullptr), m_gamma_supported(0), m_pixformat(),
 	m_vertexbuf(nullptr), m_lockedbuf(nullptr), m_numverts(0), m_vectorbatch(nullptr), m_batchindex(0), m_numpolys(0), m_toggle(false),
 	m_screen_format(), m_last_texture(nullptr), m_last_texture_flags(0), m_last_blendenable(0), m_last_blendop(0), m_last_blendsrc(0), m_last_blenddst(0), m_last_filter(0),
 	m_last_wrap(), m_last_modmode(0), m_shaders(nullptr), m_texture_manager()
@@ -1427,25 +1427,21 @@ void renderer_d3d9::pick_best_mode()
 
 	auto win = assert_window();
 
-	// only link window #0 to SwitchRes
-	if (win->index() == 0)
+	modeline *m_switchres_mode = downcast<windows_osd_interface&>(win->machine().osd()).switchres()->switchres().display(win->index())->best_mode();
+	if (m_switchres_mode)
 	{
-		modeline *m_switchres_mode = downcast<windows_osd_interface&>(win->machine().osd()).switchres()->switchres().display(win->index())->best_mode();
-		if (m_switchres_mode)
-		{
-			m_width = m_switchres_mode->type & MODE_ROTATED? m_switchres_mode->height : m_switchres_mode->width;
-			m_height = m_switchres_mode->type & MODE_ROTATED? m_switchres_mode->width : m_switchres_mode->height;
-			m_refresh = (int)m_switchres_mode->refresh;
-			m_interlace = m_switchres_mode->interlace;
+		m_width = m_switchres_mode->type & MODE_ROTATED? m_switchres_mode->height : m_switchres_mode->width;
+		m_height = m_switchres_mode->type & MODE_ROTATED? m_switchres_mode->width : m_switchres_mode->height;
+		m_refresh = (int)m_switchres_mode->refresh;
+		m_interlace = m_switchres_mode->interlace;
 
-			m_display_mode.Size = sizeof(D3DDISPLAYMODEEX);
-			m_display_mode.Width = m_width;
-			m_display_mode.Height = m_height;
-			m_display_mode.RefreshRate = m_refresh;
-			m_display_mode.Format = m_pixformat;
-			m_display_mode.ScanLineOrdering = m_interlace? D3DSCANLINEORDERING_INTERLACED : D3DSCANLINEORDERING_PROGRESSIVE;
-			return;
-		}
+		m_display_mode.Size = sizeof(D3DDISPLAYMODEEX);
+		m_display_mode.Width = m_width;
+		m_display_mode.Height = m_height;
+		m_display_mode.RefreshRate = m_refresh;
+		m_display_mode.Format = m_pixformat;
+		m_display_mode.ScanLineOrdering = m_interlace? D3DSCANLINEORDERING_INTERLACED : D3DSCANLINEORDERING_PROGRESSIVE;
+		return;
 	}
 
 	// determine the refresh rate of the primary screen
