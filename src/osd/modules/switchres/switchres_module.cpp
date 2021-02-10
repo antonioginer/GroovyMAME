@@ -324,7 +324,10 @@ const char *switchres_module::display_mode_to_txt(int i)
 
 	display_manager *display = switchres().display(i);
 
-	if (display->got_mode())
+	if (display == nullptr)
+		sprintf(m_mode_txt, "SR(%d): no physical display\n", i);
+
+	else if (display->got_mode())
 		sprintf(m_mode_txt, "SR(%d): %d x %d%s%s %2.3f Hz %2.3f kHz\n",
 				i, display->width(), display->height(), display->is_interlaced()?"i":"p", display->is_doublescanned()?"d":"", display->v_freq(), display->h_freq()/1000);
 	else
