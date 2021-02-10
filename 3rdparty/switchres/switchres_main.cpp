@@ -204,18 +204,8 @@ int main(int argc, char **argv)
 		for (auto &display : switchres.displays)
 		{
 			modeline *mode = display->get_mode(width, height, refresh, interlaced_flag);
-			if (mode)
-			{
-//				if (mode->type & MODE_UPDATE) display->update_mode(mode);
-
-//				else if (mode->type & MODE_ADD) display->add_mode(mode);
-				display->flush_modes();
-			}
+			if (mode) display->flush_modes();
 		}
-
-		switchres.display()->get_mode(720, 512, 55, 0);
-		switchres.display()->get_mode(652, 496, 57, 0);
-		switchres.display()->flush_modes();
 
 		if (switch_flag) for (auto &display : switchres.displays) display->set_mode(display->best_mode());
 
