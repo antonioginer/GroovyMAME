@@ -1,18 +1,18 @@
 /**************************************************************
 
-	custom_video_adl.cpp - ATI/AMD ADL library
+    custom_video_adl.cpp - ATI/AMD ADL library
 
-	---------------------------------------------------------
+    ---------------------------------------------------------
 
-	Switchres	Modeline generation engine for emulation
+    Switchres   Modeline generation engine for emulation
 
-	License     GPL-2.0+
-	Copyright   2010-2020 Chris Kennedy, Antonio Giner,
-	                      Alexandre Wodarczyk, Gil Delescluse
+    License     GPL-2.0+
+    Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 
-//	Constants and structures ported from AMD ADL SDK files
+//  Constants and structures ported from AMD ADL SDK files
 
 #include <windows.h>
 #include <stdio.h>
@@ -275,7 +275,7 @@ bool adl_timing::get_device_mapping_from_display_name()
 			}
 		}
 	}
-	return false;   
+	return false;
 }
 
 //============================================================
@@ -347,7 +347,7 @@ bool adl_timing::get_timing_from_cache(modeline *m)
 	return false;
 
 	found:
-	if (display_mode_info_to_modeline(mode, m))	return true;
+	if (display_mode_info_to_modeline(mode, m)) return true;
 
 	return false;
 }

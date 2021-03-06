@@ -1,14 +1,14 @@
 /**************************************************************
 
-	resync_windows.cpp - Windows device change notifying helper
+    resync_windows.cpp - Windows device change notifying helper
 
-	---------------------------------------------------------
+    ---------------------------------------------------------
 
-	Switchres	Modeline generation engine for emulation
+    Switchres   Modeline generation engine for emulation
 
-	License     GPL-2.0+
-	Copyright   2010-2020 Chris Kennedy, Antonio Giner,
-						  Alexandre Wodarczyk, Gil Delescluse
+    License     GPL-2.0+
+    Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 

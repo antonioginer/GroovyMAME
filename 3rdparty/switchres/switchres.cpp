@@ -71,7 +71,7 @@ bool get_value(const string& line, string& key, string& value)
 
 constexpr unsigned int s2i(const char* str, int h = 0)
 {
-    return !str[h] ? 5381 : (s2i(str, h+1)*33) ^ str[h];
+	return !str[h] ? 5381 : (s2i(str, h+1)*33) ^ str[h];
 }
 
 //============================================================
@@ -191,6 +191,9 @@ bool switchres_manager::parse_config(const char *file_name)
 			switch (s2i(key.c_str()))
 			{
 				// Switchres options
+				case s2i("verbose"):
+					if (atoi(value.c_str())) set_log_verbose_fn((void*)printf);
+					break;
 				case s2i("monitor"):
 					transform(value.begin(), value.end(), value.begin(), ::tolower);
 					set_monitor(value.c_str());
@@ -228,6 +231,21 @@ bool switchres_manager::parse_config(const char *file_name)
 				case s2i("lcd_range"):
 					set_lcd_range(value.c_str());
 					break;
+				case s2i("modeline"):
+					set_modeline(value.c_str());
+					break;
+				case s2i("user_mode"):
+				{
+					if (strcmp(value.c_str(), "auto"))
+					{
+						modeline user_mode = {};
+						if (sscanf(value.c_str(), "%dx%d@%d", &user_mode.width, &user_mode.height, &user_mode.refresh) < 1)
+							log_error("Error: use format resolution <w>x<h>@<r>\n");
+						else
+							set_user_mode(&user_mode);
+					}
+					break;
+				}
 
 				// Display options
 				case s2i("display"):

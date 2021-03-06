@@ -247,7 +247,7 @@ int monitor_set_preset(char *type, monitor_range *range)
 	{
 		monitor_fill_range(&range[0], "15450-16050, 50-65, 3.190, 4.750, 6.450, 0.191, 0.191, 1.164, 0, 0, 192, 288, 448, 576");
 		monitor_fill_range(&range[1], "23900-24900, 50-65, 2.870, 3.000, 4.440, 0.451, 0.164, 1.148, 0, 0, 384, 400, 0, 0");
-    	monitor_fill_range(&range[2], "31000-32000, 50-65, 0.330, 3.580, 1.750, 0.316, 0.063, 1.137, 0, 0, 480, 512, 0, 0");
+		monitor_fill_range(&range[2], "31000-32000, 50-65, 0.330, 3.580, 1.750, 0.316, 0.063, 1.137, 0, 0, 480, 512, 0, 0");
 		return 3;
 	}
 	// Nanao MS9-29
@@ -317,7 +317,7 @@ int monitor_evaluate_range(monitor_range *range)
 		return 1;
 	}
 
-	// line_time in µs. We check that no horizontal value is longer than a whole line
+	// line_time in Î¼s. We check that no horizontal value is longer than a whole line
 	double line_time = 1 / range->hfreq_max * 1000000;
 
 	if (range->hfront_porch <= 0 || range->hfront_porch > line_time)
