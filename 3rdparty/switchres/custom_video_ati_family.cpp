@@ -11,10 +11,10 @@
 
  **************************************************************/
 
-/*	Constants and structures ported from Linux open source drivers:
-	drivers\gpu\drm\radeon\radeon.h
-	drivers\gpu\drm\radeon\radeon_family.h
-	include\drm\drm_pciids.h
+/*  Constants and structures ported from Linux open source drivers:
+    drivers\gpu\drm\radeon\radeon.h
+    drivers\gpu\drm\radeon\radeon_family.h
+    include\drm\drm_pciids.h
 */
 
 #ifndef RADEON_FAMILY_H

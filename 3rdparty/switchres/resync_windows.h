@@ -1,14 +1,14 @@
 /**************************************************************
 
-	resync_windows.h - Windows device change notifying helper
+    resync_windows.h - Windows device change notifying helper
 
-	---------------------------------------------------------
+    ---------------------------------------------------------
 
-	Switchres	Modeline generation engine for emulation
+    Switchres   Modeline generation engine for emulation
 
-	License     GPL-2.0+
-	Copyright   2010-2020 Chris Kennedy, Antonio Giner,
-	                     Alexandre Wodarczyk, Gil Delescluse
+    License     GPL-2.0+
+    Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+                         Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 
@@ -36,7 +36,7 @@ class resync_handler
 		void handler_thread();
 
 		HWND m_hwnd;
-		std::thread	my_thread;
+		std::thread my_thread;
 		bool m_is_notified_1;
 		bool m_is_notified_2;
 		std::mutex m_mutex;

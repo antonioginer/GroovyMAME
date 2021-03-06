@@ -486,7 +486,7 @@ bool xrandr_timing::init()
 					int max_width;
 					int min_height;
 					int max_height;
-					XRRGetScreenSizeRange (m_pdisplay, m_root, &min_width, &min_height, &max_width, &max_height); 
+					XRRGetScreenSizeRange (m_pdisplay, m_root, &min_width, &min_height, &max_width, &max_height);
 					m_min_width = min_width;
 					m_max_width = max_width;
 					m_min_height = min_height;
@@ -765,7 +765,7 @@ bool xrandr_timing::set_timing(modeline *mode, int flags)
 	}
 
 	if (m_id != 1 && (flags & XRANDR_ENABLE_SCREEN_REORDERING))
-		flags = XRANDR_DISABLE_CRTC_RELOCATION;	// only master can do global screen preparation
+		flags = XRANDR_DISABLE_CRTC_RELOCATION; // only master can do global screen preparation
 
 	XRRModeInfo *pxmode = NULL;
 
