@@ -832,7 +832,7 @@ void renderer_d3d9::update_break_scanlines()
 	//auto win = assert_window();
 	m_break_scanline = m_last_scanline - m_vsync_offset;
 	m_break_scanline = m_break_scanline > m_first_scanline ? m_break_scanline : m_last_scanline;
-	m_delay_scanline = m_first_scanline + m_height * (float)video_config.framedelay / 10;
+	m_delay_scanline = m_first_scanline + m_height * (float)video_config.framedelay / (10 * m_switchres_mode->result.v_scale);
 
 	osd_printf_verbose("Direct3D: Frame delay: %d, First scanline: %d, Last scanline: %d, Break scanline: %d, Delay scanline: %d\n", video_config.framedelay, m_first_scanline, m_last_scanline, m_break_scanline, m_delay_scanline);
 }

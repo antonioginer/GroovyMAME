@@ -249,7 +249,10 @@ void video_manager::frame_update(bool from_debugger)
 			render_container *container = &machine().render().ui_container();
 			container->add_rect(0, 0, 1, 1, 0xff000000, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 			for (int i = 0; i < machine().options().black_frame_insertion(); i++)
+			{
+				update_throttle(current_time);
 				machine().osd().update(!from_debugger && skipped_it);
+			}
 		}
 	}
 
@@ -739,7 +742,8 @@ void video_manager::update_throttle(attotime emutime)
 			attoseconds_t attoseconds_per_tick = ATTOSECONDS_PER_SECOND / ticks_per_second * m_throttle_rate;
 
 			attoseconds_t period = screen->frame_period().attoseconds();
-			throttle_until_ticks(now + period / attoseconds_per_tick * m_framedelay / 10);
+			int bfi = machine().options().black_frame_insertion();
+			throttle_until_ticks(now + period / attoseconds_per_tick * m_framedelay / 10 / (bfi + 1));
 			return;
 		}
 	}
