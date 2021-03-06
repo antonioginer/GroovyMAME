@@ -1,14 +1,14 @@
 /**************************************************************
 
-	custom_video_adl.h - ATI/AMD ADL library header
+    custom_video_adl.h - ATI/AMD ADL library header
 
-	---------------------------------------------------------
+    ---------------------------------------------------------
 
-	Switchres	Modeline generation engine for emulation
+    Switchres   Modeline generation engine for emulation
 
-	License     GPL-2.0+
-	Copyright   2010-2020 Chris Kennedy, Antonio Giner,
-	                      Alexandre Wodarczyk, Gil Delescluse
+    License     GPL-2.0+
+    Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 
@@ -16,11 +16,10 @@
 #include "custom_video.h"
 #include "resync_windows.h"
 
-//	Constants and structures ported from AMD ADL SDK files
-
+//  Constants and structures ported from AMD ADL SDK files
 #define ADL_MAX_PATH   256
-#define ADL_OK		     0
-#define ADL_ERR		    -1
+#define ADL_OK           0
+#define ADL_ERR         -1
 
 //ADL_DETAILED_TIMING.sTimingFlags
 #define ADL_DL_TIMINGFLAG_DOUBLE_SCAN               0x0001
@@ -34,25 +33,25 @@
 #define ADL_DL_MODETIMING_STANDARD_DMT              0x00000004 // DMT Standard
 #define ADL_DL_MODETIMING_STANDARD_CUSTOM           0x00000008 // User-defined standard
 #define ADL_DL_MODETIMING_STANDARD_DRIVER_DEFAULT   0x00000010 // Remove Mode from overriden list
-#define ADL_DL_MODETIMING_STANDARD_CVT_RB           0x00000020 // CVT-RB Standard   
+#define ADL_DL_MODETIMING_STANDARD_CVT_RB           0x00000020 // CVT-RB Standard
 
 typedef struct AdapterInfo
 {
 	int iSize;
 	int iAdapterIndex;
-	char strUDID[ADL_MAX_PATH];	
+	char strUDID[ADL_MAX_PATH];
 	int iBusNumber;
 	int iDeviceNumber;
 	int iFunctionNumber;
 	int iVendorID;
 	char strAdapterName[ADL_MAX_PATH];
 	char strDisplayName[ADL_MAX_PATH];
-	int iPresent;				
+	int iPresent;
 	int iExist;
 	char strDriverPath[ADL_MAX_PATH];
 	char strDriverPathExt[ADL_MAX_PATH];
 	char strPNPString[ADL_MAX_PATH];
-	int iOSDisplayIndex;	
+	int iOSDisplayIndex;
 } AdapterInfo, *LPAdapterInfo;
 
 typedef struct ADLDisplayID
@@ -66,15 +65,15 @@ typedef struct ADLDisplayID
 
 typedef struct ADLDisplayInfo
 {
-	ADLDisplayID displayID; 
-	int iDisplayControllerIndex;	
-	char strDisplayName[ADL_MAX_PATH];        
-	char strDisplayManufacturerName[ADL_MAX_PATH];	
-	int iDisplayType; 
-	int iDisplayOutputType; 
-	int iDisplayConnector; 
-	int iDisplayInfoMask; 
-	int iDisplayInfoValue; 
+	ADLDisplayID displayID;
+	int iDisplayControllerIndex;
+	char strDisplayName[ADL_MAX_PATH];
+	char strDisplayManufacturerName[ADL_MAX_PATH];
+	int iDisplayType;
+	int iDisplayOutputType;
+	int iDisplayConnector;
+	int iDisplayInfoMask;
+	int iDisplayInfoValue;
 } ADLDisplayInfo, *LPADLDisplayInfo;
 
 typedef struct ADLDisplayMode
@@ -129,7 +128,7 @@ typedef struct AdapterList
 
 typedef void* ADL_CONTEXT_HANDLE;
 typedef void* (__stdcall *ADL_MAIN_MALLOC_CALLBACK)(int);
-typedef int (*ADL2_MAIN_CONTROL_CREATE)(ADL_MAIN_MALLOC_CALLBACK, int, 	ADL_CONTEXT_HANDLE *);
+typedef int (*ADL2_MAIN_CONTROL_CREATE)(ADL_MAIN_MALLOC_CALLBACK, int,  ADL_CONTEXT_HANDLE *);
 typedef int (*ADL2_MAIN_CONTROL_DESTROY)(ADL_CONTEXT_HANDLE);
 typedef int (*ADL2_ADAPTER_NUMBEROFADAPTERS_GET) (ADL_CONTEXT_HANDLE, int*);
 typedef int (*ADL2_ADAPTER_ADAPTERINFO_GET) (ADL_CONTEXT_HANDLE, LPAdapterInfo, int);

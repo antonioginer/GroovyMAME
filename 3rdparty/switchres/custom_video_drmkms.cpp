@@ -588,9 +588,9 @@ bool drmkms_timing::set_timing(modeline *mode)
 	dmode.hskew       = 0;
 	dmode.vscan       = 0;
 
-	dmode.vrefresh    = mode->refresh;	// Used only for human readable output
+	dmode.vrefresh    = mode->refresh;  // Used only for human readable output
 
-	dmode.type        = DRM_MODE_TYPE_USERDEF;	//DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+	dmode.type        = DRM_MODE_TYPE_USERDEF;  //DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 
 	mode->type |= CUSTOM_VIDEO_TIMING_DRMKMS;
 

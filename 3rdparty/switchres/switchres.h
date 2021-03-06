@@ -8,7 +8,7 @@
 
    License     GPL-2.0+
    Copyright   2010-2020 Chris Kennedy, Antonio Giner,
-	                     Alexandre Wodarczyk, Gil Delescluse
+                         Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
 
@@ -20,12 +20,13 @@
 #include "monitor.h"
 #include "modeline.h"
 #include "display.h"
+#include "edid.h"
 
 //============================================================
 //  CONSTANTS
 //============================================================
 
-#define SWITCHRES_VERSION "2.00"
+#define SWITCHRES_VERSION "2.002"
 
 //============================================================
 //  TYPE DEFINITIONS
@@ -55,7 +56,8 @@ public:
 
 	// setters (display manager)
 	void set_monitor(const char *preset) { strncpy(ds.monitor, preset, sizeof(ds.monitor)-1); }
-	void set_modeline(const char *modeline) { strncpy(ds.modeline, modeline, sizeof(ds.modeline)-1); }
+	void set_modeline(const char *modeline) { strncpy(ds.user_modeline, modeline, sizeof(ds.user_modeline)-1); }
+	void set_user_mode(modeline *user_mode) { ds.user_mode = *user_mode;}
 	void set_crt_range(int i, const char *range) { strncpy(ds.crt_range[i], range, sizeof(ds.crt_range[i])-1); }
 	void set_lcd_range(const char *range) { strncpy(ds.lcd_range, range, sizeof(ds.lcd_range)-1); }
 	void set_screen(const char *screen) { strncpy(ds.screen, screen, sizeof(ds.screen)-1); }
