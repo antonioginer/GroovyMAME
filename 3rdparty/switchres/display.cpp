@@ -45,11 +45,14 @@ display_manager *display_manager::make(display_settings *ds)
 
 void display_manager::parse_options()
 {
-	// Get user defined modeline
+	// Get user_mode as <w>x<h>@<r>
+	set_user_mode(&m_ds.user_mode);
+
+	// Get user defined modeline (overrides user_mode)
 	modeline user_mode = {};
 	if (m_ds.modeline_generation)
 	{
-		if (modeline_parse(m_ds.modeline, &user_mode))
+		if (modeline_parse(m_ds.user_modeline, &user_mode))
 		{
 			user_mode.type |= MODE_USER_DEF;
 			set_user_mode(&user_mode);
@@ -116,7 +119,7 @@ bool display_manager::add_mode(modeline *mode)
 	{
 		log_verbose("Switchres: error adding mode ");
 		log_mode(mode);
-		return false;		
+		return false;
 	}
 
 	mode->type &= ~MODE_ADD;
@@ -223,6 +226,9 @@ bool display_manager::flush_modes()
 {
 	bool error = false;
 	std::vector<modeline *> modified_modes = {};
+
+	if (video() == nullptr)
+		return false;
 
 	// Loop through our mode table to collect all pending changes
 	for (auto &mode : video_modes)
@@ -366,12 +372,19 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 					if (t_mode.type & Y_RES_EDITABLE)
 						t_mode.vactive = m_user_mode.height? m_user_mode.height : s_mode.vactive;
 
-					if (mode.type & V_FREQ_EDITABLE)
-						t_mode.vfreq = s_mode.vfreq;
+					if (t_mode.type & V_FREQ_EDITABLE)
+					{
+						// If user's vfreq is defined, it means we have an user modeline, so force it
+						if (m_user_mode.vfreq)
+							t_mode = m_user_mode;
+						else
+							t_mode.vfreq = s_mode.vfreq;
+					}
 
 					// lock resolution fields if required
 					if (m_user_mode.width) t_mode.type &= ~X_RES_EDITABLE;
 					if (m_user_mode.height) t_mode.type &= ~Y_RES_EDITABLE;
+					if (m_user_mode.vfreq) t_mode.type &= ~V_FREQ_EDITABLE;
 
 					modeline_create(&s_mode, &t_mode, &range[i], &m_ds.gs);
 					t_mode.range = i;
@@ -406,7 +419,7 @@ modeline *display_manager::get_mode(int width, int height, float refresh, bool i
 	log_verbose("%s\n", modeline_result(&best_mode, result));
 
 	// Copy the new modeline to our mode list
-	if (m_ds.modeline_generation && (best_mode.type & V_FREQ_EDITABLE))
+	if (m_ds.modeline_generation)
 	{
 		if (best_mode.type & MODE_ADD)
 		{

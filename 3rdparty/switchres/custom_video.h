@@ -38,7 +38,7 @@
 #define TIMING_DELETE      0x001
 #define TIMING_CREATE      0x002
 #define TIMING_UPDATE      0x004
-#define TIMING_UPDATE_LIST 0x008 
+#define TIMING_UPDATE_LIST 0x008
 
 typedef struct custom_video_settings
 {
@@ -67,7 +67,7 @@ public:
 	virtual const char *api_name() { return "empty"; }
 	virtual bool init();
 	virtual int caps() { return 0; }
-	
+
 	virtual bool add_mode(modeline *mode);
 	virtual bool delete_mode(modeline *mode);
 	virtual bool update_mode(modeline *mode);
@@ -98,7 +98,7 @@ public:
 private:
 	char m_device_name[32];
 	char m_device_key[128];
-	
+
 	custom_video *m_custom_video = 0;
 	int m_custom_method;
 
