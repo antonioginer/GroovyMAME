@@ -71,7 +71,7 @@ jobs:
     - name: Create MAME basic configuration
       run: |
         cd build/release/x64/Release/mame
-        ./mame64.exe -createconfig
+        ./mame.exe -createconfig
     - name: Create Release Asset
       run: |
         tag="${GITHUB_REF#refs/*/}"
@@ -79,13 +79,13 @@ jobs:
         mamev="${tag:3:3}"
         srv="${tag: -4}"
         cd build/release/x64/Release
-        mv mame "groovymame64_0${mamev}.${srv}_win-7-8-10"
-        7z a "groovymame64_0${mamev}.${srv}_win-7-8-10.7z" "groovymame64_0${mamev}.${srv}_win-7-8-10"
+        mv mame "groovymame_0${mamev}.${srv}_win-7-8-10"
+        7z a "groovymame_0${mamev}.${srv}_win-7-8-10.7z" "groovymame_0${mamev}.${srv}_win-7-8-10"
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: binaries-win32-msys
-        path: build/release/x64/Release/groovymame64*.7z
+        path: build/release/x64/Release/groovymame*.7z
 
   linux-build:
     # Simple linux build on ubuntu
@@ -107,13 +107,13 @@ jobs:
         mamev="${tag:3:3}"
         srv="${tag: -4}"
         cd build/release/x64/Release/mame
-        mv mame64 groovymame
-        tar cvjf "groovymame64_0${mamev}.${srv}_linux.tar.bz2" groovymame
+        mv mame groovymame
+        tar cvjf "groovymame_0${mamev}.${srv}_linux.tar.bz2" groovymame
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: binaries-linux-gcc
-        path: build/release/x64/Release/mame/groovymame64*.tar.bz2
+        path: build/release/x64/Release/mame/groovymame*.tar.bz2
 
   release:
     runs-on: ubuntu-latest
@@ -147,6 +147,6 @@ jobs:
           draft: true
           prerelease: false
           files: |
-            ./binaries-win32-msys/groovymame64_*.7z
-            ./binaries-linux-gcc/groovymame64_*.tar.bz2
+            ./binaries-win32-msys/groovymame_*.7z
+            ./binaries-linux-gcc/groovymame_*.tar.bz2
 #            ./binaries-win32-mingw/groovymame-mingw-win32-64bits.7z
