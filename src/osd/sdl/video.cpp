@@ -229,6 +229,7 @@ void sdl_osd_interface::extract_video_config()
 	video_config.centerh       = options().centerh();
 	video_config.centerv       = options().centerv();
 	video_config.waitvsync     = options().wait_vsync();
+	video_config.syncrefresh   = options().sync_refresh();
 	video_config.framedelay    = options().frame_delay();
 
 	if (video_config.prescale < 1 || video_config.prescale > 8)
