@@ -157,6 +157,11 @@ private:
 	D3DDISPLAYMODEEX        m_display_mode;             // full screen display mode
 	D3DFORMAT               m_pixformat;                // pixel format we are using
 	IDirect3DQuery9 *		m_query;
+	IDirect3DSwapChain9 *   m_swap9;
+	IDirect3DSwapChain9Ex * m_swap;
+	D3DPRESENTSTATS         m_stats;
+	D3DRASTER_STATUS        m_raster_status;
+	int                     m_sync_count;
 
 	IDirect3DVertexBuffer9 *m_vertexbuf;                // pointer to the vertex buffer object
 	vertex *                m_lockedbuf;                // pointer to the locked vertex buffer
