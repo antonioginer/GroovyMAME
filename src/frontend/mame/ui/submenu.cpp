@@ -122,7 +122,6 @@ std::vector<submenu::option> submenu::video_options()
 			{ option_type::OSD,  N_("Video Mode"),                              OSDOPTION_VIDEO },
 			{ option_type::OSD,  N_("Number Of Screens"),                       OSDOPTION_NUMSCREENS },
 #if defined(UI_WINDOWS) && !defined(UI_SDL)
-			{ option_type::OSD,  N_("Triple Buffering"),                        WINOPTION_TRIPLEBUFFER },
 			{ option_type::OSD,  N_("HLSL"),                                    WINOPTION_HLSL_ENABLE },
 #endif
 			{ option_type::OSD,  N_("GLSL"),                                    OSDOPTION_GL_GLSL },
