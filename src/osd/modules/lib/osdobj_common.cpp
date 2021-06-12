@@ -69,6 +69,7 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_WINDOW ";w",                  "0",              core_options::option_type::BOOLEAN,   "enable window mode; otherwise, full screen mode is assumed" },
 	{ OSDOPTION_MAXIMIZE ";max",              "1",              core_options::option_type::BOOLEAN,   "default to maximized windows" },
 	{ OSDOPTION_WAITVSYNC ";vs",              "0",              core_options::option_type::BOOLEAN,   "enable waiting for the start of VBLANK before flipping screens (reduces tearing effects)" },
+	{ OSDOPTION_SYNC_MODE "(0-3)",            "1",              core_options::option_type::INTEGER,   "sync mode"},
 	{ OSD_MONITOR_PROVIDER,                   OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "monitor discovery method: " },
 
 	// per-window options
