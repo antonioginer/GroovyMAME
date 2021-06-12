@@ -262,6 +262,7 @@ struct osd_video_config
 	int                 mode;                       // output mode
 	int                 waitvsync;                  // spin until vsync
 	int                 syncrefresh;                // sync only to refresh rate
+	int                 sync_mode;                  // sync refresh mode (0-3)
 	int                 switchres;                  // switch resolutions
 	int                 framedelay;					// frame delay
 

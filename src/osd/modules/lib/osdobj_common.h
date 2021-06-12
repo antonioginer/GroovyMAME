@@ -45,6 +45,7 @@
 #define OSDOPTION_WINDOW                "window"
 #define OSDOPTION_MAXIMIZE              "maximize"
 #define OSDOPTION_WAITVSYNC             "waitvsync"
+#define OSDOPTION_SYNC_MODE             "sync_mode"
 
 #define OSDOPTION_SCREEN                "screen"
 #define OSDOPTION_ASPECT                "aspect"
@@ -141,6 +142,7 @@ public:
 	bool window() const { return bool_value(OSDOPTION_WINDOW); }
 	bool maximize() const { return bool_value(OSDOPTION_MAXIMIZE); }
 	bool wait_vsync() const { return bool_value(OSDOPTION_WAITVSYNC); }
+	int sync_mode() const { return int_value(OSDOPTION_SYNC_MODE); }
 
 	// per-window options
 	const char *screen() const { return value(OSDOPTION_SCREEN); }
