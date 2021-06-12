@@ -591,11 +591,14 @@ int renderer_ogl::create()
 	}
 #ifdef SDLMAME_X11
 	// Try to open DRM device
-	if (win->index() == 0)
+	if (win->index() == 0 && video_config.syncrefresh)
 		m_fd = drawogl_drm_open();
 #endif
-	m_gl_context->SetSwapInterval((video_config.waitvsync && m_fd == 0) ? 1 : 0);
 
+	if (m_fd == 0)
+		m_gl_context->SetSwapInterval((video_config.waitvsync) ? 1 : 0);
+	else
+		m_gl_context->SetSwapInterval((video_config.sync_mode == 1 || video_config.sync_mode == 3)? 1 : 0);
 
 	m_blittimer = 0;
 	m_surf_w = 0;
@@ -1446,10 +1449,13 @@ int renderer_ogl::draw(const int update)
 	win->m_primlist->release_lock();
 	m_init_context = 0;
 
+	if (video_config.sync_mode == 0 || video_config.sync_mode == 1)
+		m_gl_context->SwapBuffer();
+
 #ifdef SDLMAME_X11
 
 	// wait for vertical retrace
-	if (video_config.waitvsync && m_fd)
+	if (video_config.syncrefresh && m_fd)
 	{
 		drmVBlank vbl;
 		memset(&vbl, 0, sizeof(vbl));
@@ -1488,7 +1494,8 @@ int renderer_ogl::draw(const int update)
 	}
 #endif
 
-	m_gl_context->SwapBuffer();
+	if (video_config.sync_mode == 2 || video_config.sync_mode == 3)
+		m_gl_context->SwapBuffer();
 
 	return 0;
 }

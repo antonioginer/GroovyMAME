@@ -598,7 +598,7 @@ void sdl_window_info::update()
 		}
 
 		osd_ticks_t event_wait_ticks;
-		if (video_config.waitvsync)
+		if (video_config.syncrefresh)
 			event_wait_ticks = osd_ticks_per_second(); // block at most a second
 		else
 			event_wait_ticks = 0;
