@@ -265,21 +265,25 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 	#endif
 
 	// Set scaling/stretching options
-	set_option(OPTION_KEEPASPECT, true);
-	set_option(OPTION_UNEVENSTRETCH, display->is_stretched());
-	set_option(OPTION_UNEVENSTRETCHX, (!(display->is_stretched()) && (display->width() >= display->super_width())));
 
-	// Update target if it's already initialized
-	if (target)
+	if (options.autostretch())
 	{
-		if (options.uneven_stretch())
-			target->set_scale_mode(SCALE_FRACTIONAL);
-		else if(options.uneven_stretch_x())
-			target->set_scale_mode(SCALE_FRACTIONAL_X);
-		else if(options.uneven_stretch_y())
-			target->set_scale_mode(SCALE_FRACTIONAL_Y);
-		else
-			target->set_scale_mode(SCALE_INTEGER);
+		set_option(OPTION_KEEPASPECT, true);
+		set_option(OPTION_UNEVENSTRETCH, display->is_stretched());
+		set_option(OPTION_UNEVENSTRETCHX, (!(display->is_stretched()) && (display->width() >= display->super_width())));
+
+		// Update target if it's already initialized
+		if (target)
+		{
+			if (options.uneven_stretch())
+				target->set_scale_mode(SCALE_FRACTIONAL);
+			else if(options.uneven_stretch_x())
+				target->set_scale_mode(SCALE_FRACTIONAL_X);
+			else if(options.uneven_stretch_y())
+				target->set_scale_mode(SCALE_FRACTIONAL_Y);
+			else
+				target->set_scale_mode(SCALE_INTEGER);
+		}
 	}
 
 	// Set MAME OSD specific options
