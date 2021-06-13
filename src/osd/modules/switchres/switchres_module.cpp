@@ -71,9 +71,11 @@ void switchres_module::init(running_machine &machine)
 	m_switchres = new switchres_manager;
 
 	// Set logging functions
-	if (machine.options().verbose()) switchres().set_log_verbose_fn((void *)sr_printf_verbose);
+	switchres().set_log_verbose_fn((void *)sr_printf_verbose);
 	switchres().set_log_info_fn((void *)sr_printf_info);
 	switchres().set_log_error_fn((void *)sr_printf_error);
+
+	if (machine.options().verbose()) switchres().set_log_level(3);
 }
 
 //============================================================
