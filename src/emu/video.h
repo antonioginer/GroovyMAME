@@ -54,6 +54,7 @@ public:
 	bool throttled() const { return m_throttled; }
 	float throttle_rate() const { return m_throttle_rate; }
 	bool sync_refresh() const { return m_syncrefresh; }
+	bool sync_audio() const { return m_syncaudio; }
 	int32_t framedelay() const { return m_framedelay; }
 	bool fastforward() const { return m_fastforward; }
 
@@ -64,6 +65,7 @@ public:
 	void set_fastforward(bool ffwd) { m_fastforward = ffwd; }
 	void set_output_changed() { m_output_changed = true; }
 	void set_sync_refresh(bool syncrefresh) { m_syncrefresh = syncrefresh; }
+	void set_sync_audio(bool syncaudio) { m_syncaudio = syncaudio; }
 	void set_framedelay(int framedelay) { m_framedelay = framedelay; }
 
 	// misc
@@ -146,6 +148,7 @@ private:
 	bool                m_throttled;                // flag: true if we're currently throttled
 	float               m_throttle_rate;            // target rate for throttling
 	bool                m_syncrefresh;              // flag: TRUE if we're currently refresh-synced
+	bool                m_syncaudio;                // flag: TRUE if audio resampling is enabled
 	int32_t             m_framedelay;               // tenths of frame to delay emulation start
 	bool                m_fastforward;              // flag: true if we're currently fast-forwarding
 	u32                 m_seconds_to_run;           // number of seconds to run before quitting
