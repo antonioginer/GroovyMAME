@@ -7,7 +7,7 @@
     Switchres   Modeline generation engine for emulation
 
     License     GPL-2.0+
-    Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+    Copyright   2010-2021 Chris Kennedy, Antonio Giner,
                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
@@ -15,9 +15,6 @@
 #ifndef __RESYNC_WINDOWS__
 #define __RESYNC_WINDOWS__
 
-#include <thread>
-#include <condition_variable>
-#include <mutex>
 #include <chrono>
 #include <windows.h>
 #include <dbt.h>
@@ -33,14 +30,14 @@ class resync_handler
 	private:
 		static LRESULT CALLBACK resync_wnd_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 		LRESULT CALLBACK my_wnd_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-		void handler_thread();
+		static DWORD WINAPI handler_thread(LPVOID lpParameter);
+		DWORD handler_thread_wt();
 
 		HWND m_hwnd;
-		std::thread my_thread;
+		DWORD my_thread;
 		bool m_is_notified_1;
 		bool m_is_notified_2;
-		std::mutex m_mutex;
-		std::condition_variable m_event;
+		HANDLE m_event;
 };
 
 #endif
