@@ -102,6 +102,7 @@
 #define OSDOPTION_V_SHIFT_CORRECT       "v_shift_correct"
 #define OSDOPTION_PIXEL_PRECISION       "pixel_precision"
 #define OSDOPTION_SYNC_REFRESH_TOLERANCE "sync_refresh_tolerance"
+#define OSDOPTION_INTERLACE_FORCE_EVEN  "interlace_force_even"
 #define OSDOPTION_AUTOSYNC              "autosync"
 #define OSDOPTION_AUTOFILTER            "autofilter"
 #define OSDOPTION_AUTOSTRETCH           "autostretch"
@@ -173,6 +174,7 @@ public:
 	int v_shift_correct() const { return int_value(OSDOPTION_V_SHIFT_CORRECT); }
 	bool pixel_precision() const { return bool_value(OSDOPTION_PIXEL_PRECISION); }
 	float sync_refresh_tolerance() const { return float_value(OSDOPTION_SYNC_REFRESH_TOLERANCE); }
+	bool interlace_force_even() const { return bool_value(OSDOPTION_INTERLACE_FORCE_EVEN); }
 	bool autosync() const { return bool_value(OSDOPTION_AUTOSYNC); }
 	bool autofilter() const { return bool_value(OSDOPTION_AUTOFILTER); }
 	bool autostretch() const { return bool_value(OSDOPTION_AUTOSTRETCH); }

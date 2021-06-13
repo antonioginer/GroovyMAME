@@ -116,6 +116,7 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_V_SHIFT_CORRECT,              "0",              core_options::option_type::INTEGER,   "Apply vertical shift correction for multi-standard consumer CRT TVs"},
 	{ OSDOPTION_PIXEL_PRECISION,              "1",              core_options::option_type::BOOLEAN,   "Calculate horizontal values with 1-pixel precision to improve horizontal centering" },
 	{ OSDOPTION_SYNC_REFRESH_TOLERANCE ";srt","2.0",            core_options::option_type::FLOAT,     "Maximum refresh difference, in Hz, allowed in order to synchronize" },
+	{ OSDOPTION_INTERLACE_FORCE_EVEN,         "0",              core_options::option_type::BOOLEAN,   "Calculate all vertical values of interlaced modes as even numbers. Required by AMD APU hardware on Linux" },
 	{ OSDOPTION_AUTOSYNC,                     "1",              core_options::option_type::BOOLEAN,   "automatically enable syncrefresh if refresh difference is below syncrefresh_tolerance" },
 	{ OSDOPTION_AUTOFILTER,                   "1",              core_options::option_type::BOOLEAN,   "automatically set bilinear filtering with fractional stretching or interlaced " },
 	{ OSDOPTION_AUTOSTRETCH,                  "1",              core_options::option_type::BOOLEAN,   "automatically set scaling mode (integer or fractional) based on the selected video mode " },
