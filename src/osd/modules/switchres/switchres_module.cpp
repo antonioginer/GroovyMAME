@@ -290,6 +290,10 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 	set_option(OSDOPTION_WAITVSYNC, options.autosync()? true : options.wait_vsync());
 	set_option(OPTION_SYNCREFRESH, options.autosync()? sync_refresh_effective : options.sync_refresh());
 
+	// Set filter options
+	if (options.autofilter())
+		set_option(OSDOPTION_FILTER, (display->is_stretched() || display->is_interlaced()));
+
 	#if defined(OSD_WINDOWS)
 		downcast<windows_osd_interface &>(machine().osd()).extract_video_config();
 	#elif defined(OSD_SDL)
