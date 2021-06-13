@@ -115,6 +115,7 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	switchres().set_refresh_tolerance(options.sync_refresh_tolerance());
 	switchres().set_super_width(options.super_width());
 	switchres().set_v_shift_correct(options.v_shift_correct());
+	switchres().set_pixel_precision(options.pixel_precision());
 
 	switchres().set_api(options.switchres_backend());
 	switchres().set_screen_compositing(options.screen_compositing());
