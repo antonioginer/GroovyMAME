@@ -92,6 +92,7 @@ video_manager::video_manager(running_machine &machine)
 	, m_throttled(true)
 	, m_throttle_rate(1.0f)
 	, m_syncrefresh(machine.options().sync_refresh())
+	, m_syncaudio(machine.options().sync_audio())
 	, m_framedelay(machine.options().frame_delay())
 	, m_fastforward(false)
 	, m_seconds_to_run(machine.options().seconds_to_run())
@@ -1016,7 +1017,7 @@ void video_manager::recompute_speed(const attotime &emutime)
 		m_speed_percent = delta_emutime.as_double() * (double)tps / (double)delta_realtime;
 
 		// adjust speed for audio resampling
-		if (m_syncrefresh && m_throttled)
+		if (m_syncaudio && m_syncrefresh && m_throttled)
 		{
 			if (m_speed_percent >= 0.8 && m_speed_percent <= 1.2)
 				m_speed = m_speed_percent * 1000;
