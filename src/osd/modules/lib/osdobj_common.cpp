@@ -117,6 +117,7 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_PIXEL_PRECISION,              "1",              core_options::option_type::BOOLEAN,   "Calculate horizontal values with 1-pixel precision to improve horizontal centering" },
 	{ OSDOPTION_SYNC_REFRESH_TOLERANCE ";srt","2.0",            core_options::option_type::FLOAT,     "Maximum refresh difference, in Hz, allowed in order to synchronize" },
 	{ OSDOPTION_AUTOSYNC,                     "1",              core_options::option_type::BOOLEAN,   "automatically enable syncrefresh if refresh difference is below syncrefresh_tolerance" },
+	{ OSDOPTION_AUTOFILTER,                   "1",              core_options::option_type::BOOLEAN,   "automatically set bilinear filtering with fractional stretching or interlaced " },
 	{ OSDOPTION_SCREEN_COMPOSITING,           "0",              core_options::option_type::BOOLEAN,   "Readjust relative screen positions of a multi-display setup after mode switching (Linux)" },
 	{ OSDOPTION_SCREEN_REORDERING,            "0",              core_options::option_type::BOOLEAN,   "Reallocates desktop multiple screens stacked vertically, so super-resolutions fit (Linux)" },
 	{ OSDOPTION_ALLOW_HW_REFRESH,             "0",              core_options::option_type::BOOLEAN,   "Allow on-the-fly mode addition (Windows)" },
