@@ -7,7 +7,7 @@
    Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+   Copyright   2010-2021 Chris Kennedy, Antonio Giner,
                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
@@ -177,7 +177,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 			if (x_scale)
 			{
 				x_scale = scale_into_aspect(s_mode->hactive, t_mode->hactive, cs->rotation?1.0/(STANDARD_CRT_ASPECT):STANDARD_CRT_ASPECT, cs->monitor_aspect, &x_diff);
-				if (x_diff > 15.0 && t_mode->width < cs->super_width)
+				if (x_diff > 15.0 && t_mode->hactive < cs->super_width)
 						t_mode->result.weight |= R_RES_STRETCH;
 			}
 			// otherwise apply fractional scaling
@@ -271,6 +271,14 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		t_mode->vsync = range->vsync_polarity;
 		t_mode->interlace = interlace == 2?1:0;
 		t_mode->doublescan = doublescan == 1?0:1;
+
+		// Apply interlace fixes
+		if (cs->interlace_force_even && interlace == 2)
+		{
+			t_mode->vbegin = (t_mode->vbegin / 2) * 2;
+			t_mode->vend = (t_mode->vend / 2) * 2;
+			t_mode->vtotal++;
+		}
 	}
 
 	// finally, store result

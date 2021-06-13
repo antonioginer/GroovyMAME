@@ -7,7 +7,7 @@
    Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+   Copyright   2010-2021 Chris Kennedy, Antonio Giner,
                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
@@ -116,6 +116,7 @@ typedef struct generator_settings
 	int      super_width;
 	int      v_shift_correct;
 	int      pixel_precision;
+	int      interlace_force_even;
 } generator_settings;
 
 //============================================================

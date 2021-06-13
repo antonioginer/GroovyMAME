@@ -7,7 +7,7 @@
    Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+   Copyright   2010-2021 Chris Kennedy, Antonio Giner,
                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
@@ -47,14 +47,19 @@ bool linux_display::init()
 	// Initialize custom video
 	int method = CUSTOM_VIDEO_TIMING_AUTO;
 
+#ifdef SR_WITH_XRANDR
 	if (!strcmp(m_ds.api, "xrandr"))
 		method = CUSTOM_VIDEO_TIMING_XRANDR;
-	else if (!strcmp(m_ds.api, "drmkms"))
+#endif
+#ifdef SR_WITH_KMSDRM
+	if (!strcmp(m_ds.api, "drmkms"))
 		method = CUSTOM_VIDEO_TIMING_DRMKMS;
+#endif
 
 	set_factory(new custom_video);
 	set_custom_video(factory()->make(m_ds.screen, NULL, method, &m_ds.vs));
-	if (video()) video()->init();
+	if (!video() or !video()->init())
+		return false;
 
 	// Build our display's mode list
 	video_modes.clear();

@@ -7,7 +7,7 @@
     Switchres   Modeline generation engine for emulation
 
     License     GPL-2.0+
-    Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+    Copyright   2010-2021 Chris Kennedy, Antonio Giner,
                           Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
@@ -24,7 +24,8 @@ GUID GUID_DEVINTERFACE_MONITOR = { 0xe6f07b5f, 0xee97, 0x4a90, 0xb0, 0x76, 0x33,
 
 resync_handler::resync_handler()
 {
-	my_thread = std::thread(std::bind(&resync_handler::handler_thread, this));
+	m_event = CreateEvent(NULL, FALSE, FALSE, NULL);
+	CreateThread(NULL, 0, handler_thread, (LPVOID)this, 0, &my_thread);
 }
 
 //============================================================
@@ -34,14 +35,19 @@ resync_handler::resync_handler()
 resync_handler::~resync_handler()
 {
 	SendMessage(m_hwnd, WM_CLOSE, 0, 0);
-	my_thread.join();
+	if (m_event) CloseHandle(m_event);
 }
 
 //============================================================
 //  resync_handler::handler_thread
 //============================================================
 
-void resync_handler::handler_thread()
+DWORD WINAPI resync_handler::handler_thread(LPVOID lpParameter)
+{
+	return ((resync_handler *)lpParameter)->handler_thread_wt();
+}
+
+DWORD resync_handler::handler_thread_wt()
 {
 	WNDCLASSEX wc;
 	MSG msg;
@@ -80,6 +86,8 @@ void resync_handler::handler_thread()
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
+
+	return -1;
 }
 
 //============================================================
@@ -88,14 +96,13 @@ void resync_handler::handler_thread()
 
 void resync_handler::wait()
 {
-	std::unique_lock<std::mutex> lock(m_mutex);
 	m_is_notified_1 = false;
 	m_is_notified_2 = false;
 
 	auto start = std::chrono::steady_clock::now();
 
 	while (!m_is_notified_1 || !m_is_notified_2)
-		m_event.wait_for(lock, std::chrono::milliseconds(10));
+		WaitForSingleObject(m_event, 10);
 
 	auto end = std::chrono::steady_clock::now();
 	log_verbose("resync time elapsed %I64d ms\n", std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
@@ -130,7 +137,7 @@ LRESULT CALLBACK resync_handler::my_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
 						if (db->dbcc_classguid == GUID_DEVINTERFACE_MONITOR)
 						{
 							m_is_notified_1 = true;
-							m_event.notify_one();
+							SetEvent(m_event);
 						}
 					}
 					break;
@@ -141,7 +148,7 @@ LRESULT CALLBACK resync_handler::my_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
 				case DBT_DEVNODES_CHANGED:
 					log_verbose("Message: DBT_DEVNODES_CHANGED\n");
 					m_is_notified_2 = true;
-					m_event.notify_one();
+					SetEvent(m_event);
 					break;
 				default:
 					log_verbose("Message: WM_DEVICECHANGE message received, value %x unhandled.\n", (int)wparam);
