@@ -7,7 +7,7 @@
    Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+   Copyright   2010-2021 Chris Kennedy, Antonio Giner,
                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
@@ -468,19 +468,18 @@ int pstrip_timing::ps_create_resolution(modeline *modeline)
 		lresult = SendMessage(hPSWnd, UM_CREATERESOLUTION, m_monitor_index, atom);
 
 		if (lresult < 0)
-		{
-			log_verbose("PStrip: SendMessage failed\n");
-			GlobalDeleteAtom(atom);
+			{
+				log_verbose("PStrip: SendMessage failed\n");
+				GlobalDeleteAtom(atom);
+			}
+			else
+			{
+				log_verbose("PStrip: ps_create_resolution(%d): %dx%d succeded \n",
+					modeline->width, modeline->height, m_monitor_index);
+				return 1;
+			}
 		}
-		else
-		{
-			log_verbose("PStrip: ps_create_resolution(%d): %dx%d succeded \n",
-				modeline->width, modeline->height, m_monitor_index);
-			return 1;
-		}
-	}
-	else
-		log_verbose("PStrip: ps_create_resolution atom creation failed\n");
+		else log_verbose("PStrip: ps_create_resolution atom creation failed\n");
 
 	return 0;
 }
