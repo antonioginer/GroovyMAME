@@ -2452,6 +2452,11 @@ if _OPTIONS["targetos"]=="linux" then
 		MAME_DIR .. "3rdparty/switchres/custom_video_drmkms.h",
 	}
 
+	defines {
+		"SR_WITH_XRANDR",
+		"SR_WITH_KMSDRM",
+	}
+
 	buildoptions {
 		backtick("pkg-config --cflags libdrm"),
 	}
