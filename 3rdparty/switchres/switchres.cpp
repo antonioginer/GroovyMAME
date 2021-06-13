@@ -7,7 +7,7 @@
    Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+   Copyright   2010-2021 Chris Kennedy, Antonio Giner,
                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
@@ -22,15 +22,16 @@ using namespace std;
 const string WHITESPACE = " \n\r\t\f\v";
 
 #if defined(_WIN32)
-	#define SR_CONFIG_PATHS ".\\;.\\ini\\;"
+	#define SR_CONFIG_PATHS ";.\\;.\\ini\\;"
 #elif defined(__linux__)
-	#define SR_CONFIG_PATHS "./;./ini/;/etc/;"
+	#define SR_CONFIG_PATHS ";./;./ini/;/etc/;"
 #endif
 
 //============================================================
 //  logging
 //============================================================
 
+void switchres_manager::set_log_level(int log_level) { set_log_verbosity(log_level); }
 void switchres_manager::set_log_verbose_fn(void *func_ptr) { set_log_verbose((void *)func_ptr); }
 void switchres_manager::set_log_info_fn(void *func_ptr) { set_log_info((void *)func_ptr); }
 void switchres_manager::set_log_error_fn(void *func_ptr) { set_log_error((void *)func_ptr); }
@@ -103,9 +104,16 @@ switchres_manager::switchres_manager()
 	set_super_width(2560);
 	set_v_shift_correct(0);
 	set_pixel_precision(1);
+	set_interlace_force_even(0);
 
 	// Create our display manager
 	m_display_factory = new display_manager();
+
+	// Set logger properties
+	set_log_info_fn((void*)printf);
+	set_log_error_fn((void*)printf);
+	set_log_verbose_fn((void*)printf);
+	set_log_level(2);
 }
 
 //============================================================
@@ -236,14 +244,16 @@ bool switchres_manager::parse_config(const char *file_name)
 					break;
 				case s2i("user_mode"):
 				{
+					modeline user_mode = {};
 					if (strcmp(value.c_str(), "auto"))
 					{
-						modeline user_mode = {};
 						if (sscanf(value.c_str(), "%dx%d@%d", &user_mode.width, &user_mode.height, &user_mode.refresh) < 1)
+						{
 							log_error("Error: use format resolution <w>x<h>@<r>\n");
-						else
-							set_user_mode(&user_mode);
+							break;
+						}
 					}
+					set_user_mode(&user_mode);
 					break;
 				}
 
@@ -310,6 +320,10 @@ bool switchres_manager::parse_config(const char *file_name)
 					set_pixel_precision(atoi(value.c_str()));
 					break;
 
+				case s2i("interlace_force_even"):
+					set_interlace_force_even(atoi(value.c_str()));
+					break;
+
 				// Custom video backend options
 				case s2i("screen_compositing"):
 					set_screen_compositing(atoi(value.c_str()));
@@ -323,6 +337,15 @@ bool switchres_manager::parse_config(const char *file_name)
 				case s2i("custom_timing"):
 					set_custom_timing(value.c_str());
 					break;
+
+				// Various
+				case s2i("verbosity"):
+				{
+					int verbosity_level = 1;
+					sscanf(value.c_str(), "%d", &verbosity_level);
+					set_log_level(verbosity_level);
+					break;
+				}
 
 				default:
 					log_error("Invalid option %s\n", key.c_str());

@@ -7,7 +7,7 @@
    Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+   Copyright   2010-2021 Chris Kennedy, Antonio Giner,
                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
@@ -87,6 +87,7 @@ public:
 	double monitor_aspect() { return m_ds.gs.monitor_aspect; }
 	int v_shift_correct() { return m_ds.gs.v_shift_correct; }
 	int pixel_precision() { return m_ds.gs.pixel_precision; }
+	int interlace_force_even() { return m_ds.gs.interlace_force_even; }
 
 	// getters (modeline result)
 	bool got_mode() { return (m_best_mode != nullptr); }

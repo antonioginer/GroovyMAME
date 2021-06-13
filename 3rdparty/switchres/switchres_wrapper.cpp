@@ -1,13 +1,13 @@
 /**************************************************************
 
-   log.h - Simple logging for Switchres
+   switchres_wrapper.cpp - Switchres C wrapper API
 
    ---------------------------------------------------------
 
    Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+   Copyright   2010-2021 Chris Kennedy, Antonio Giner,
                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
@@ -28,17 +28,24 @@ switchres_manager* swr;
 MODULE_API void sr_init() {
 	setlocale(LC_NUMERIC, "C");
 	swr = new switchres_manager;
-	//swr->set_log_verbose_fn((void *)printf);
-	swr->set_log_info_fn((void *)printf);
-	swr->set_log_error_fn((void *)printf);
 	swr->parse_config("switchres.ini");
 }
 
 
-MODULE_API void sr_init_disp() {
+MODULE_API void sr_load_ini(char* config) {
+	swr->parse_config(config);
+	swr->display()->m_ds = swr->ds;
+	swr->display()->parse_options();
+}
+
+
+MODULE_API unsigned char sr_init_disp(const char* scr) {
+	if (scr)
+		swr->set_screen(scr);
 	swr->add_display();
-	for (auto &display : swr->displays)
-		display->init();
+	if (!swr->display()->init())
+		return 0;
+	return 1;
 }
 
 
@@ -51,11 +58,21 @@ MODULE_API void sr_set_monitor(const char *preset) {
 	swr->set_monitor(preset);
 }
 
+
+MODULE_API void sr_set_user_mode(int width, int height, int refresh) {
+	modeline user_mode = {};
+	user_mode.width = width;
+	user_mode.height = height;
+	user_mode.refresh = refresh;
+	swr->set_user_mode(&user_mode);
+}
+
+
 void disp_best_mode_to_sr_mode(display_manager* disp, sr_mode* srm)
 {
 	srm->width = disp->width();
 	srm->height = disp->height();
-	srm->refresh = disp->refresh();
+	srm->refresh = disp->v_freq();
 	srm->is_refresh_off = (disp->is_refresh_off() ? 1 : 0);
 	srm->is_stretched = (disp->is_stretched() ? 1 : 0);
 	srm->x_scale = disp->x_scale();
@@ -167,13 +184,40 @@ MODULE_API void sr_set_rotation (unsigned char r) {
 }
 
 
+MODULE_API void sr_set_log_level (int l) {
+	swr->set_log_level(l);
+}
+
+
+MODULE_API void sr_set_log_callback_info (void * f) {
+	swr->set_log_info_fn((void *)f);
+}
+
+
+MODULE_API void sr_set_log_callback_debug (void * f) {
+	swr->set_log_verbose_fn((void *)f);
+}
+
+
+MODULE_API void sr_set_log_callback_error (void * f) {
+	swr->set_log_error_fn((void *)f);
+}
+
+
 MODULE_API srAPI srlib = {
 	sr_init,
+	sr_load_ini,
 	sr_deinit,
 	sr_init_disp,
 	sr_add_mode,
 	sr_switch_to_mode,
-	sr_set_rotation
+	sr_set_monitor,
+	sr_set_rotation,
+	sr_set_user_mode,
+	sr_set_log_level,
+	sr_set_log_callback_error,
+	sr_set_log_callback_info,
+	sr_set_log_callback_debug,
 };
 
 #ifdef __cplusplus

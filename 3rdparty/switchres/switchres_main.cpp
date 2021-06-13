@@ -7,7 +7,7 @@
    Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+   Copyright   2010-2021 Chris Kennedy, Antonio Giner,
                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
@@ -32,10 +32,6 @@ int main(int argc, char **argv)
 {
 
 	switchres_manager switchres;
-
-	// Init logging
-	switchres.set_log_info_fn((void*)printf);
-	switchres.set_log_error_fn((void*)printf);
 
 	switchres.parse_config("switchres.ini");
 
@@ -97,6 +93,9 @@ int main(int argc, char **argv)
 		switch (c)
 		{
 			case 'v':
+				switchres.set_log_level(3);
+				switchres.set_log_error_fn((void*)printf);
+				switchres.set_log_info_fn((void*)printf);
 				switchres.set_log_verbose_fn((void*)printf);
 				break;
 

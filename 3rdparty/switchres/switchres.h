@@ -7,7 +7,7 @@
    Switchres   Modeline generation engine for emulation
 
    License     GPL-2.0+
-   Copyright   2010-2020 Chris Kennedy, Antonio Giner,
+   Copyright   2010-2021 Chris Kennedy, Antonio Giner,
                          Alexandre Wodarczyk, Gil Delescluse
 
  **************************************************************/
@@ -50,6 +50,7 @@ public:
 	display_manager *display(int i) const { return i < (int)displays.size()? displays[i] : nullptr; }
 
 	// setters (log manager)
+	void set_log_level(int log_level);
 	void set_log_verbose_fn(void *func_ptr);
 	void set_log_info_fn(void *func_ptr);
 	void set_log_error_fn(void *func_ptr);
@@ -79,6 +80,7 @@ public:
 	void set_monitor_aspect(const char* aspect) { set_monitor_aspect(get_aspect(aspect)); }
 	void set_v_shift_correct(int value) { ds.gs.v_shift_correct = value; }
 	void set_pixel_precision(int value) { ds.gs.pixel_precision = value; }
+	void set_interlace_force_even(int value) { ds.gs.interlace_force_even = value; }
 
 	// setters (custom_video backend)
 	void set_screen_compositing(bool value) { ds.vs.screen_compositing = value; }
