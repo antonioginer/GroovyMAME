@@ -162,6 +162,8 @@ private:
 	D3DPRESENTSTATS         m_stats;
 	D3DRASTER_STATUS        m_raster_status;
 	int                     m_sync_count;
+	int                     m_enter_line;
+	int                     m_exit_line;
 
 	IDirect3DVertexBuffer9 *m_vertexbuf;                // pointer to the vertex buffer object
 	vertex *                m_lockedbuf;                // pointer to the locked vertex buffer
