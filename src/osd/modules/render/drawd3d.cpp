@@ -510,7 +510,7 @@ texture_info *d3d_texture_manager::find_texinfo(const render_texinfo *texinfo, u
 
 renderer_d3d9::renderer_d3d9(std::shared_ptr<osd_window> window)
 	: osd_renderer(window, FLAG_NONE), m_adapter(0), m_width(0), m_height(0), m_refresh(0), m_frame_delay(0), m_create_error_count(0), m_device(nullptr), m_gamma_supported(0), m_pixformat(),
-	m_query(nullptr), m_swap9(nullptr), m_swap(nullptr), m_sync_count(0),
+	m_query(nullptr), m_swap9(nullptr), m_swap(nullptr), m_sync_count(0), m_enter_line(0), m_exit_line(0),
 	m_vertexbuf(nullptr), m_lockedbuf(nullptr), m_numverts(0), m_vectorbatch(nullptr), m_batchindex(0), m_numpolys(0), m_toggle(false),
 	m_screen_format(), m_last_texture(nullptr), m_last_texture_flags(0), m_last_blendenable(0), m_last_blendop(0), m_last_blendsrc(0), m_last_blenddst(0), m_last_filter(0),
 	m_last_wrap(), m_last_modmode(0), m_shaders(nullptr), m_texture_manager()
@@ -722,7 +722,6 @@ void renderer_d3d9::process_primitives()
 void renderer_d3d9::end_frame()
 {
 	auto win = assert_window();
-	int enter_line, exit_line;
 
 	win->m_primlist->release_lock();
 
@@ -745,7 +744,7 @@ void renderer_d3d9::end_frame()
 	if (video_config.syncrefresh)
 	{
 		m_device->GetRasterStatus(0, &m_raster_status);
-		enter_line = m_raster_status.ScanLine;
+		m_enter_line = m_raster_status.ScanLine;
 
 		do
 		{
@@ -768,14 +767,14 @@ void renderer_d3d9::end_frame()
 				break;
 		} while (m_raster_status.InVBlank);
 
-		exit_line = m_raster_status.ScanLine;
+		m_exit_line = m_raster_status.ScanLine;
 
 		// check if retrace has been missed
 		if (m_swap != nullptr)
 		{
 			m_swap->GetPresentStats(&m_stats);
 
-			if (m_stats.PresentRefreshCount - m_sync_count > 1 && enter_line != 0)
+			if (m_stats.PresentRefreshCount - m_sync_count > 1 && m_enter_line != 0)
 			{
 				static const double tps = (double)osd_ticks_per_second();
 				static const double time_start = (double)osd_ticks() / tps;
@@ -784,7 +783,7 @@ void renderer_d3d9::end_frame()
 			m_sync_count = m_stats.PresentRefreshCount;
 		}
 
-		osd_printf_verbose("frame %d enter_line %d exit_line %d\n", m_sync_count, enter_line, exit_line);
+		osd_printf_verbose("frame %d enter_line %d exit_line %d\n", m_sync_count, m_enter_line, m_exit_line);
 	}
 }
 
@@ -861,14 +860,12 @@ void renderer_d3d9::update_presentation_parameters()
 	m_presentation.BackBufferCount = 1;
 	m_presentation.MultiSampleType = D3DMULTISAMPLE_NONE;
 	m_presentation.SwapEffect = D3DSWAPEFFECT_DISCARD;
-	//m_presentation.SwapEffect = D3DSWAPEFFECT_FLIPEX;
 	m_presentation.hDeviceWindow = std::static_pointer_cast<win_window_info>(win)->platform_window();
 	m_presentation.Windowed = !win->fullscreen() || win->win_has_menu();
 	m_presentation.EnableAutoDepthStencil = FALSE;
 	m_presentation.AutoDepthStencilFormat = D3DFMT_D16;
 	m_presentation.Flags = D3DPRESENTFLAG_UNPRUNEDMODE;
 	m_presentation.FullScreen_RefreshRateInHz = win->fullscreen()?m_refresh : 0;
-	//m_presentation.PresentationInterval = video_config.waitvsync && video_config.framedelay == 0? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
 	m_presentation.PresentationInterval = (video_config.waitvsync && !video_config.syncrefresh)? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
 }
 
