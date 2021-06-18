@@ -294,9 +294,16 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 
 	// Vertical synchronization management (autosync)
 	// Disable -syncrefresh if our vfreq is scaled or out of syncrefresh_tolerance
-	bool sync_refresh_effective = (options.black_frame_insertion() > 0) || !((display->is_refresh_off()) || display->v_scale() > 1);
-	set_option(OSDOPTION_WAITVSYNC, options.autosync()? true : options.wait_vsync());
-	set_option(OPTION_SYNCREFRESH, options.autosync()? sync_refresh_effective : options.sync_refresh());
+	if (options.autosync())
+	{
+		bool sync_refresh_effective = (options.black_frame_insertion() > 0) || !((display->is_refresh_off()) || display->v_scale() > 1);
+	#if defined(OSD_WINDOWS)
+		set_option(OSDOPTION_WAITVSYNC, true);
+	#elif defined(OSD_SDL)
+		set_option(OSDOPTION_WAITVSYNC, sync_refresh_effective);
+	#endif
+		set_option(OPTION_SYNCREFRESH, sync_refresh_effective);
+	}
 
 	// Set filter options
 	if (options.autofilter())
