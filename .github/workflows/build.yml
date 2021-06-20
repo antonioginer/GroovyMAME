@@ -59,7 +59,7 @@ jobs:
       run: |
         export MINGW64=/mingw64
         export MINGW32=
-        export ARCHOPTS=-fuse-ld=lld"
+        export ARCHOPTS=-fuse-ld=lld
         export OVERRIDE_AR=llvm-ar
         make -j$(nproc) TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=0 SYMLEVEL=1 REGENIE=1
         make -f dist.mak PTR64=1
