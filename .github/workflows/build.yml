@@ -53,18 +53,14 @@ jobs:
       uses: msys2/setup-msys2@v2
       with:
         update: true
-        install: bash git make wget mingw-w64-x86_64-gcc mingw-w64-x86_64-python p7zip
-    - name: Setup MSYS2 for MAME
-      run: |
-        wget https://repo.mamedev.org/x86_64/mame-essentials-1.0.6-1-x86_64.pkg.tar.xz
-        pacman -U --noconfirm mame-essentials-1.0.6-1-x86_64.pkg.tar.xz
-        echo -e "[mame]\nInclude = /etc/pacman.d/mirrorlist.mame" >> /etc/pacman.conf
-        pacman -Sy
+        install: git make mingw-w64-x86_64-gcc mingw-w64-x86_64-python mingw-w64-x86_64-lld mingw-w64-x86_64-libc++
     - uses: actions/checkout@v2
     - name: Build GroovyMAME
       run: |
         export MINGW64=/mingw64
         export MINGW32=
+        export ARCHOPTS= "-fuse-ld=lld"
+        export OVERRIDE_AR = "llvm-ar"
         make -j$(nproc) TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=0 SYMLEVEL=1 REGENIE=1
         make -f dist.mak PTR64=1
         cp -rf artwork bgfx hlsl plugins samples build/release/x64/Release/mame/
