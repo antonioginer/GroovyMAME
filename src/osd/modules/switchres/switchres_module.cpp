@@ -25,6 +25,7 @@
 #include "modules/osdwindow.h"
 #include <switchres/switchres.h>
 #include "switchres_module.h"
+#include "rendlay.h"
 
 
 //============================================================
@@ -272,13 +273,18 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 
 	if (options.autostretch())
 	{
-		set_option(OPTION_KEEPASPECT, true);
+		bool is_super_resolution = !(display->is_stretched()) && (display->width() >= display->super_width());
+		bool force_aspect = (target->current_view().effective_aspect() != display->monitor_aspect());
+
+		set_option(OPTION_KEEPASPECT, force_aspect);
 		set_option(OPTION_UNEVENSTRETCH, display->is_stretched());
-		set_option(OPTION_UNEVENSTRETCHX, (!(display->is_stretched()) && (display->width() >= display->super_width())));
+		set_option(OPTION_UNEVENSTRETCHX, is_super_resolution);
 
 		// Update target if it's already initialized
 		if (target)
 		{
+			target->set_keepaspect(options.keep_aspect());
+
 			if (options.uneven_stretch())
 				target->set_scale_mode(SCALE_FRACTIONAL);
 			else if(options.uneven_stretch_x())
