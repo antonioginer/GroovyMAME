@@ -229,7 +229,7 @@ void mame_ui_manager::init()
 			configuration_manager::save_delegate(&mame_ui_manager::config_save, this));
 
 	// register callbacks
-	machine().configuration().config_register("sliders", config_load_delegate(&mame_ui_manager::sliders_load, this), config_save_delegate(&mame_ui_manager::sliders_save, this));
+	machine().configuration().config_register("sliders", configuration_manager::load_delegate(&mame_ui_manager::sliders_load, this), configuration_manager::save_delegate(&mame_ui_manager::sliders_save, this));
 
 	// create mouse bitmap
 	uint32_t *dst = &m_mouse_bitmap.pix(0);
@@ -2276,10 +2276,10 @@ void ui_colors::refresh(const ui_options &options)
 //  configuration file
 //-------------------------------------------------
 
-void mame_ui_manager::sliders_load(config_type cfg_type, util::xml::data_node const *parentnode)
+void mame_ui_manager::sliders_load(config_type cfg_type, config_level cfg_level, util::xml::data_node const *parentnode)
 {
-	// we only care about game files
-	if (cfg_type != config_type::GAME)
+	// we only care about system files
+	if (cfg_type != config_type::SYSTEM)
 		return;
 
 	// might not have any data
@@ -2331,8 +2331,8 @@ void mame_ui_manager::sliders_apply(void)
 
 void mame_ui_manager::sliders_save(config_type cfg_type, util::xml::data_node *parentnode)
 {
-	// we only care about game files
-	if (cfg_type != config_type::GAME)
+	// we only care about system files
+	if (cfg_type != config_type::SYSTEM)
 		return;
 
 	std::string tempstring;
