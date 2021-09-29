@@ -750,7 +750,7 @@ void renderer_d3d9::end_frame()
 		{
 			if (m_device->GetRasterStatus(0, &m_raster_status) != D3D_OK)
 				break;
-		} while (!m_raster_status.InVBlank && m_raster_status.ScanLine < m_break_scanline);
+		} while (!(m_raster_status.InVBlank && m_frame_delay) && m_raster_status.ScanLine < m_break_scanline);
 	}
 
 	// present the current buffers
@@ -825,7 +825,7 @@ void renderer_d3d9::update_break_scanlines()
 				1;
 
 			m_last_scanline = m_switchres_mode && m_switchres_mode->vtotal ?
-				m_switchres_mode->vactive + (m_switchres_mode->vtotal - m_switchres_mode->vbegin) / (m_switchres_mode->interlace ? 2 : 1) :
+				(m_switchres_mode->vactive - 1) + (m_switchres_mode->vtotal - m_switchres_mode->vbegin) / (m_switchres_mode->interlace ? 2 : 1) :
 				m_height;
 			break;
 
