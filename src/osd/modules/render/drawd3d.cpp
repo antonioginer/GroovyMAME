@@ -750,7 +750,11 @@ void renderer_d3d9::end_frame()
 		{
 			if (m_device->GetRasterStatus(0, &m_raster_status) != D3D_OK)
 				break;
-		} while (!(m_raster_status.InVBlank && m_frame_delay) && m_raster_status.ScanLine < m_break_scanline);
+		} while (m_frame_delay?
+			// with frame delay, wait for break scanline, or just exit if we're already in vblank
+			!m_raster_status.InVBlank && m_raster_status.ScanLine < m_break_scanline :
+			// with syncrefresh only, just wait for vblank
+			!m_raster_status.InVBlank);
 	}
 
 	// present the current buffers
@@ -782,8 +786,7 @@ void renderer_d3d9::end_frame()
 			}
 			m_sync_count = m_stats.PresentRefreshCount;
 		}
-
-		osd_printf_verbose("frame %d enter_line %d exit_line %d\n", m_sync_count, m_enter_line, m_exit_line);
+		//osd_printf_verbose("frame %d enter_line %d exit_line %d\n", m_sync_count, m_enter_line, m_exit_line);
 	}
 }
 
@@ -821,11 +824,11 @@ void renderer_d3d9::update_break_scanlines()
 	{
 		case 0x1002: // ATI
 			m_first_scanline = m_switchres_mode && m_switchres_mode->vtotal ?
-				(m_switchres_mode->vtotal - m_switchres_mode->vbegin) / (m_switchres_mode->interlace ? 2 : 1) :
+				(m_switchres_mode->vtotal - m_switchres_mode->vbegin - 1) / (m_switchres_mode->interlace ? 2 : 1) :
 				1;
 
 			m_last_scanline = m_switchres_mode && m_switchres_mode->vtotal ?
-				(m_switchres_mode->vactive - 1) + (m_switchres_mode->vtotal - m_switchres_mode->vbegin) / (m_switchres_mode->interlace ? 2 : 1) :
+				(m_switchres_mode->vactive - 1) + (m_switchres_mode->vtotal - m_switchres_mode->vbegin - 1) / (m_switchres_mode->interlace ? 2 : 1) :
 				m_height;
 			break;
 
@@ -1329,7 +1332,7 @@ int renderer_d3d9::restart()
 		pick_best_mode();
 	update_presentation_parameters();
 
-	if (m_frame_delay)
+	if (video_config.syncrefresh)
 		update_break_scanlines();
 
 	auto win = assert_window();
