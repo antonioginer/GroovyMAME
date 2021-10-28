@@ -27,6 +27,8 @@
 #include "switchres_module.h"
 #include "rendlay.h"
 
+#include <locale>
+
 
 //============================================================
 //  logging wrappers
@@ -68,6 +70,8 @@ static void sr_printf_error(const char *format, ...)
 
 void switchres_module::init(running_machine &machine)
 {
+	setlocale(LC_NUMERIC, "C");
+
 	m_machine = &machine;
 	m_switchres = new switchres_manager;
 
