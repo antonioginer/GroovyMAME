@@ -733,10 +733,10 @@ void renderer_d3d9::end_frame()
 	if (FAILED(result))
 		osd_printf_verbose("Direct3D: Error %08lX during device end_scene call\n", result);
 
-	if ((m_frame_delay != video_config.framedelay) || (m_vsync_offset != win->machine().options().vsync_offset()))
+	if ((m_frame_delay != video_config.framedelay) || (m_vsync_offset != win->machine().video().vsync_offset()))
 	{
 		m_frame_delay = video_config.framedelay;
-		m_vsync_offset = win->machine().options().vsync_offset();
+		m_vsync_offset = win->machine().video().vsync_offset();
 		update_break_scanlines();
 	}
 
