@@ -263,7 +263,7 @@ void submenu::handle(event const *ev)
 			{
 			case core_options::option_type::BOOLEAN:
 				changed = true;
-				sm_option.options->set_value(sm_option.name, !strcmp(sm_option.entry->value(),"1") ? "0" : "1", OPTION_PRIORITY_CMDLINE);
+				sm_option.options->set_value(sm_option.name, !strcmp(sm_option.entry->value(),"1") ? false : true, OPTION_PRIORITY_CMDLINE);
 				break;
 			case core_options::option_type::INTEGER:
 				if (ev->iptkey == IPT_UI_LEFT || ev->iptkey == IPT_UI_RIGHT)
