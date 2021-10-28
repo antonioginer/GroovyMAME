@@ -1657,10 +1657,10 @@ int32_t mame_ui_manager::slider_framedelay(std::string *str, int32_t newval)
 int32_t mame_ui_manager::slider_vsync_offset(std::string *str, int32_t newval)
 {
 	if (newval != SLIDER_NOCHANGE)
-		machine().options().set_value(OPTION_VSYNC_OFFSET, newval, OPTION_PRIORITY_HIGH);
+		machine().video().set_vsync_offset(newval);
 	if (str)
-		*str = string_format(_("%1$3d"), machine().options().vsync_offset());
-	return machine().options().vsync_offset();
+		*str = string_format(_("%1$3d"), machine().video().vsync_offset());
+	return machine().video().vsync_offset();
 }
 
 
