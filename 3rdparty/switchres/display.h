@@ -52,7 +52,7 @@ public:
 
 	display_manager *make(display_settings *ds);
 	void parse_options();
-	virtual bool init();
+	virtual bool init(void* = nullptr);
 	virtual int caps();
 
 	// getters
@@ -157,6 +157,9 @@ private:
 	int m_index = 0;
 	bool m_desktop_is_rotated = 0;
 	bool m_switching_required = 0;
+
+protected:
+	void* m_pf_data = nullptr;
 };
 
 #endif
