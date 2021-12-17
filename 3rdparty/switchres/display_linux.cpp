@@ -42,8 +42,9 @@ linux_display::~linux_display()
 //  linux_display::init
 //============================================================
 
-bool linux_display::init()
+bool linux_display::init(void* pfdata)
 {
+	m_pf_data = pfdata;
 	// Initialize custom video
 	int method = CUSTOM_VIDEO_TIMING_AUTO;
 

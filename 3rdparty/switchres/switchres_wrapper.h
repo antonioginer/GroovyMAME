@@ -74,6 +74,7 @@ char* LIBERROR()
 #define LIBSWR "libswitchres.dll"
 #endif
 
+
 /* That's all the exposed data from Switchres calculation */
 typedef struct MODULE_API {
 	int width;
@@ -91,7 +92,7 @@ typedef struct MODULE_API {
 MODULE_API void sr_init();
 MODULE_API void sr_load_ini(char* config);
 MODULE_API void sr_deinit();
-MODULE_API unsigned char sr_init_disp(const char* src);
+MODULE_API unsigned char sr_init_disp(const char*, void*);
 MODULE_API unsigned char sr_add_mode(int, int, double, unsigned char, sr_mode*);
 MODULE_API unsigned char sr_switch_to_mode(int, int, double, unsigned char, sr_mode*);
 MODULE_API void sr_set_monitor(const char*);
@@ -105,21 +106,24 @@ MODULE_API void sr_set_log_callback_info(void *);
 MODULE_API void sr_set_log_callback_debug(void *);
 
 
+/* Others */
+MODULE_API void sr_set_sdl_window(void *);
+
 /* Inspired by https://stackoverflow.com/a/1067684 */
 typedef struct MODULE_API {
-    void (*init)(void);
-    void (*sr_sr_load_ini)(char*);
-    void (*deinit)(void);
-    unsigned char (*sr_init_disp)(const char*);
-    unsigned char (*sr_add_mode)(int, int, double, unsigned char, sr_mode*);
-    unsigned char (*sr_switch_to_mode)(int, int, double, unsigned char, sr_mode*);
-    void (*sr_set_monitor)(const char*);
-    void (*sr_set_rotation)(unsigned char);
-    void (*sr_set_user_mode)(int, int, int);
-    void (*sr_set_log_level) (int);
-    void (*sr_set_log_callback_error)(void *);
-    void (*sr_set_log_callback_info)(void *);
-    void (*sr_set_log_callback_debug)(void *);
+	void (*init)(void);
+	void (*sr_sr_load_ini)(char*);
+	void (*deinit)(void);
+	unsigned char (*sr_init_disp)(const char*, void*);
+	unsigned char (*sr_add_mode)(int, int, double, unsigned char, sr_mode*);
+	unsigned char (*sr_switch_to_mode)(int, int, double, unsigned char, sr_mode*);
+	void (*sr_set_monitor)(const char*);
+	void (*sr_set_rotation)(unsigned char);
+	void (*sr_set_user_mode)(int, int, int);
+	void (*sr_set_log_level) (int);
+	void (*sr_set_log_callback_error)(void *);
+	void (*sr_set_log_callback_info)(void *);
+	void (*sr_set_log_callback_debug)(void *);
 } srAPI;
 
 
