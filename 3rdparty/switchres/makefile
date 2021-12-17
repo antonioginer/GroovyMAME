@@ -25,6 +25,10 @@ LIBDIR = $(DESTDIR)$(PREFIX)/lib
 BINDIR = $(DESTDIR)$(PREFIX)/bin
 PKGDIR = $(LIBDIR)/pkgconfig
 
+ifneq ($(DEBUG),)
+    CPPFLAGS += -g
+endif
+
 # Linux
 ifeq  ($(PLATFORM),Linux)
 SRC += display_linux.cpp
@@ -48,12 +52,25 @@ else
     SRC += custom_video_drmkms.cpp
 endif
 
+# SDL2 misses a test for drm as drm.h is required
+HAS_VALID_SDL2 := $(shell $(PKG_CONFIG) --libs "sdl2 >= 2.0.16"; echo $$?)
+ifeq ($(HAS_VALID_SDL2),1)
+    $(info Switchres needs SDL2 >= 2.0.16. SDL2 support is disabled)
+else
+    $(info SDL2 support enabled)
+    CPPFLAGS += -DSR_WITH_SDL2 $(pkg-config --cflags sdl2)
+    EXTRA_LIBS += sdl2
+    SRC += display_sdl2.cpp
+endif
+
 ifneq (,$(EXTRA_LIBS))
 CPPFLAGS += $(shell $(PKG_CONFIG) --cflags $(EXTRA_LIBS))
+CPPFLAGS += $(shell $(PKG_CONFIG) --libs $(EXTRA_LIBS))
 endif
 
 CPPFLAGS += -fPIC
-LIBS = -ldl
+LIBS += -ldl
+
 REMOVE = rm -f
 STATIC_LIB_EXT = a
 DYNAMIC_LIB_EXT = so
