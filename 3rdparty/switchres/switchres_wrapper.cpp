@@ -24,7 +24,6 @@ extern "C" {
 
 switchres_manager* swr;
 
-
 MODULE_API void sr_init() {
 	setlocale(LC_NUMERIC, "C");
 	swr = new switchres_manager;
@@ -39,11 +38,11 @@ MODULE_API void sr_load_ini(char* config) {
 }
 
 
-MODULE_API unsigned char sr_init_disp(const char* scr) {
+MODULE_API unsigned char sr_init_disp(const char* scr, void* pfdata) {
 	if (scr)
 		swr->set_screen(scr);
 	swr->add_display();
-	if (!swr->display()->init())
+	if (!swr->display()->init(pfdata))
 		return 0;
 	return 1;
 }

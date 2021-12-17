@@ -20,6 +20,10 @@
 #include <string.h>
 #include "display_linux.h"
 #endif
+#ifdef SR_WITH_SDL2
+#include "display_sdl2.h"
+#endif
+
 #include "log.h"
 
 //============================================================
@@ -30,10 +34,23 @@ display_manager *display_manager::make(display_settings *ds)
 {
 	display_manager *display = nullptr;
 
+#ifdef SR_WITH_SDL2
+	try
+	{
+		display = new sdl2_display(ds);
+	}
+	catch (...) {};
+	if ( ! display ) {
+#endif
+
 #if defined(_WIN32)
 	display = new windows_display(ds);
 #elif defined(__linux__)
 	display = new linux_display(ds);
+#endif
+
+#ifdef SR_WITH_SDL2
+	}
 #endif
 
 	return display;
@@ -86,9 +103,10 @@ void display_manager::parse_options()
 //  display_manager::init
 //============================================================
 
-bool display_manager::init()
+bool display_manager::init(void* pf_data)
 {
 	sprintf(m_ds.screen, "ram");
+	m_pf_data = pf_data;
 
 	return true;
 }
