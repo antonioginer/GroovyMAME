@@ -2446,6 +2446,8 @@ if _OPTIONS["targetos"]=="linux" then
 	files {
 		MAME_DIR .. "3rdparty/switchres/display_linux.cpp",
 		MAME_DIR .. "3rdparty/switchres/display_linux.h",
+		MAME_DIR .. "3rdparty/switchres/display_sdl2.cpp",
+		MAME_DIR .. "3rdparty/switchres/display_sdl2.h",
 		MAME_DIR .. "3rdparty/switchres/custom_video_xrandr.cpp",
 		MAME_DIR .. "3rdparty/switchres/custom_video_xrandr.h",
 		MAME_DIR .. "3rdparty/switchres/custom_video_drmkms.cpp",
@@ -2455,10 +2457,12 @@ if _OPTIONS["targetos"]=="linux" then
 	defines {
 		"SR_WITH_XRANDR",
 		"SR_WITH_KMSDRM",
+		"SR_WITH_SDL2",
 	}
 
 	buildoptions {
 		backtick("pkg-config --cflags libdrm"),
+		backtick("pkg-config --cflags sdl2"),
 	}
 
 	links {
