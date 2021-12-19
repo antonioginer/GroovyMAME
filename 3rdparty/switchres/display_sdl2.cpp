@@ -33,7 +33,7 @@ void get_sdl_hwinfo_from_sdl_window(SDL_Window* window)
 		return;
 	}
 	const char *subsystem = "an unsupported or unknown system!";
-	switch(m_sdlwminfo.subsystem)
+	switch((int)m_sdlwminfo.subsystem)
 	{
 		case SDL_SYSWM_UNKNOWN:
 		case SDL_SYSWM_COCOA:
