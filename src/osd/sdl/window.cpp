@@ -443,10 +443,6 @@ int sdl_window_info::window_init()
 
 	set_renderer(osd_renderer::make_for_type(video_config.mode, static_cast<osd_window*>(this)->shared_from_this()));
 
-	// add they switchres display manager
-	if (downcast<sdl_options &>(machine().options()).switch_res())
-		m_display_manager = downcast<sdl_osd_interface&>(machine().osd()).switchres()->add_display(index(), monitor(), target(), &m_win_config);
-
 	int result = complete_create();
 
 	// handle error conditions
@@ -716,7 +712,7 @@ int sdl_window_info::complete_create()
 	// create the SDL window
 	// soft driver also used | SDL_WINDOW_INPUT_GRABBED | SDL_WINDOW_MOUSE_FOCUS
 	m_extra_flags |= (fullscreen() ?
-			SDL_WINDOW_BORDERLESS | SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE);
+			SDL_WINDOW_BORDERLESS | SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE);
 
 //#if defined(SDLMAME_WIN32)
 	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
@@ -800,6 +796,11 @@ int sdl_window_info::complete_create()
 	}
 
 	set_platform_window(sdlwindow);
+
+	// add they switchres display manager
+	if (video_config.switchres)
+		m_display_manager = downcast<sdl_osd_interface&>(machine().osd()).switchres()->add_display(index(), monitor(), target(), &m_win_config);
+
 
 	if (fullscreen() && video_config.switchres && !mode_setting)
 	{
