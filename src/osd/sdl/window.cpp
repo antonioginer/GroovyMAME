@@ -799,8 +799,10 @@ int sdl_window_info::complete_create()
 
 	// add they switchres display manager
 	if (video_config.switchres)
+	{
 		m_display_manager = downcast<sdl_osd_interface&>(machine().osd()).switchres()->add_display(index(), monitor(), target(), &m_win_config);
-
+		temp = monitor()->position_size().dim();
+	}
 
 	if (fullscreen() && video_config.switchres && !mode_setting)
 	{
