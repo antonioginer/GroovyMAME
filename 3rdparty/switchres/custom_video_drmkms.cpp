@@ -766,6 +766,9 @@ int drmkms_timing::get_master_fd()
 	// Or master is owned by a 3rd party app (like a frontend ...)
 	log_verbose("DRM/KMS: <%d> (%s) Couldn't find a master FD, opening default /dev/dri/card%d\n", m_id, __FUNCTION__, m_card_id);
 
+	// mark our former hook as invalid
+	m_hook_fd = -1;
+
 	fd = open(dev_path, O_RDWR | O_CLOEXEC);
 	if ( fd < 0 )
 	{
