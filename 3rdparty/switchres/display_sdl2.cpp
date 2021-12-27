@@ -51,8 +51,12 @@ void get_sdl_hwinfo_from_sdl_window(SDL_Window* window)
 #if SDL_VERSION_ATLEAST(2, 0, 5)
 		case SDL_SYSWM_VIVANTE:
 #endif
+#if SDL_VERSION_ATLEAST(2, 0, 6)
 		case SDL_SYSWM_OS2:
+#endif
+#if SDL_VERSION_ATLEAST(2, 0, 12)
 		case SDL_SYSWM_HAIKU:
+#endif
 		case SDL_SYSWM_DIRECTFB:
 			break;
 		case SDL_SYSWM_WINDOWS:
