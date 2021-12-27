@@ -161,6 +161,8 @@ xrandr_timing::~xrandr_timing()
 	s_total_managed_screen--;
 	if (s_total_managed_screen == 0)
 	{
+		s_id = 0;
+
 		if (sp_desktop_crtc)
 			delete[]sp_desktop_crtc;
 
