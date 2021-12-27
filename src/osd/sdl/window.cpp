@@ -801,21 +801,24 @@ int sdl_window_info::complete_create()
 	if (video_config.switchres)
 	{
 		m_display_manager = downcast<sdl_osd_interface&>(machine().osd()).switchres()->add_display(index(), monitor(), target(), &m_win_config);
-		temp = monitor()->position_size().dim();
+		temp = osd_dim(m_win_config.width, m_win_config.height);
 	}
 
-	if (fullscreen() && video_config.switchres && !mode_setting)
+	if (fullscreen() && video_config.switchres)
 	{
 		SDL_DisplayMode mode;
 		//SDL_GetCurrentDisplayMode(window().monitor()->handle, &mode);
 		SDL_GetWindowDisplayMode(platform_window(), &mode);
 		m_original_mode->mode = mode;
-		mode.w = temp.width();
-		mode.h = temp.height();
-		if (m_win_config.refresh)
-			mode.refresh_rate = m_win_config.refresh;
+		if (!mode_setting)
+		{
+			mode.w = temp.width();
+			mode.h = temp.height();
+			if (m_win_config.refresh)
+				mode.refresh_rate = m_win_config.refresh;
 
-		SDL_SetWindowDisplayMode(platform_window(), &mode);    // Try to set mode
+			SDL_SetWindowDisplayMode(platform_window(), &mode);    // Try to set mode
+		}
 #ifndef SDLMAME_WIN32
 		/* FIXME: Warp the mouse to 0,0 in case a virtual desktop resolution
 		 * is in place after the mode switch - which will most likely be the case
