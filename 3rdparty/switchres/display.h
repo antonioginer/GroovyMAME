@@ -56,16 +56,17 @@ public:
 	virtual int caps();
 
 	// getters
+	int index() const { return m_index; }
 	custom_video *factory() const { return m_factory; }
 	custom_video *video() const { return m_video; }
+
+	// getters (modes)
 	modeline user_mode() const { return m_user_mode; }
 	modeline *best_mode() const { return m_best_mode; }
 	modeline *current_mode() const { return m_current_mode; }
-	int index() const { return m_index; }
-	bool desktop_is_rotated() const { return m_desktop_is_rotated; }
 
 	// getters (display manager)
-	const char *set_monitor() { return (const char*) &m_ds.monitor; }
+	const char *monitor() { return (const char*) &m_ds.monitor; }
 	const char *user_modeline() { return (const char*) &m_ds.user_modeline; }
 	const char *crt_range(int i) { return (const char*) &m_ds.crt_range[i]; }
 	const char *lcd_range() { return (const char*) &m_ds.lcd_range; }
@@ -76,6 +77,7 @@ public:
 	bool lock_system_modes() { return m_ds.lock_system_modes; }
 	bool refresh_dont_care() { return m_ds.refresh_dont_care; }
 	bool keep_changes() { return m_ds.keep_changes; }
+	bool desktop_is_rotated() const { return m_desktop_is_rotated; }
 
 	// getters (modeline generator)
 	bool interlace() { return m_ds.gs.interlace; }
@@ -108,16 +110,39 @@ public:
 	bool is_mode_new() { return m_best_mode != nullptr? m_best_mode->type & MODE_ADD : false; }
 
 	// setters
+	void set_index(int index) { m_index = index; }
 	void set_factory(custom_video *factory) { m_factory = factory; }
 	void set_custom_video(custom_video *video) { m_video = video; }
+
+	// setters (modes)
 	void set_user_mode(modeline *mode) { m_user_mode = *mode; filter_modes(); }
 	void set_current_mode(modeline *mode) { m_current_mode = mode; }
-	void set_index(int index) { m_index = index; }
+
+	// setters (display_manager)
+	void set_monitor(const char *preset) { strncpy(m_ds.monitor, preset, sizeof(m_ds.monitor)-1); }
+	void set_modeline(const char *modeline) { strncpy(m_ds.user_modeline, modeline, sizeof(m_ds.user_modeline)-1); }
+	void set_crt_range(int i, const char *range) { strncpy(m_ds.crt_range[i], range, sizeof(m_ds.crt_range[i])-1); }
+	void set_lcd_range(const char *range) { strncpy(m_ds.lcd_range, range, sizeof(m_ds.lcd_range)-1); }
+	void set_screen(const char *screen) { strncpy(m_ds.screen, screen, sizeof(m_ds.screen)-1); }
+	void set_api(const char *api) { strncpy(m_ds.api, api, sizeof(m_ds.api)-1); }
+	void set_modeline_generation(bool value) { m_ds.modeline_generation = value; }
+	void set_lock_unsupported_modes(bool value) { m_ds.lock_unsupported_modes = value; }
+	void set_lock_system_modes(bool value) { m_ds.lock_system_modes = value; }
+	void set_refresh_dont_care(bool value) { m_ds.refresh_dont_care = value; }
+	void set_keep_changes(bool value) { m_ds.keep_changes = value; }
 	void set_desktop_is_rotated(bool value) { m_desktop_is_rotated = value; }
+
+	// setters (modeline generator)
+	void set_interlace(bool value) { m_ds.gs.interlace = value; }
+	void set_doublescan(bool value) { m_ds.gs.doublescan = value; }
+	void set_dotclock_min(double value) { m_ds.gs.pclock_min = value * 1000000; }
+	void set_refresh_tolerance(double value) { m_ds.gs.refresh_tolerance = value; }
+	void set_super_width(int value) { m_ds.gs.super_width = value; }
 	void set_rotation(bool value) { m_ds.gs.rotation = value; }
-	void set_monitor_aspect(float aspect) { m_ds.gs.monitor_aspect = aspect; }
+	void set_monitor_aspect(double value) { m_ds.gs.monitor_aspect = value; }
 	void set_v_shift_correct(int value) { m_ds.gs.v_shift_correct = value; }
 	void set_pixel_precision(int value) { m_ds.gs.pixel_precision = value; }
+	void set_interlace_force_even(int value) { m_ds.gs.interlace_force_even = value; }
 
 	// options
 	display_settings m_ds = {};
