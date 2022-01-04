@@ -89,7 +89,7 @@ public:
 	void set_custom_timing(const char *custom_timing) { strncpy(ds.vs.custom_timing, custom_timing, sizeof(ds.vs.custom_timing)-1); }
 
 	// interface
-	display_manager* add_display();
+	display_manager* add_display(bool parse_options = true);
 	bool parse_config(const char *file_name);
 
 	//settings
