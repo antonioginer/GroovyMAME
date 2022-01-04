@@ -62,6 +62,9 @@ display_manager *display_manager::make(display_settings *ds)
 
 void display_manager::parse_options()
 {
+	log_verbose("Switchres: display[%d] options: monitor[%s] generation[%s]\n",
+		m_index, m_ds.monitor, m_ds.modeline_generation?"on":"off");
+
 	// Get user_mode as <w>x<h>@<r>
 	set_user_mode(&m_ds.user_mode);
 
