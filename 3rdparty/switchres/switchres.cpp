@@ -134,23 +134,24 @@ switchres_manager::~switchres_manager()
 //  switchres_manager::add_display
 //============================================================
 
-display_manager* switchres_manager::add_display()
+display_manager* switchres_manager::add_display(bool parse_options)
 {
 	// Parse display specific ini, if it exists
 	display_settings base_ds = ds;
 	char file_name[32] = {0};
 	sprintf(file_name, "display%d.ini", (int)displays.size());
-	parse_config(file_name);
+	bool has_ini = parse_config(file_name);
 
 	// Create new display
 	display_manager *display = m_display_factory->make(&ds);
 	display->set_index(displays.size());
+	display->set_has_ini(has_ini);
 	displays.push_back(display);
 
-	log_verbose("Switchres(v%s) display[%d]: monitor[%s] generation[%s]\n",
-		SWITCHRES_VERSION, display->index(), ds.monitor, ds.modeline_generation?"on":"off");
+	log_verbose("Switchres(v%s) add display[%d]\n", SWITCHRES_VERSION, display->index());
 
-	display->parse_options();
+	if (parse_options)
+		display->parse_options();
 
 	// restore base display settings
 	ds = base_ds;

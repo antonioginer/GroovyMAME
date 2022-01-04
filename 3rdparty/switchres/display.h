@@ -59,6 +59,7 @@ public:
 	int index() const { return m_index; }
 	custom_video *factory() const { return m_factory; }
 	custom_video *video() const { return m_video; }
+	bool has_ini() const { return m_has_ini; }
 
 	// getters (modes)
 	modeline user_mode() const { return m_user_mode; }
@@ -109,13 +110,20 @@ public:
 	bool is_mode_updated() { return m_best_mode != nullptr? m_best_mode->type & MODE_UPDATE : false; }
 	bool is_mode_new() { return m_best_mode != nullptr? m_best_mode->type & MODE_ADD : false; }
 
+	// getters (custom_video backend)
+	bool screen_compositing() { return m_ds.vs.screen_compositing; }
+	bool screen_reordering() { return m_ds.vs.screen_reordering; }
+	bool allow_hardware_refresh() { return m_ds.vs.allow_hardware_refresh; }
+	const char *custom_timing() { return (const char*) &m_ds.vs.custom_timing; }
+
 	// setters
 	void set_index(int index) { m_index = index; }
 	void set_factory(custom_video *factory) { m_factory = factory; }
 	void set_custom_video(custom_video *video) { m_video = video; }
+	void set_has_ini(bool value) { m_has_ini = value; }
 
 	// setters (modes)
-	void set_user_mode(modeline *mode) { m_user_mode = *mode; filter_modes(); }
+	void set_user_mode(modeline *mode) { m_ds.user_mode = m_user_mode = *mode; filter_modes(); }
 	void set_current_mode(modeline *mode) { m_current_mode = mode; }
 
 	// setters (display_manager)
@@ -143,6 +151,12 @@ public:
 	void set_v_shift_correct(int value) { m_ds.gs.v_shift_correct = value; }
 	void set_pixel_precision(int value) { m_ds.gs.pixel_precision = value; }
 	void set_interlace_force_even(int value) { m_ds.gs.interlace_force_even = value; }
+
+	// setters (custom_video backend)
+	void set_screen_compositing(bool value) { m_ds.vs.screen_compositing = value; }
+	void set_screen_reordering(bool value) { m_ds.vs.screen_reordering = value; }
+	void set_allow_hardware_refresh(bool value) { m_ds.vs.allow_hardware_refresh = value; }
+	void set_custom_timing(const char *custom_timing) { strncpy(m_ds.vs.custom_timing, custom_timing, sizeof(m_ds.vs.custom_timing)-1); }
 
 	// options
 	display_settings m_ds = {};
@@ -182,6 +196,7 @@ private:
 	int m_index = 0;
 	bool m_desktop_is_rotated = 0;
 	bool m_switching_required = 0;
+	bool m_has_ini = 0;
 
 protected:
 	void* m_pf_data = nullptr;
