@@ -102,6 +102,8 @@ const options_entry osd_options::s_option_entries[] =
 	// full screen options
 	{ nullptr,                                nullptr,          core_options::option_type::HEADER,    "OSD FULL SCREEN OPTIONS" },
 	{ OSDOPTION_SWITCHRES,                    "1",              core_options::option_type::BOOLEAN,   "enable resolution switching" },
+	{ OSDOPTION_SWITCHRES_INI,                "0",              core_options::option_type::BOOLEAN,   "read configuration from switchres.ini" },
+	{ OSDOPTION_SWITCHRES_BACKEND,            OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "Switchres backend to use (adl, ati, powerstrip, xrandr, drmkms)" },
 	{ OSDOPTION_MODE_SETTING,                 "0",              core_options::option_type::BOOLEAN,   "force resolution switching through Switchres backend" },
 	{ OSDOPTION_MODELINE_GENERATION ";ml",    "1",              core_options::option_type::BOOLEAN,   "Automatic generation of modelines based on the specified monitor type" },
 	{ OSDOPTION_MONITOR ";m",                 "generic_15",     core_options::option_type::STRING,    "Monitor type, e.g.: generic_15, arcade_15, lcd, custom, etc." },
