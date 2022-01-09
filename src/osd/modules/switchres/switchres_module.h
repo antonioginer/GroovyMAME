@@ -62,6 +62,7 @@ private:
 	int    m_height[MAX_WINDOWS];
 	double m_refresh[MAX_WINDOWS];
 	char   m_mode_txt[256] = {};
+	int    m_priority = 0;
 };
 
 #endif

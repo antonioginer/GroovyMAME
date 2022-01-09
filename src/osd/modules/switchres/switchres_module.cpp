@@ -14,6 +14,8 @@
 
 // MAME headers
 #include "emu.h"
+#include "rendlay.h"
+#include "../frontend/mame/mameopts.h"
 
 // MAMEOS headers
 #if defined(OSD_WINDOWS)
@@ -25,10 +27,10 @@
 #include "modules/osdwindow.h"
 #include <switchres/switchres.h>
 #include "switchres_module.h"
-#include "rendlay.h"
 
 #include <locale>
 
+#define OPTION_PRIORITY_SWITCHRES OPTION_PRIORITY_MAME_INI + 1
 
 //============================================================
 //  logging wrappers
@@ -106,7 +108,9 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 		sdl_options &options = downcast<sdl_options &>(machine().options());
 	#endif
 
-	switchres().set_screen(monitor->devicename().c_str());
+	m_priority = OPTION_PRIORITY_DEFAULT;
+
+	// Fill in SR's settings with MAME's options
 	switchres().set_monitor(options.monitor());
 	switchres().set_modeline(options.modeline());
 	for (int i = 0; i < MAX_RANGES; i++) switchres().set_crt_range(i, options.crt_range(i));
@@ -134,9 +138,59 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	user_mode.width = config->width;
 	user_mode.height = config->height;
 	user_mode.refresh = config->refresh;
+	switchres().set_user_mode(&user_mode);
 
-	display_manager *display = switchres().add_display();
-	display->set_user_mode(&user_mode);
+	// If allowed, try to parse switchres.ini, and raise our priority if found
+	if (options.switchres_ini() && m_switchres->parse_config("switchres.ini"))
+		m_priority = OPTION_PRIORITY_SWITCHRES;
+
+	// Add a new display manager. This also parses its display#.ini
+	display_manager *display = switchres().add_display(0);
+
+	// If we found a display#.ini, raise our priority
+	if (display->has_ini())
+		m_priority = OPTION_PRIORITY_SWITCHRES;
+
+	// Always override SR's display option with MAME's -screen option
+	display->set_screen(monitor->devicename().c_str());
+
+	// Finally, override SR's settings with MAME's options of higher priority
+	if (options.get_entry(OSDOPTION_MONITOR)->priority() > m_priority) display->set_monitor(options.monitor());
+	if (options.get_entry(OSDOPTION_MODELINE)->priority() > m_priority) display->set_modeline(options.modeline());
+	for (int i = 0; i < MAX_RANGES; i++) if (options.get_entry(string_format("%s%d", OSDOPTION_CRT_RANGE, i).c_str())->priority() > m_priority) display->set_crt_range(i, options.crt_range(i));
+	if (options.get_entry(OSDOPTION_LCD_RANGE)->priority() > m_priority) display->set_lcd_range(options.lcd_range());
+	if (options.get_entry(OSDOPTION_MODELINE_GENERATION)->priority() > m_priority) display->set_modeline_generation(options.modeline_generation());
+	if (options.get_entry(OSDOPTION_LOCK_UNSUPPORTED_MODES)->priority() > m_priority) display->set_lock_unsupported_modes(options.lock_unsupported_modes());
+	if (options.get_entry(OSDOPTION_LOCK_SYSTEM_MODES)->priority() > m_priority) display->set_lock_system_modes(options.lock_system_modes());
+	if (options.get_entry(OSDOPTION_REFRESH_DONT_CARE)->priority() > m_priority) display->set_refresh_dont_care(options.refresh_dont_care());
+
+	if (options.get_entry(OSDOPTION_INTERLACE)->priority() > m_priority) display->set_interlace(options.interlace());
+	if (options.get_entry(OSDOPTION_DOUBLESCAN)->priority() > m_priority) display->set_doublescan(options.doublescan());
+	if (options.get_entry(OSDOPTION_DOTCLOCK_MIN)->priority() > m_priority) display->set_dotclock_min(options.dotclock_min());
+	if (options.get_entry(OSDOPTION_SYNC_REFRESH_TOLERANCE)->priority() > m_priority) display->set_refresh_tolerance(options.sync_refresh_tolerance());
+	if (options.get_entry(OSDOPTION_SUPER_WIDTH)->priority() > m_priority) display->set_super_width(options.super_width());
+	if (options.get_entry(OSDOPTION_V_SHIFT_CORRECT)->priority() > m_priority) display->set_v_shift_correct(options.v_shift_correct());
+	if (options.get_entry(OSDOPTION_PIXEL_PRECISION)->priority() > m_priority) display->set_pixel_precision(options.pixel_precision());
+	if (options.get_entry(OSDOPTION_INTERLACE_FORCE_EVEN)->priority() > m_priority) display->set_interlace_force_even(options.interlace_force_even());
+
+	if (options.get_entry(OSDOPTION_SWITCHRES_BACKEND)->priority() > m_priority) display->set_api(options.switchres_backend());
+	if (options.get_entry(OSDOPTION_SCREEN_COMPOSITING)->priority() > m_priority) display->set_screen_compositing(options.screen_compositing());
+	if (options.get_entry(OSDOPTION_SCREEN_REORDERING)->priority() > m_priority) display->set_screen_reordering(options.screen_reordering());
+	if (options.get_entry(OSDOPTION_ALLOW_HW_REFRESH)->priority() > m_priority) display->set_allow_hardware_refresh(options.allow_hw_refresh());
+
+	if ((options.get_entry(OSDOPTION_RESOLUTION)->priority() > m_priority) ||
+		(options.get_entry(string_format("%s%d", OSDOPTION_RESOLUTION, index).c_str())->priority() > m_priority))
+	{
+		user_mode.width = config->width;
+		user_mode.height = config->height;
+		user_mode.refresh = config->refresh;
+		display->set_user_mode(&user_mode);
+	}
+
+	// Parse options now
+	display->parse_options();
+
+	// Initialize the display manager
 	display->init();
 	display->set_monitor_aspect(display->desktop_is_rotated()? 1.0f / monitor->aspect() : monitor->aspect());
 
@@ -339,7 +393,7 @@ void switchres_module::set_option(const char *option_ID, bool state)
 	#endif
 
 	//options.set_value(option_ID, state, OPTION_PRIORITY_SWITCHRES);
-	options.set_value(option_ID, state, OPTION_PRIORITY_NORMAL + 1);
+	options.set_value(option_ID, state, OPTION_PRIORITY_SWITCHRES);
 	osd_printf_verbose("SwitchRes: Setting option -%s%s\n", options.bool_value(option_ID)?"":"no", option_ID);
 }
 
