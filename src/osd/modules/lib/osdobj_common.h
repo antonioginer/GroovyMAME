@@ -87,6 +87,7 @@
 #define OSDOPTION_BGFX_LUT              "bgfx_lut"
 #define OSDOPTION_BGFX_AVI_NAME         "bgfx_avi_name"
 
+#define OSDOPTION_SWITCHRES_INI         "switchres_ini"
 #define OSDOPTION_SWITCHRES_BACKEND     "switchres_backend"
 #define OSDOPTION_MODE_SETTING          "modesetting"
 #define OSDOPTION_MODELINE_GENERATION   "modeline_generation"
@@ -159,6 +160,7 @@ public:
 
 	// full screen options
 	bool switch_res() const { return bool_value(OSDOPTION_SWITCHRES); }
+	bool switchres_ini() const { return bool_value(OSDOPTION_SWITCHRES_INI); }
 	const char *switchres_backend() const { return value(OSDOPTION_SWITCHRES_BACKEND); }
 	bool mode_setting() const { return bool_value(OSDOPTION_MODE_SETTING); }
 	bool modeline_generation() const { return bool_value(OSDOPTION_MODELINE_GENERATION); }
