@@ -745,7 +745,10 @@ void win_window_info::create(running_machine &machine, int index, std::shared_pt
 
 	// add they switchres display manager
 	if (window->m_fullscreen_safe && downcast<windows_options &>(machine.options()).switch_res())
-		window->m_display_manager = WINOSD(machine)->switchres()->add_display(index, monitor.get(), window->target(), &window->m_win_config);
+	{
+		window->m_display_manager = WINOSD(machine)->switchres()->add_display(index, monitor.get(), &window->m_win_config);
+		if (window->m_display_manager) WINOSD(machine)->switchres()->init_display(index, monitor.get(), &window->m_win_config, window->target(), nullptr);
+	}
 
 	// set the initial maximized state
 	window->m_startmaximized = downcast<windows_options &>(machine.options()).maximize();
