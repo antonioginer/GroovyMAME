@@ -100,7 +100,7 @@ void switchres_module::exit()
 //  switchres_module::add_display
 //============================================================
 
-display_manager* switchres_module::add_display(int index, osd_monitor_info *monitor, render_target *target, osd_window_config *config)
+display_manager* switchres_module::add_display(int index, osd_monitor_info *monitor, osd_window_config *config)
 {
 	#if defined(OSD_WINDOWS)
 		windows_options &options = downcast<windows_options &>(machine().options());
@@ -190,20 +190,47 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	// Parse options now
 	display->parse_options();
 
-	// Initialize the display manager
-	display->init();
-	display->set_monitor_aspect(display->desktop_is_rotated()? 1.0f / monitor->aspect() : monitor->aspect());
+	m_num_screens ++;
+	return display;
+}
 
+//============================================================
+//  switchres_module::init_display
+//============================================================
+
+bool switchres_module::init_display(int index, osd_monitor_info *monitor, osd_window_config *config, render_target *target, void* pf_data)
+{
+	display_manager *display = switchres().display(index);
+
+	if (!display)
+		return false;
+
+	// Initialize the display manager
+	if (!display->init(pf_data))
+		return false;
+
+	display->set_monitor_aspect(display->desktop_is_rotated()? 1.0f / monitor->aspect() : monitor->aspect());
 	get_game_info(display, target);
 
 	osd_printf_verbose("Switchres: get_mode(%d) %d %d %f %f\n", index, width(index), height(index), refresh(index), display->monitor_aspect());
 	display->get_mode(width(index), height(index), refresh(index), 0);
 	if (display->got_mode()) set_mode(index, monitor, target, config);
 
-	m_num_screens ++;
-	return display;
+	return true;
 }
 
+//============================================================
+//  switchres_module::delete_display
+//============================================================
+
+void switchres_module::delete_display(int index)
+{
+	if (switchres().displays[index])
+	{
+		delete switchres().displays[index];
+		switchres().displays[index] = nullptr;
+	}
+}
 
 //============================================================
 //  switchres_module::get_game_info
