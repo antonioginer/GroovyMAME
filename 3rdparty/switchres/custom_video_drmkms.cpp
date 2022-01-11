@@ -319,6 +319,12 @@ drmkms_timing::~drmkms_timing()
 		if (!--s_shared_count[m_card_id])
 			close(m_drm_fd);
 	}
+
+	// Reset static data
+	static_id = 0;
+	memset(s_shared_fd, 0, sizeof(s_shared_fd));
+	memset(s_shared_count, 0, sizeof(s_shared_count));
+	memset(s_shared_conn, 0, sizeof(s_shared_conn));
 }
 
 //============================================================
