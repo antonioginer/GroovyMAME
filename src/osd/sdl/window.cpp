@@ -469,6 +469,12 @@ void sdl_window_info::complete_destroy()
 		SDL_SetWindowFullscreen(platform_window(), SDL_WINDOW_FULLSCREEN);    // Try to set mode
 	}
 
+	if (m_display_manager)
+	{
+		downcast<sdl_osd_interface&>(machine().osd()).switchres()->delete_display(index());
+		m_display_manager = nullptr;
+	}
+
 	SDL_DestroyWindow(platform_window());
 	// release all keys ...
 	downcast<sdl_osd_interface &>(machine().osd()).release_keys();
@@ -799,7 +805,8 @@ int sdl_window_info::complete_create()
 		m_original_mode->mode = mode;
 
 		// add the switchres display manager
-		m_display_manager = downcast<sdl_osd_interface&>(machine().osd()).switchres()->add_display(index(), monitor(), target(), &m_win_config);
+		m_display_manager = downcast<sdl_osd_interface&>(machine().osd()).switchres()->add_display(index(), monitor(), &m_win_config);
+		downcast <sdl_osd_interface&>(machine().osd()).switchres()->init_display(index(), monitor(), &m_win_config, target(), sdlwindow);
 		temp = osd_dim(m_win_config.width, m_win_config.height);
 
 		if (!mode_setting)
