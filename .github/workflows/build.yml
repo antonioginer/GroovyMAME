@@ -111,10 +111,27 @@ jobs:
         name: binaries-linux-gcc
         path: build/release/x64/Release/mame/groovymame*.tar.bz2
 
+  make_patch:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Generate patch
+      run: |
+        tag="${GITHUB_REF#refs/*/}"
+        mamev="${tag:3:3}"
+        git diff mame0${mamev}..HEAD > GroovyMAME${mamev}.patch
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: GroovyMAME-patch
+        path: GroovyMAME*.patch
+
   release:
     runs-on: ubuntu-latest
     #needs: [mingw-windows-build, msys-windows-build, linux-build]
-    needs: [msys-windows-build, linux-build]
+    needs: [msys-windows-build, linux-build, make_patch]
     steps:
       - name: Prepare data
         id: prepare_data
@@ -145,4 +162,5 @@ jobs:
           files: |
             ./binaries-win32-msys/groovymame_*.7z
             ./binaries-linux-gcc/groovymame_*.tar.bz2
+            ./GroovyMAME-patch/GroovyMAME*.patch
 #            ./binaries-win32-mingw/groovymame-mingw-win32-64bits.7z
