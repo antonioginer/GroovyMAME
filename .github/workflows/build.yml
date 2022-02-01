@@ -53,7 +53,10 @@ jobs:
       uses: msys2/setup-msys2@v2
       with:
         update: true
-        install: git make mingw-w64-x86_64-gcc mingw-w64-x86_64-python mingw-w64-x86_64-lld mingw-w64-x86_64-libc++ p7zip
+        install: |
+              git make mingw-w64-x86_64-gcc mingw-w64-x86_64-python mingw-w64-x86_64-lld mingw-w64-x86_64-libc++ p7zip
+              mingw-w64-x86_64-librsvg mingw-w64-x86_64-python-sphinx mingw-w64-x86_64-python-sphinxcontrib-svg2pdfconverter
+              mingw-w64-x86_64-texlive-fonts-recommended mingw-w64-x86_64-texlive-latex-extra
     - uses: actions/checkout@v2
     - name: Build GroovyMAME
       run: |
@@ -92,6 +95,8 @@ jobs:
       run: |
         sudo apt update
         sudo apt-get install git build-essential python libsdl2-dev libsdl2-ttf-dev libfontconfig-dev libdrm-dev qt5-default p7zip
+        sudo apt-get install -y librsvg2-bin latexmk python3-pip python3-sphinx texlive texlive-formats-extra texlive-science
+        pip3 install sphinxcontrib-svg2pdfconverter
     - name: Build GroovyMAME
       run: |
         make -j$(nproc) TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=0 SYMLEVEL=1 REGENIE=1
