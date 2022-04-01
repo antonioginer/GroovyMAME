@@ -229,7 +229,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		t_mode->vfreq = vfreq_real;
 
 		// Get total vertical lines
-		vvt_ini = total_lines_for_yres(t_mode->vactive, t_mode->vfreq, range, borders, scan_factor) + (interlace == 2?0.5:0);
+		vvt_ini = total_lines_for_yres(t_mode->vactive, t_mode->vfreq, range, borders, scan_factor) + (!cs->interlace_force_even && interlace == 2?0.5:0);
 
 		// Calculate horizontal frequency
 		t_mode->hfreq = t_mode->vfreq * vvt_ini;
@@ -258,7 +258,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 
 		// Vertical blanking
 		t_mode->vtotal = vvt_ini * scan_factor;
-		vblank_lines = int(t_mode->hfreq * (range->vertical_blank + borders)) + (interlace == 2?0.5:0);
+		vblank_lines = int(t_mode->hfreq * (range->vertical_blank + borders)) + (!cs->interlace_force_even && interlace == 2?0.5:0);
 		margin = (t_mode->vtotal - t_mode->vactive - vblank_lines * scan_factor) / (cs->v_shift_correct? 1 : 2);
 
 		t_mode->vbegin = t_mode->vactive + max(round_near(t_mode->hfreq * range->vfront_porch * scan_factor + margin), 1);
@@ -277,7 +277,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		{
 			t_mode->vbegin = (t_mode->vbegin / 2) * 2;
 			t_mode->vend = (t_mode->vend / 2) * 2;
-			t_mode->vtotal++;
+			t_mode->vtotal = (t_mode->vtotal / 2) * 2;
 		}
 	}
 

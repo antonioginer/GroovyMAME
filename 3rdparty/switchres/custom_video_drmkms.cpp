@@ -57,31 +57,29 @@
 //  shared the privileges of the master fd
 //============================================================
 
-/*
- * If 2 displays use the same GPU but a different connector, let's share the
- * FD indexed on the card ID
- */
+// If 2 displays use the same GPU but a different connector, let's share the
+// FD indexed on the card ID
+
 static int s_shared_fd[MAX_CARD_ID] = {};
-/*
- * The active shares on a fd, per card id
- */
+
+// The active shares on a fd, per card id
+
 static int s_shared_count[MAX_CARD_ID] = {};
-/*
- * What we're missing here, is also a list of the connector ids associated with
- * the screen number, otherwise SR will try to use (again) the first connector
- * that has an monitor plugged to it
- */
+
+// What we're missing here, is also a list of the connector ids associated with
+// the screen number, otherwise SR will try to use (again) the first connector
+// that has an monitor plugged to it
+
 static unsigned int s_shared_conn[MAX_CARD_ID] = {};
 
 //============================================================
 //  id for class object (static)
 //============================================================
 
-/*
- * This helps to trace counts of active displays accross vaious instances
- * ++'ed at constructor, --'ed at destructor
- * m_id will use the ++-ed value
- */
+// This helps to trace counts of active displays accross vaious instances
+// ++'ed at constructor, --'ed at destructor
+// m_id will use the ++-ed value
+
 static int static_id = 0;
 
 //============================================================
@@ -136,12 +134,13 @@ const char *get_connector_name(int mode)
 //============================================================
 //  Check if a connector is not used on a previous display
 //============================================================
+
 bool connector_already_used(unsigned int conn_id)
 {
 	// Don't remap to an already used connector
 	for (int c = 1 ; c < static_id ; c++)
 	{
-		if ( s_shared_conn[c] == conn_id )
+		if (s_shared_conn[c] == conn_id)
 			return true;
 	}
 	return false;
@@ -150,7 +149,12 @@ bool connector_already_used(unsigned int conn_id)
 //============================================================
 //  Convert a SR modeline to a DRM modeline
 //============================================================
-void modeline_to_drm_modeline(int id, modeline *mode, drmModeModeInfo *drmmode) {
+
+void modeline_to_drm_modeline(int id, modeline *mode, drmModeModeInfo *drmmode)
+{
+	// Clear struct
+	memset(drmmode, 0, sizeof(drmModeModeInfo));
+
 	// Create specific mode name
 	snprintf(drmmode->name, 32, "SR-%d_%dx%d@%.02f%s", id, mode->hactive, mode->vactive, mode->vfreq, mode->interlace ? "i" : "");
 	drmmode->clock       = mode->pclock / 1000;
@@ -168,16 +172,14 @@ void modeline_to_drm_modeline(int id, modeline *mode, drmModeModeInfo *drmmode) 
 	drmmode->vscan       = 0;
 
 	drmmode->vrefresh    = mode->refresh;  // Used only for human readable output
-
-	drmmode->type        = DRM_MODE_TYPE_USERDEF;  //DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-
-	drmmode->type       |= CUSTOM_VIDEO_TIMING_DRMKMS;
 }
 
 //============================================================
-//  test_kernel_user_modes
+//  drmkms_timing::test_kernel_user_modes
 //============================================================
-bool drmkms_timing::test_kernel_user_modes() {
+
+bool drmkms_timing::test_kernel_user_modes()
+{
 	int ret = 0, first_modes_count = 0, second_modes_count = 0;
 	int fd;
 	drmModeModeInfo mode = {};
@@ -186,17 +188,15 @@ bool drmkms_timing::test_kernel_user_modes() {
 
 	// Make sure we are master, that is required for the IOCTL
 	fd = get_master_fd();
-	if( fd < 0 )
+	if (fd < 0)
 	{
 		log_verbose("DRM/KMS: <%d> (%s) Need master to test kernel user modes\n", m_id, __FUNCTION__);
 		return false;
 	}
 
-	/*
-	 * Create a dummy modeline with a pixel clock higher than 25MHz to avoid
-	 * drivers checks rejecting the mode. This is 320x240@60
-	 * with min dotclock at 25.0MHz
-	 */
+	// Create a dummy modeline with a pixel clock higher than 25MHz to avoid
+	// drivers checks rejecting the mode. This is 320x240@60
+	// with min dotclock at 25.0MHz
 	strcpy(mode.name, my_name);
 	mode.clock       = 26027;
 	mode.hdisplay    = 1280;
@@ -209,20 +209,16 @@ bool drmkms_timing::test_kernel_user_modes() {
 	mode.vtotal      = 261;
 	mode.flags       = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC;
 
-	/*
-	 * Count the number of existing modes, so it should be +1 when attaching
-	 * a new mode. Could also check the mode name, still better
-	 */
-	conn = drmModeGetConnectorCurrent(fd, m_desktop_output);
+	// Count the number of existing modes, so it should be +1 when attaching
+	// a new mode. Could also check the mode name, still better
+	conn = drmModeGetConnector(fd, m_desktop_output);
 	first_modes_count = conn->count_modes;
 	ret = drmModeAttachMode(fd, m_desktop_output, &mode);
 	drmModeFreeConnector(conn);
 
-	/*
-	 * This case can only happen if we're not drmMaster. If the kernel doesn't
-	 * support adding new modes, the IOCTL will still return 0, not an error
-	 */
-	if ( ret < 0 )
+	// This case can only happen if we're not drmMaster. If the kernel doesn't
+	// support adding new modes, the IOCTL will still return 0, not an error
+	if (ret < 0)
 	{
 		// Let's fail, no need to go further
 		log_verbose("DRM/KMS: <%d> (%s) Cannot add new kernel user mode\n", m_id, __FUNCTION__);
@@ -230,10 +226,8 @@ bool drmkms_timing::test_kernel_user_modes() {
 		return false;
 	}
 
-	/*
-	 * Not using drmModeGetConnectorCurrent here since we need to force a
-	 * modelist connector refresh, so the kernel will probe the connector
-	 */
+	// Not using drmModeGetConnectorCurrent here since we need to force a
+	// modelist connector refresh, so the kernel will probe the connector
 	conn = drmModeGetConnector(fd, m_desktop_output);
 	second_modes_count = conn->count_modes;
 	if (first_modes_count != second_modes_count)
@@ -241,7 +235,7 @@ bool drmkms_timing::test_kernel_user_modes() {
 		log_verbose("DRM/KMS: <%d> (%s) Kernel supports user modes (%d vs %d)\n", m_id, __FUNCTION__, first_modes_count, second_modes_count);
 		m_kernel_user_modes = true;
 		drmModeDetachMode(fd, m_desktop_output, &mode);
-		if ( fd != m_hook_fd )
+		if (fd != m_hook_fd)
 			drmDropMaster(fd);
 	}
 	else
@@ -285,11 +279,12 @@ drmkms_timing::~drmkms_timing()
 		drmModeConnector *conn;
 
 		fd = get_master_fd();
-		if ( fd >= 0 )
+		if (fd >= 0)
 		{
 			conn = drmModeGetConnectorCurrent(fd, m_desktop_output);
 			drmSetMaster(fd);
-			for (i = 0; i < conn->count_modes; i++) {
+			for (i = 0; i < conn->count_modes; i++)
+			{
 				drmModeModeInfo *mode = &conn->modes[i];
 				log_verbose("DRM/KMS: <%d> (%s) Checking kernel mode: %s\n", m_id, __FUNCTION__, mode->name);
 				ret = strncmp(mode->name, "SR-", 3);
@@ -299,10 +294,11 @@ drmkms_timing::~drmkms_timing()
 					drmModeDetachMode(fd, m_desktop_output, mode);
 				}
 			}
-			if( fd != m_hook_fd )
+			if (fd != m_hook_fd)
 				drmDropMaster(fd);
+
 			drmModeFreeConnector(conn);
-			if( fd != m_drm_fd and fd != m_hook_fd )
+			if (fd != m_drm_fd and fd != m_hook_fd)
 				close(fd);
 		}
 	}
@@ -542,7 +538,7 @@ bool drmkms_timing::init()
 	{
 		drm_name[13] = '0' + num;
 
-		if( !access( drm_name, F_OK ) == 0 )
+		if (!access(drm_name, F_OK) == 0)
 		{
 			log_error("DRM/KMS: <%d> (init) [ERROR] cannot open device %s\n", m_id, drm_name);
 			break;
@@ -579,7 +575,7 @@ bool drmkms_timing::init()
 				if (!strcmp(m_device_name, "auto") || !strcmp(m_device_name, connector_name) || output_position == screen_pos)
 				{
 					// In a multihead setup, skip already used connectors
-					if( connector_already_used(p_connector->connector_id) )
+					if (connector_already_used(p_connector->connector_id))
 					{
 						drmModeFreeConnector(p_connector);
 						continue;
@@ -619,11 +615,9 @@ bool drmkms_timing::init()
 		{
 			if (drmIsMaster(m_drm_fd))
 			{
-				/*
-				 * We've never called drmSetMaster before. This means we're the first app
-				 * opening the device, so the kernel sets us as master by default.
-				 * We drop master so other apps can become master
-				 */
+				 // We've never called drmSetMaster before. This means we're the first app
+				 // opening the device, so the kernel sets us as master by default.
+				 // We drop master so other apps can become master
 				log_verbose("DRM/KMS: <%d> (%s) Already DRM master\n", m_id, __FUNCTION__);
 				s_shared_fd[m_card_id] = m_drm_fd;
 				s_shared_count[m_card_id] = 1;
@@ -642,14 +636,13 @@ bool drmkms_timing::init()
 				{
 					log_verbose("DRM/KMS: <%d> (%s) looking for the DRM master\n", m_id, __FUNCTION__);
 					int fd = get_master_fd();
-					if ( fd >= 0 )
+					if (fd >= 0)
 					{
 						close(m_drm_fd);
-						/*
-						 * This statement is dangerous, as drmIsMaster can return 1
-						 * on m_drm_fd if there is no master left, but it doesn't
-						 * check if m_drm_fd is a valid fd
-						 */
+						 // This statement is dangerous, as drmIsMaster can return 1
+						 // on m_drm_fd if there is no master left, but it doesn't
+						 // check if m_drm_fd is a valid fd
+
 						m_drm_fd = fd;
 						s_shared_fd[m_card_id] = m_drm_fd;
 						// start at 2 to disable closing the fd
@@ -675,7 +668,7 @@ bool drmkms_timing::init()
 	// Check if the kernel handles user modes
 	test_kernel_user_modes();
 
-	if ( drmIsMaster(m_drm_fd) and m_drm_fd != m_hook_fd )
+	if (drmIsMaster(m_drm_fd) and m_drm_fd != m_hook_fd)
 		drmDropMaster(m_drm_fd);
 
 	return true;
@@ -684,18 +677,17 @@ bool drmkms_timing::init()
 //============================================================
 //  drmkms_timing::get_master_fd
 //============================================================
-/*
- * BACKGROUND
- * This is written as of Linux 5.14, 5.15 is just out, not yet tested.
- * There are a few unexpected behaviours so far in DRM:
- *   - drmSetMaster seems to always return -1 on 5.4, but ok on 5.14
- *   - drmIsMaster doesn't care if the FD exists and will always return 1
- *     if the there is no master on the DRI device
- * That's why we can't trust drmIsMaster if we didn't make sure before that
- * the FD does exist.
- * get_master_fd will always return a valid master FD, or return -1 if it's
- * impossible
- */
+// BACKGROUND
+// This is written as of Linux 5.14, 5.15 is just out, not yet tested.
+// There are a few unexpected behaviours so far in DRM:
+//   - drmSetMaster seems to always return -1 on 5.4, but ok on 5.14
+//   - drmIsMaster doesn't care if the FD exists and will always return 1
+//     if the there is no master on the DRI device
+// That's why we can't trust drmIsMaster if we didn't make sure before that
+// the FD does exist.
+// get_master_fd will always return a valid master FD, or return -1 if it's
+// impossible
+
 int drmkms_timing::get_master_fd()
 {
 	unsigned char path_length= 15;
@@ -707,23 +699,23 @@ int drmkms_timing::get_master_fd()
 	int fd;
 
 	// CASE 1: m_drm_fd is a valid FD
-	if ( fstat(m_drm_fd, &st) == 0 )
+	if (fstat(m_drm_fd, &st) == 0)
 	{
-		if( drmIsMaster(m_drm_fd) )
+		if (drmIsMaster(m_drm_fd))
 			return m_drm_fd;
-		if ( drmSetMaster(m_drm_fd) == 0 )
+		if (drmSetMaster(m_drm_fd) == 0)
 			return m_drm_fd;
 	}
 
 	// CASE 2: m_drm_fd can't be master, find the master FD
-	if(m_card_id > MAX_CARD_ID - 1 or m_card_id < 0)
+	if (m_card_id > MAX_CARD_ID - 1 or m_card_id < 0)
 	{
 		log_error("DRM/KMS: <%d> (%s) [ERROR] card id (%d) out of bounds (0 to %d)\n", m_id, __FUNCTION__, m_card_id, MAX_CARD_ID - 1);
 		return -1;
 	}
 
 	snprintf(dev_path, path_length, "/dev/dri/card%d", m_card_id);
-	if( !access( dev_path, F_OK ) == 0 )
+	if (!access(dev_path, F_OK) == 0)
 	{
 		log_error("DRM/KMS: <%d> (%s) [ERROR] Device %s doesn't exist\n", m_id, __FUNCTION__, dev_path);
 		return -1;
@@ -733,23 +725,24 @@ int drmkms_timing::get_master_fd()
 	auto dir = opendir(procpath);
 	if (!dir)
 		return -1;
-	while (auto f = readdir(dir)) {
+	while (auto f = readdir(dir))
+	{
 		// Skip everything that starts with a dot
 		if (!f->d_name || f->d_name[0] == '.')
 			continue;
 		// Only symlinks matter
-		if ( f-> d_type != DT_LNK )
+		if (f-> d_type != DT_LNK)
 			continue;
 
 		//log_verbose("File: %s\n", f->d_name);
 		sprintf(fullpath, "%s/%s", procpath, f->d_name);
-		if ( stat(fullpath, &st) )
+		if (stat(fullpath, &st))
 			continue;
-		if ( !S_ISCHR(st.st_mode) )
+		if (!S_ISCHR(st.st_mode))
 			continue;
 		actualpath = realpath(fullpath, NULL);
 		// Only check the device we expect
-		if ( strncmp(dev_path, actualpath, path_length) != 0)
+		if (strncmp(dev_path, actualpath, path_length) != 0)
 		{
 			free(actualpath);
 			continue;
@@ -758,7 +751,7 @@ int drmkms_timing::get_master_fd()
 		//log_verbose("File: %s -> %s %d\n", fullpath, actualpath, fd);
 		free(actualpath);
 
-		if ( drmIsMaster(fd) )
+		if (drmIsMaster(fd))
 		{
 			log_verbose("DRM/KMS: <%d> (%s) DRM hook created on FD %d\n", m_id, __FUNCTION__, fd);
 			closedir(dir);
@@ -776,7 +769,7 @@ int drmkms_timing::get_master_fd()
 	m_hook_fd = -1;
 
 	fd = open(dev_path, O_RDWR | O_CLOEXEC);
-	if ( fd < 0 )
+	if (fd < 0)
 	{
 		// Oh, we're totally screwed here, worst possible scenario
 		log_error("DRM/KMS: <%d> (%s) Can't open /dev/dri/card%d, can't get master rights\n", m_id, __FUNCTION__, m_card_id);
@@ -784,7 +777,7 @@ int drmkms_timing::get_master_fd()
 	}
 
 	// Hardly any chance we reach here. I don't even know when to close the FD ...
-	if ( drmIsMaster(fd) or drmSetMaster(fd) == 0 )
+	if (drmIsMaster(fd) or drmSetMaster(fd) == 0)
 		return fd;
 
 	// There is definitely no way we get master ...
@@ -854,9 +847,8 @@ bool drmkms_timing::add_mode(modeline *mode)
 		drmModeModeInfo drmmode;
 
 		if (!drmIsMaster(fd))
-		{
 			fd = get_master_fd();
-		}
+
 		if (!drmIsMaster(fd))
 		{
 			log_error("DRM/KMS: <%d> (%s) Need master to add a kernel mode (%d)\n", m_id, __FUNCTION__, ret);
@@ -864,23 +856,23 @@ bool drmkms_timing::add_mode(modeline *mode)
 		}
 
 		modeline_to_drm_modeline(m_id, mode, &drmmode);
+		drmmode.type = DRM_MODE_TYPE_USERDEF;
+
 		log_verbose("DRM/KMS: <%d> (add_mode) [DEBUG] Adding a mode to the kernel: %dx%d %s\n", m_id, drmmode.hdisplay, drmmode.vdisplay, drmmode.name);
 		// Calling drmModeGetConnector forces a refresh of the connector modes, which is slow, so don't do it
 		ret = drmModeAttachMode(fd, m_desktop_output, &drmmode);
 		if (ret != 0)
 		{
-			/*
-			   This case hardly has any chance to happen, since at this point
-			   we are drmMaster, and we have already checked that the kernel
-			   supports user modes. If any error, it's on the kernel side
-			*/
+			// This case hardly has any chance to happen, since at this point
+			// we are drmMaster, and we have already checked that the kernel
+			// supports user modes. If any error, it's on the kernel side
 			log_verbose("DRM/KMS: <%d> (%s) Couldn't add mode (ret=%d)\n", m_id, __FUNCTION__, ret);
-			if( fd != m_hook_fd )
+			if (fd != m_hook_fd)
 				drmDropMaster(fd);
 			return false;
 		}
 		log_verbose("DRM/KMS: <%d> (%s) Mode added\n", m_id, __FUNCTION__);
-		if( fd != m_hook_fd )
+		if (fd != m_hook_fd)
 			drmDropMaster(fd);
 	}
 
@@ -903,7 +895,7 @@ bool drmkms_timing::set_timing(modeline *mode)
 		return false;
 	}
 
-	if( ! kms_has_mode(mode) )
+	if (!kms_has_mode(mode))
 		add_mode(mode);
 
 	// If we can't be master, no need to go further
@@ -1033,7 +1025,7 @@ bool drmkms_timing::set_timing(modeline *mode)
 			m_framebuffer_id = framebuffer_id;
 		}
 	}
-	if ( can_drop_master )
+	if (can_drop_master)
 		drmDropMaster(m_drm_fd);
 
 	return true;
@@ -1055,14 +1047,14 @@ bool drmkms_timing::delete_mode(modeline *mode)
 		return false;
 	}
 
-	if(m_kernel_user_modes)
+	if (m_kernel_user_modes)
 	{
 		int i = 0, ret = 0, fd = -1;
 		drmModeConnector *conn;
 
 		// If SR was initilized before SDL2 for instance, SR lost the DRM
 		fd = get_master_fd();
-		if ( fd < 0 )
+		if (fd < 0)
 		{
 			log_verbose("DRM/KMS: <%d> (%s) Need master to remove kernel user modes\n", m_id, __FUNCTION__);
 			return false;
@@ -1078,7 +1070,7 @@ bool drmkms_timing::delete_mode(modeline *mode)
 			if (ret != 0)
 				continue;
 			ret = drmModeDetachMode(fd, m_desktop_output, drmmode);
-			if ( fd != m_hook_fd )
+			if (fd != m_hook_fd)
 				drmDropMaster(m_drm_fd);
 			drmModeFreeConnector(conn);
 			if (ret != 0)
@@ -1139,7 +1131,9 @@ bool drmkms_timing::get_timing(modeline *mode)
 
 				mode->hfreq         = mode->pclock / mode->htotal;
 				mode->vfreq         = mode->hfreq / mode->vtotal * (mode->interlace ? 2 : 1);
-				mode->refresh       = mode->vfreq;
+
+				// Store drm's integer refresh to make sure we use the same rounding
+				mode->refresh       = pdmode->vrefresh;
 
 				mode->width         = pdmode->hdisplay;
 				mode->height        = pdmode->vdisplay;
@@ -1220,18 +1214,23 @@ void drmkms_timing::list_drm_modes()
 //============================================================
 //  drmkms_timing::kms_has_mode
 //============================================================
+
 bool drmkms_timing::kms_has_mode(modeline* mode)
 {
 	int i = 0;
 	drmModeConnector *conn;
 	drmModeModeInfo drmmode;
 
+	// To avoid matching issues, we just compare the relevant timing fields
+	int size_to_compare = sizeof(drmModeModeInfo) - sizeof(drmModeModeInfo::type) - sizeof(drmModeModeInfo::name);
+
 	modeline_to_drm_modeline(m_id,  mode, &drmmode);
 
 	conn = drmModeGetConnectorCurrent(m_drm_fd, m_desktop_output);
 	for (i = 0; i < conn->count_modes; i++)
 	{
-		if ( memcmp(&drmmode, &conn->modes[i], sizeof(drmModeModeInfo)) == 0 ) {
+		if (memcmp(&drmmode, &conn->modes[i], size_to_compare) == 0)
+		{
 			log_verbose("DRM/KMS: <%d> (%s) Found the mode in the connector\n", m_id, __FUNCTION__);
 			drmModeFreeConnector(conn);
 			return true;
