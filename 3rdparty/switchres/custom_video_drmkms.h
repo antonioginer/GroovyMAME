@@ -26,7 +26,8 @@ class drmkms_timing : public custom_video
 		drmkms_timing(char *device_name, custom_video_settings *vs);
 		~drmkms_timing();
 		const char *api_name() { return "DRMKMS"; }
-		int caps() { return CUSTOM_VIDEO_CAPS_ADD; }
+		//int caps() { return CUSTOM_VIDEO_CAPS_ADD | CUSTOM_VIDEO_CAPS_UPDATE; }
+		int caps() { return m_caps; }
 		bool init();
 
 		bool add_mode(modeline *mode);
@@ -50,6 +51,7 @@ class drmkms_timing : public custom_video
 		bool m_kernel_user_modes = false;
 		bool can_drop_master = true;
 		int m_hook_fd = -1;
+		int m_caps = 0;
 
 		char m_device_name[32];
 		unsigned int m_desktop_output = 0;

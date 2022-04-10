@@ -200,8 +200,8 @@ bool sdl2_display::set_mode(modeline *mode)
 {
 	// Call SDL2
 	SDL_DisplayMode target, closest;
-	target.w = mode->hactive;
-	target.h = mode->vactive;
+	target.w = mode->width;
+	target.h = mode->height;
 	target.format = 0;  // don't care
 	target.refresh_rate = mode->refresh;
 
@@ -279,7 +279,7 @@ int sdl2_display::get_available_video_modes()
 
 		// get next mode
 		video()->get_timing(&mode);
-		if (mode.type == 0 || mode.platform_data == 0)
+		if (mode.type == 0)
 			break;
 
 		// set the desktop mode
