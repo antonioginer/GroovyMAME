@@ -816,7 +816,9 @@ bool drmkms_timing::update_mode(modeline *mode)
 			drmModeModeInfo *drmmode = &conn->modes[i];
 			if ((int)mode->platform_data == i)
 			{
+				int m_type = drmmode->type;
 				modeline_to_drm_modeline(m_id, mode, drmmode);
+				drmmode->type = m_type;
 				return true;
 			}
 		}
