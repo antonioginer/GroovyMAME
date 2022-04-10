@@ -186,10 +186,11 @@ bool hook_connector(drmModeConnectorPtr conn)
 	if (!found)
 		mode = &my_modes[0];
 
-	// Add dummy mode to mode list (preferred mode with vfresh +1)
+	// Add dummy mode to mode list (preferred mode with hdisplay +1, vfresh +1)
 	drmModeModeInfo *dummy_mode = &my_modes[my_conn->count_modes];
 	*dummy_mode = *mode;
 	dummy_mode->vrefresh++;
+	dummy_mode->hdisplay++;
 	dummy_mode->type |= (1<<7);
 	my_conn->count_modes++;
 
