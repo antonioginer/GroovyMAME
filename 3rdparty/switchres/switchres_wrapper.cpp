@@ -69,8 +69,8 @@ MODULE_API void sr_set_user_mode(int width, int height, int refresh) {
 
 void disp_best_mode_to_sr_mode(display_manager* disp, sr_mode* srm)
 {
-	srm->width = disp->width();
-	srm->height = disp->height();
+	srm->width = disp->best_mode()->hactive;
+	srm->height = disp->best_mode()->vactive;
 	srm->refresh = disp->v_freq();
 	srm->is_refresh_off = (disp->is_refresh_off() ? 1 : 0);
 	srm->is_stretched = (disp->is_stretched() ? 1 : 0);
