@@ -3,6 +3,7 @@ PLATFORM := $(shell uname)
 MAIN = switchres_main
 STANDALONE = switchres
 TARGET_LIB = libswitchres
+DRMHOOK_LIB = libdrmhook
 GRID = grid
 SRC = monitor.cpp modeline.cpp switchres.cpp display.cpp custom_video.cpp log.cpp switchres_wrapper.cpp edid.cpp
 OBJS = $(SRC:.cpp=.o)
@@ -111,6 +112,9 @@ $(TARGET_LIB): $(OBJS)
 	$(FINAL_CXX) $(LDFLAGS) $(CPPFLAGS) -o $@.$(DYNAMIC_LIB_EXT) $^
 	$(FINAL_CXX) -c $(CPPFLAGS) -DSR_WIN32_STATIC switchres_wrapper.cpp -o switchres_wrapper.o
 	$(FINAL_AR) rcs $@.$(STATIC_LIB_EXT) $(^)
+
+$(DRMHOOK_LIB):
+	$(FINAL_CXX) drm_hook.cpp -shared -ldl -fPIC -I/usr/include/libdrm  -o libdrmhook.so
 
 $(GRID):
 	$(FINAL_CXX) grid.cpp -lSDL2 -o grid
