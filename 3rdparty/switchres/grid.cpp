@@ -177,6 +177,7 @@ int main(int argc, char **argv)
 
 		// Create renderer
 		display_array[disp].renderer = SDL_CreateRenderer(display_array[disp].window, -1, SDL_RENDERER_ACCELERATED);
+		SDL_RenderPresent(display_array[disp].renderer);
 
 		// Draw grid
 		draw_grid(0, display_array[disp].width, display_array[disp].height, display_array[disp].renderer);
