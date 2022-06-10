@@ -92,13 +92,13 @@ sdl2_display::sdl2_display(display_settings *ds)
 	else
 	{
 		log_verbose("Switchres/SDL2: (%s): SDL2 video wasn't initialized\n", __FUNCTION__);
-		throw new std::exception();
+		throw std::exception();
 	}
 	// For now, only allow the SDL2 display manager for the KMSDRM backend
 	if ( strcmp("KMSDRM", SDL_GetCurrentVideoDriver()) != 0 )
 	{
 		log_info("Switchres/SDL2: (%s): SDL2 is only available for KMSDRM for now.\n", __FUNCTION__);
-		throw new std::exception();
+		throw std::exception();
 	}
 
 	// Get display settings
