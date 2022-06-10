@@ -735,7 +735,7 @@ int drmkms_timing::get_master_fd()
 	while (auto f = readdir(dir))
 	{
 		// Skip everything that starts with a dot
-		if (!f->d_name || f->d_name[0] == '.')
+		if (f->d_name[0] == '.')
 			continue;
 		// Only symlinks matter
 		if (f-> d_type != DT_LNK)
@@ -912,7 +912,7 @@ bool drmkms_timing::set_timing(modeline *mode)
 	// If we can't be master, no need to go further
 	drmSetMaster(m_drm_fd);
 	if (!drmIsMaster(m_drm_fd))
-		return true;
+		return false;
 
 	// Setup the DRM mode structure
 	drmModeModeInfo dmode = {};
@@ -939,7 +939,7 @@ bool drmkms_timing::set_timing(modeline *mode)
 
 	mode->type |= CUSTOM_VIDEO_TIMING_DRMKMS;
 
-	if (mode->platform_data == 4815162342)
+	if (mode->type & MODE_DESKTOP)
 	{
 		log_verbose("DRM/KMS: <%d> (set_timing) <debug> restore desktop mode\n", m_id);
 		drmModeSetCrtc(m_drm_fd, mp_crtc_desktop->crtc_id, mp_crtc_desktop->buffer_id, mp_crtc_desktop->x, mp_crtc_desktop->y, &m_desktop_output, 1, &mp_crtc_desktop->mode);
