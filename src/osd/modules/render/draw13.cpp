@@ -24,6 +24,13 @@
 
 #include "draw13.h"
 
+#ifdef SDLMAME_X11
+// DRM
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+#include <fcntl.h>
+#endif
+
 //============================================================
 //  DEBUGGING
 //============================================================
@@ -182,6 +189,12 @@ const copy_info_t renderer_sdl2::s_blit_info_default[] =
 
 copy_info_t* renderer_sdl2::s_blit_info[SDL_TEXFORMAT_LAST+1] = { nullptr };
 bool renderer_sdl2::s_blit_info_initialized = false;
+
+#ifdef SDLMAME_X11
+static int drm_open();
+static void drm_waitvblank(int crtc);
+static int fd = 0;
+#endif
 
 //============================================================
 //  INLINES
@@ -436,8 +449,19 @@ int renderer_sdl2::create()
 
 	auto win = assert_window();
 
+	bool renderer_vsync = true;
+#ifdef SDLMAME_X11
+	if (win->index() == 0 && video_config.syncrefresh && video_config.sync_mode != 0)
+	{
+		// Try to open DRM device
+		fd = drm_open();
+		if (fd != 0)
+			renderer_vsync = (video_config.sync_mode == 2 || video_config.sync_mode == 4)? true : false;
+	}
+#endif
+
 	if (video_config.waitvsync)
-		m_sdl_renderer = SDL_CreateRenderer(std::dynamic_pointer_cast<sdl_window_info>(win)->platform_window(), -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
+		m_sdl_renderer = SDL_CreateRenderer(std::dynamic_pointer_cast<sdl_window_info>(win)->platform_window(), -1, (renderer_vsync? SDL_RENDERER_PRESENTVSYNC : 0) | SDL_RENDERER_ACCELERATED);
 	else
 		m_sdl_renderer = SDL_CreateRenderer(std::dynamic_pointer_cast<sdl_window_info>(win)->platform_window(), -1, SDL_RENDERER_ACCELERATED);
 
@@ -461,6 +485,68 @@ int renderer_sdl2::create()
 	return 0;
 }
 
+#ifdef SDLMAME_X11
+//============================================================
+//  drm_open
+//============================================================
+
+static int drm_open()
+{
+	int fd = 0;
+	const char *node = {"/dev/dri/card0"};
+
+	fd = open(node, O_RDWR | O_CLOEXEC);
+	if (fd < 0)
+	{
+		fprintf(stderr, "cannot open %s\n", node);
+		return 0;
+	}
+	osd_printf_verbose("%s successfully opened\n", node);
+	return fd;
+}
+
+//============================================================
+//  drm_waitvblank
+//============================================================
+
+static void drm_waitvblank(int crtc)
+{
+
+	drmVBlank vbl;
+	memset(&vbl, 0, sizeof(vbl));
+	vbl.request.sequence = 1;
+
+	// handle vblank for all SR managed crtc
+	// this is a hack based on SDL reported screen index
+	// it won't work on multi-gpu
+	// TO DO: find a correct way to map screen to crtc
+
+	// single screen (default)
+	vbl.request.type = DRM_VBLANK_RELATIVE;
+
+	// two screens
+	if (crtc == 1) vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
+
+	// multi-screen
+	else if (crtc > 1)
+	{
+		static uint64_t caps;
+		static bool caps_checked = false;
+
+		if (!caps_checked)
+		{
+			caps_checked = true;
+			if (drmGetCap(fd, DRM_CAP_VBLANK_HIGH_CRTC, &caps))
+				osd_printf_error("A newer kernel is needed for vblank syncing on multi screen\n");
+		}
+		if (caps)
+			vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | ((crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
+	}
+
+	if (drmWaitVBlank(fd, &vbl) != 0)
+		osd_printf_verbose("drmWaitVBlank failed\n");
+}
+#endif
 
 //============================================================
 //  drawsdl_xy_to_render_target
@@ -595,10 +681,22 @@ int renderer_sdl2::draw(int update)
 
 	win->m_primlist->release_lock();
 
+#ifdef SDLMAME_X11
+	// wait for vertical retrace
+	if ((video_config.sync_mode == 3 || video_config.sync_mode == 4) && video_config.syncrefresh && fd)
+		drm_waitvblank(win->monitor()->oshandle());
+#endif
+
 	m_last_blit_pixels = blit_pixels;
 	m_last_blit_time = -osd_ticks();
 	SDL_RenderPresent(m_sdl_renderer);
 	m_last_blit_time += osd_ticks();
+
+#ifdef SDLMAME_X11
+	// wait for vertical retrace
+	if ((video_config.sync_mode == 1 || video_config.sync_mode == 2) && video_config.syncrefresh && fd)
+		drm_waitvblank(win->monitor()->oshandle());
+#endif
 
 	return 0;
 }
