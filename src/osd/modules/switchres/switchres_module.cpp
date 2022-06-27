@@ -359,7 +359,11 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 	if (options.autostretch())
 	{
 		bool is_super_resolution = !(display->is_stretched()) && (display->width() >= display->super_width());
-		bool force_aspect = (target->current_view().effective_aspect() != display->monitor_aspect());
+
+		bool target_is_rotated = (target->orientation() & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY? true : false;
+		float target_aspect = target->current_view().effective_aspect();
+		if (target_is_rotated) target_aspect = 1.0f / target_aspect;
+		bool force_aspect = (target_aspect != display->monitor_aspect());
 
 		set_option(OPTION_KEEPASPECT, force_aspect);
 		set_option(OPTION_UNEVENSTRETCH, display->is_stretched());
