@@ -363,6 +363,9 @@ private:
 	int32_t slider_beam_dot_size(screen_device &screen, std::string *str, int32_t newval);
 	int32_t slider_beam_intensity_weight(screen_device &screen, std::string *str, int32_t newval);
 	std::string slider_get_screen_desc(screen_device &screen);
+	int32_t slider_h_size(std::string *str, int32_t newval);
+	int32_t slider_h_shift(std::string *str, int32_t newval);
+	int32_t slider_v_shift(std::string *str, int32_t newval);
 #ifdef MAME_DEBUG
 	int32_t slider_crossscale(ioport_field &field, std::string *str, int32_t newval);
 	int32_t slider_crossoffset(ioport_field &field, std::string *str, int32_t newval);

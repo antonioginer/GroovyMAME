@@ -1594,6 +1594,11 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 		}
 	}
 
+	// add geometry sliders
+	slider_alloc(_("CRT H size"), 500, floor(downcast<osd_options &>(machine.options()).h_size() * 1000.0 + 0.5), 1500, 10, std::bind(&mame_ui_manager::slider_h_size, this, _1, _2));
+	slider_alloc(_("CRT H shift"), -64, downcast<osd_options &>(machine.options()).h_shift(), 64, 1, std::bind(&mame_ui_manager::slider_h_shift, this, _1, _2));
+	slider_alloc(_("CRT V shift"), -64, downcast<osd_options &>(machine.options()).h_shift(), 64, 1, std::bind(&mame_ui_manager::slider_v_shift, this, _1, _2));
+
 #ifdef MAME_DEBUG
 	// add crosshair adjusters
 	for (auto &port : machine.ioport().ports())
@@ -1668,6 +1673,51 @@ int32_t mame_ui_manager::slider_vsync_offset(std::string *str, int32_t newval)
 	return machine().video().vsync_offset();
 }
 
+//--------------------------------------------------
+//  slider_h_size - global h_size slider
+//  callback
+//--------------------------------------------------
+
+int32_t mame_ui_manager::slider_h_size(std::string *str, int32_t newval)
+{
+	if (newval != SLIDER_NOCHANGE)
+	{
+		float fval = (float)newval * 0.001f;
+		machine().options().set_value(OSDOPTION_H_SIZE, fval, OPTION_PRIORITY_CMDLINE);
+	}
+
+	if (str)
+		*str = string_format(_("%1.2f"), downcast<osd_options &>(machine().options()).h_size());
+	return floor(downcast<osd_options &>(machine().options()).h_size() * 1000.0 + 0.5);
+}
+
+//--------------------------------------------------
+//  slider_h_shift - global h_shift slider
+//  callback
+//--------------------------------------------------
+
+int32_t mame_ui_manager::slider_h_shift(std::string *str, int32_t newval)
+{
+	if (newval != SLIDER_NOCHANGE)
+		machine().options().set_value(OSDOPTION_H_SHIFT, newval, OPTION_PRIORITY_CMDLINE);
+	if (str)
+		*str = string_format(_("%1$3d"), downcast<osd_options &>(machine().options()).h_shift());
+	return downcast<osd_options &>(machine().options()).h_shift();
+}
+
+//--------------------------------------------------
+//  slider_v_shift - global v_shift slider
+//  callback
+//--------------------------------------------------
+
+int32_t mame_ui_manager::slider_v_shift(std::string *str, int32_t newval)
+{
+	if (newval != SLIDER_NOCHANGE)
+		machine().options().set_value(OSDOPTION_V_SHIFT, newval, OPTION_PRIORITY_CMDLINE);
+	if (str)
+		*str = string_format(_("%1$3d"), downcast<osd_options &>(machine().options()).v_shift());
+	return downcast<osd_options &>(machine().options()).v_shift();
+}
 
 //-------------------------------------------------
 //  slider_mixervol - single channel volume
