@@ -49,7 +49,9 @@ public:
 	void get_game_info(display_manager* display, render_target *target);
 	bool effective_orientation(display_manager* display, render_target *target);
 	bool check_resolution_change(int i, osd_monitor_info *monitor, render_target *target, osd_window_config *config);
+	bool check_geometry_change(int i);
 	bool set_mode(int i, osd_monitor_info *monitor, render_target *target, osd_window_config *config);
+	bool adjust_mode(int i);
 	void set_options(display_manager* display, render_target *target);
 	void set_option(const char *option_ID, bool state);
 	const char* display_mode_to_txt(int i);
