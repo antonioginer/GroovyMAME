@@ -100,6 +100,9 @@
 #define OSDOPTION_LOCK_UNSUPPORTED_MODES "lock_unsupported_modes"
 #define OSDOPTION_REFRESH_DONT_CARE     "refresh_dont_care"
 #define OSDOPTION_DOTCLOCK_MIN          "dotclock_min"
+#define OSDOPTION_H_SIZE                "h_size"
+#define OSDOPTION_H_SHIFT               "h_shift"
+#define OSDOPTION_V_SHIFT               "v_shift"
 #define OSDOPTION_V_SHIFT_CORRECT       "v_shift_correct"
 #define OSDOPTION_PIXEL_PRECISION       "pixel_precision"
 #define OSDOPTION_SYNC_REFRESH_TOLERANCE "sync_refresh_tolerance"
@@ -173,6 +176,9 @@ public:
 	bool lock_unsupported_modes() const { return bool_value(OSDOPTION_LOCK_UNSUPPORTED_MODES); }
 	bool refresh_dont_care() const { return bool_value(OSDOPTION_REFRESH_DONT_CARE); }
 	float dotclock_min() const { return float_value(OSDOPTION_DOTCLOCK_MIN); }
+	float h_size() const { return float_value(OSDOPTION_H_SIZE); }
+	int h_shift() const { return int_value(OSDOPTION_H_SHIFT); }
+	int v_shift() const { return int_value(OSDOPTION_V_SHIFT); }
 	int v_shift_correct() const { return int_value(OSDOPTION_V_SHIFT_CORRECT); }
 	bool pixel_precision() const { return bool_value(OSDOPTION_PIXEL_PRECISION); }
 	float sync_refresh_tolerance() const { return float_value(OSDOPTION_SYNC_REFRESH_TOLERANCE); }
