@@ -17,6 +17,16 @@
 
 #include <SDL2/SDL.h>
 
+enum GRID_ADJUST
+{
+	LEFT = 8000,
+	RIGHT,
+	UP,
+	DOWN,
+	H_SIZE_INC,
+	H_SIZE_DEC
+};
+
 typedef struct grid_display
 {
 	int index;
@@ -186,6 +196,7 @@ int main(int argc, char **argv)
 	// Wait for escape key
 	bool close = false;
 	int  num_grid = 0;
+	int return_code = 0;
 
 	while (!close)
 	{
@@ -212,6 +223,36 @@ int main(int argc, char **argv)
 								draw_grid(num_grid % NUM_GRIDS, display_array[disp].width, display_array[disp].height, display_array[disp].renderer);
 							break;
 
+						case SDL_SCANCODE_LEFT:
+							close = true;
+							return_code = GRID_ADJUST::LEFT;
+							break;
+
+						case SDL_SCANCODE_RIGHT:
+							close = true;
+							return_code = GRID_ADJUST::RIGHT;
+							break;
+
+						case SDL_SCANCODE_UP:
+							close = true;
+							return_code = GRID_ADJUST::UP;
+							break;
+
+						case SDL_SCANCODE_DOWN:
+							close = true;
+							return_code = GRID_ADJUST::DOWN;
+							break;
+
+						case SDL_SCANCODE_PAGEUP:
+							close = true;
+							return_code = GRID_ADJUST::H_SIZE_INC;
+							break;
+
+						case SDL_SCANCODE_PAGEDOWN:
+							close = true;
+							return_code = GRID_ADJUST::H_SIZE_DEC;
+							break;
+
 						default:
 							break;
 					}
@@ -225,5 +266,5 @@ int main(int argc, char **argv)
 
 	SDL_Quit();
 
-	return 0;
+	return return_code;
 }
