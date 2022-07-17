@@ -808,6 +808,24 @@ bool drmkms_timing::update_mode(modeline *mode)
 		return false;
 	}
 
+	// Without libdrm hook, the update method isn't natively supported, so we must delete
+	// the mode and readd it with updated timings.
+	if (!(m_caps & CUSTOM_VIDEO_CAPS_UPDATE))
+	{
+		if (!delete_mode(mode))
+		{
+			log_error("DRM/KMS: <%d> (update_mode) [ERROR] delete operation not successful", m_id);
+			return false;
+		}
+		if (!add_mode(mode))
+		{
+			log_error("DRM/KMS: <%d> (update_mode) [ERROR] add operation not successful", m_id);
+			return false;
+		}
+		return true;
+	}
+
+	// libdrn hook case, we can update timings directly in the connector's data
 	drmModeConnector *conn = drmModeGetConnectorCurrent(m_drm_fd, m_desktop_output);
 	if (conn)
 	{

@@ -682,6 +682,62 @@ int modeline_to_monitor_range(monitor_range *range, modeline *mode)
 }
 
 //============================================================
+//  modeline_v_shift
+//============================================================
+
+int modeline_adjust(modeline *mode, generator_settings *cs)
+{
+	// If input values are out of range, they are fixed within range and returned in the cs struct.
+
+	// H size ajdustment, valid values 0.5-1.5
+	if (cs->h_size != 1.0f)
+	{
+		if (cs->h_size > 1.5f)
+			cs->h_size = 1.5f;
+		else if (cs->h_size < 0.5f)
+			cs->h_size = 0.5f;
+
+		monitor_range range;
+		memset(&range, 0, sizeof(monitor_range));
+
+		modeline_to_monitor_range(&range, mode);
+
+		range.hfront_porch /= cs->h_size;
+		range.hback_porch /= cs->h_size;
+
+		modeline_create(mode, mode, &range, cs);
+	}
+
+	// H shift adjustment, positive or negative value
+	if (cs->h_shift != 0)
+	{
+		if (cs->h_shift >= mode->hbegin - mode->hactive)
+			cs->h_shift = mode->hbegin - mode->hactive - 1;
+
+		else if (cs->h_shift <= mode->hend - mode->htotal)
+			cs->h_shift = mode->hend - mode->htotal + 1;
+
+		mode->hbegin -= cs->h_shift;
+		mode->hend -= cs->h_shift;
+	}
+
+	// V shift adjustment, positive or negative value
+	if (cs->v_shift != 0)
+	{
+		if (cs->v_shift >= mode->vbegin - mode->vactive)
+			cs->v_shift = mode->vbegin - mode->vactive - 1;
+
+		else if (cs->v_shift <= mode->vend - mode->vtotal)
+			cs->v_shift = mode->vend - mode->vtotal + 1;
+
+		mode->vbegin -= cs->v_shift;
+		mode->vend -= cs->v_shift;
+	}
+
+	return 0;
+}
+
+//============================================================
 //  modeline_is_different
 //============================================================
 
