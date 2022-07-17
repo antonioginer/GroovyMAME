@@ -125,6 +125,9 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	switchres().set_dotclock_min(options.dotclock_min());
 	switchres().set_refresh_tolerance(options.sync_refresh_tolerance());
 	switchres().set_super_width(options.super_width());
+	switchres().set_h_size(options.h_size());
+	switchres().set_h_shift(options.h_shift());
+	switchres().set_v_shift(options.v_shift());
 	switchres().set_v_shift_correct(options.v_shift_correct());
 	switchres().set_pixel_precision(options.pixel_precision());
 	switchres().set_interlace_force_even(options.interlace_force_even());
@@ -169,6 +172,9 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	if (options.get_entry(OSDOPTION_DOTCLOCK_MIN)->priority() > m_priority) display->set_dotclock_min(options.dotclock_min());
 	if (options.get_entry(OSDOPTION_SYNC_REFRESH_TOLERANCE)->priority() > m_priority) display->set_refresh_tolerance(options.sync_refresh_tolerance());
 	if (options.get_entry(OSDOPTION_SUPER_WIDTH)->priority() > m_priority) display->set_super_width(options.super_width());
+	if (options.get_entry(OSDOPTION_H_SIZE)->priority() > m_priority) display->set_h_size(options.h_size());
+	if (options.get_entry(OSDOPTION_H_SHIFT)->priority() > m_priority) display->set_h_shift(options.h_shift());
+	if (options.get_entry(OSDOPTION_V_SHIFT)->priority() > m_priority) display->set_v_shift(options.v_shift());
 	if (options.get_entry(OSDOPTION_V_SHIFT_CORRECT)->priority() > m_priority) display->set_v_shift_correct(options.v_shift_correct());
 	if (options.get_entry(OSDOPTION_PIXEL_PRECISION)->priority() > m_priority) display->set_pixel_precision(options.pixel_precision());
 	if (options.get_entry(OSDOPTION_INTERLACE_FORCE_EVEN)->priority() > m_priority) display->set_interlace_force_even(options.interlace_force_even());
@@ -340,6 +346,62 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 	}
 
 	return false;
+}
+
+//============================================================
+//  switchres_module::check_geometry_change
+//============================================================
+
+bool switchres_module::check_geometry_change(int i)
+{
+	#if defined(OSD_WINDOWS)
+		windows_options &options = downcast<windows_options &>(machine().options());
+	#elif defined(OSD_SDL)
+		sdl_options &options = downcast<sdl_options &>(machine().options());
+	#endif
+
+	display_manager *display = switchres().display(i);
+
+	if (options.h_size() != display->h_size() || options.h_shift() != display->h_shift() || options.v_shift() != display->v_shift())
+		return true;
+
+	return false;
+}
+
+//============================================================
+//  switchres_module::adjust_mode
+//============================================================
+
+bool switchres_module::adjust_mode(int i)
+{
+	#if defined(OSD_WINDOWS)
+		windows_options &options = downcast<windows_options &>(machine().options());
+	#elif defined(OSD_SDL)
+		sdl_options &options = downcast<sdl_options &>(machine().options());
+	#endif
+
+	display_manager *display = switchres().display(i);
+
+	display->set_h_size(options.h_size());
+	display->set_h_shift(options.h_shift());
+	display->set_v_shift(options.v_shift());
+
+	display->get_mode(width(i), height(i), refresh(i), 0);
+	if (display->got_mode())
+	{
+		if (display->is_mode_updated()) display->update_mode(display->best_mode());
+
+		else if (display->is_mode_new()) display->add_mode(display->best_mode());
+
+		if (options.mode_setting())
+			display->set_mode(display->best_mode());
+
+		options.set_value(OSDOPTION_H_SIZE, (float)display->h_size(), OPTION_PRIORITY_CMDLINE);
+		options.set_value(OSDOPTION_H_SHIFT, display->h_shift(), OPTION_PRIORITY_CMDLINE);
+		options.set_value(OSDOPTION_V_SHIFT, display->v_shift(), OPTION_PRIORITY_CMDLINE);
+	}
+
+	return true;
 }
 
 //============================================================
