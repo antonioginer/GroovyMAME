@@ -827,6 +827,14 @@ void win_window_info::update()
 		video_config.framedelay = new_frame_delay;
 	}
 
+	// check if geometry has changed
+	if (fullscreen() && WINOSD(machine())->switchres()->check_geometry_change(index()))
+	{
+		winwindow_toggle_full_screen();
+		WINOSD(machine())->switchres()->adjust_mode(index());
+		winwindow_toggle_full_screen();
+	}
+
 	if (reset_required)
 	{
 		reset_fullscreen_renderer();
@@ -1833,7 +1841,7 @@ void win_window_info::set_fullscreen(int fullscreen)
 
 	// reset UI to main menu
 	// FIXME: this cause crash if called when running_machine.m_ui not yet initialised. e.g. when trying to show error/warning messagebox at startup (during auto-switch from full screen to windowed mode).
-	machine().ui().menu_reset();
+	//machine().ui().menu_reset();
 
 	// kill off the drawers
 	renderer_reset();
