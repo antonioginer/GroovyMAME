@@ -52,6 +52,8 @@ int main(int argc, char **argv)
 	bool interlaced_flag = false;
 	bool user_ini_flag = false;
 	bool keep_changes_flag = false;
+	bool geometry_flag = false;
+	int status_code = 0;
 
 	string ini_file;
 	string launch_command;
@@ -75,11 +77,12 @@ int main(int argc, char **argv)
 			{"verbose",     no_argument,       0, 'v'},
 			{"backend",     required_argument, 0, 'b'},
 			{"keep",        no_argument,       0, 'k'},
+			{"geometry",    required_argument, 0, 'g'},
 			{0, 0, 0, 0}
 		};
 
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "vhcsl:m:a:erd:f:i:b:k", long_options, &option_index);
+		int c = getopt_long(argc, argv, "vhcsl:m:a:erd:f:i:b:kg:", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -159,6 +162,12 @@ int main(int argc, char **argv)
 				switchres.set_keep_changes(true);
 				break;
 
+			case 'g':
+				geometry_flag = true;
+				if (sscanf(optarg, "%lf:%d:%d", &switchres.ds.gs.h_size, &switchres.ds.gs.h_shift, &switchres.ds.gs.v_shift) < 3)
+					log_error("Error: use format --geometry <h_size>:<h_shift>:<v_shift>\n");
+				break;
+
 			default:
 				return 0;
 		}
@@ -185,6 +194,12 @@ int main(int argc, char **argv)
 		height = atoi(argv[optind + 1]);
 		refresh = atof(argv[optind + 2]);
 
+		if (width <= 0 || height <= 0 || refresh <= 0.0f)
+		{
+			log_error("Error: wrong video mode request: %sx%s@%s\n", argv[optind], argv[optind + 1], argv[optind + 2]);
+			goto usage;
+		}
+
 		char scan_mode = argv[optind + 2][strlen(argv[optind + 2]) -1];
 		if (scan_mode == 'i')
 			interlaced_flag = true;
@@ -210,6 +225,15 @@ int main(int argc, char **argv)
 		{
 			modeline *mode = display->get_mode(width, height, refresh, interlaced_flag);
 			if (mode) display->flush_modes();
+
+			if (geometry_flag)
+			{
+				monitor_range range = {};
+				modeline_to_monitor_range(&range, mode);
+				log_info("Adjusted geometry: H: %.3f, %.3f, %.3f V: %.3f, %.3f, %.3f\n",
+						range.hfront_porch, range.hsync_pulse, range.hback_porch,
+						range.vfront_porch * 1000, range.vsync_pulse * 1000, range.vback_porch * 1000);
+			}
 		}
 
 		if (edid_flag)
@@ -244,12 +268,12 @@ int main(int argc, char **argv)
 
 		if (launch_flag)
 		{
-			int status_code = system(launch_command.c_str());
+			status_code = system(launch_command.c_str());
 			log_info("Process exited with value %d\n", status_code);
 		}
 	}
 
-	return (0);
+	return (status_code);
 
 usage:
 	show_usage();
@@ -298,6 +322,7 @@ int show_usage()
 		"  -b, --backend <api_name>          Specify the api name\n"
 		"  -e, --edid                        Create an EDID binary with calculated video modes\n"
 		"  -k, --keep                        Keep changes on exit (warning: this disables cleanup)\n"
+		"  -g --geometry <h_size>:<h_shift>:<v_shift>  Adjust geometry of generated modeline\n"
 	};
 
 	log_info("%s", usage);
