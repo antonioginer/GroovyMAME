@@ -104,6 +104,9 @@ switchres_manager::switchres_manager()
 	set_monitor_aspect(STANDARD_CRT_ASPECT);
 	set_refresh_tolerance(2.0f);
 	set_super_width(2560);
+	set_h_shift(0);
+	set_v_shift(0);
+	set_h_size(1.0f);
 	set_v_shift_correct(0);
 	set_pixel_precision(1);
 	set_interlace_force_even(0);
@@ -314,7 +317,27 @@ bool switchres_manager::parse_config(const char *file_name)
 				case s2i("aspect"):
 					set_monitor_aspect(get_aspect(value.c_str()));
 					break;
-
+				case s2i("h_size"):
+				{
+					double h_size = 1.0f;
+					sscanf(value.c_str(), "%lf", &h_size);
+					set_h_size(h_size);
+					break;
+				}
+				case s2i("h_shift"):
+				{
+					int h_shift = 0;
+					sscanf(value.c_str(), "%d", &h_shift);
+					set_h_shift(h_shift);
+					break;
+				}
+				case s2i("v_shift"):
+				{
+					int v_shift = 0;
+					sscanf(value.c_str(), "%d", &v_shift);
+					set_v_shift(v_shift);
+					break;
+				}
 				case s2i("v_shift_correct"):
 					set_v_shift_correct(atoi(value.c_str()));
 					break;
