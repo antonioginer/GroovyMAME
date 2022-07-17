@@ -329,7 +329,7 @@ void sdl_window_info::toggle_full_screen()
 	}
 
 	// reset UI to main menu
-	machine().ui().menu_reset();
+	//machine().ui().menu_reset();
 
 	// toggle the window mode
 	set_fullscreen(!fullscreen());
@@ -567,6 +567,14 @@ void sdl_window_info::update()
 	// if we're visible and running and not in the middle of a resize, draw
 	if (target() != nullptr)
 	{
+		// check if geometry has changed
+		if (this->m_fullscreen && downcast<sdl_osd_interface&>(machine().osd()).switchres()->check_geometry_change(index()))
+		{
+			toggle_full_screen();
+			downcast<sdl_osd_interface&>(machine().osd()).switchres()->adjust_mode(index());
+			toggle_full_screen();
+		}
+
 		int tempwidth, tempheight;
 
 		// see if the games video mode has changed
