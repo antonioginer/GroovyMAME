@@ -78,6 +78,9 @@ public:
 	void set_rotation(bool value) { ds.gs.rotation = value; }
 	void set_monitor_aspect(double value) { ds.gs.monitor_aspect = value; }
 	void set_monitor_aspect(const char* aspect) { set_monitor_aspect(get_aspect(aspect)); }
+	void set_h_size(double value) { ds.gs.h_size = value; }
+	void set_h_shift(int value) { ds.gs.h_shift = value; }
+	void set_v_shift(int value) { ds.gs.v_shift = value; }
 	void set_v_shift_correct(int value) { ds.gs.v_shift_correct = value; }
 	void set_pixel_precision(int value) { ds.gs.pixel_precision = value; }
 	void set_interlace_force_even(int value) { ds.gs.interlace_force_even = value; }
