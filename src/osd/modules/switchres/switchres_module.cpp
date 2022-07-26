@@ -15,6 +15,7 @@
 // MAME headers
 #include "emu.h"
 #include "rendlay.h"
+#include "render.h"
 #include "../frontend/mame/mameopts.h"
 
 // MAMEOS headers
@@ -25,6 +26,7 @@
 #endif
 
 #include "modules/osdwindow.h"
+#include "modules/monitor/monitor_module.h"
 #include <switchres/switchres.h>
 #include "switchres_module.h"
 
