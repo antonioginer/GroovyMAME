@@ -192,7 +192,7 @@ public:
 	const char *modeline() const { return value(OSDOPTION_MODELINE); }
 	const char *ps_timing() const { return value(OSDOPTION_PS_TIMING); }
 	const char *lcd_range() const { return value(OSDOPTION_LCD_RANGE); }
-	const char *crt_range(int index) const { return value(string_format("%s%d", OSDOPTION_CRT_RANGE, index).c_str()); }
+	const char *crt_range(int index) const { return value(util::string_format("%s%d", OSDOPTION_CRT_RANGE, index)); }
 
 	// accelerated video options
 	bool filter() const { return bool_value(OSDOPTION_FILTER); }
