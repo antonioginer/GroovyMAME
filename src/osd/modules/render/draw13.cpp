@@ -21,6 +21,7 @@
 // OSD headers
 #include "osdsdl.h"
 #include "window.h"
+#include "modules/monitor/monitor_common.h"
 
 #include "draw13.h"
 

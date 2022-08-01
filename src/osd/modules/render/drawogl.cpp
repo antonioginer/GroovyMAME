@@ -33,6 +33,7 @@
 
 #include "modules/lib/osdlib.h"
 #include "modules/lib/osdobj_common.h"
+#include "modules/monitor/monitor_common.h"
 
 // OpenGL headers
 #include "modules/opengl/osd_opengl.h"
