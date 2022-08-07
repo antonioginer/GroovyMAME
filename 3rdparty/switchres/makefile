@@ -79,7 +79,8 @@ DYNAMIC_LIB_EXT = so
 # Windows
 else ifneq (,$(findstring NT,$(PLATFORM)))
 SRC += display_windows.cpp custom_video_ati_family.cpp custom_video_ati.cpp custom_video_adl.cpp custom_video_pstrip.cpp resync_windows.cpp
-CPPFLAGS += -static -static-libgcc -static-libstdc++
+WIN_ONLY_FLAGS = -static-libgcc -static-libstdc++
+CPPFLAGS += -static $(WIN_ONLY_FLAGS)
 LIBS =
 #REMOVE = del /f
 REMOVE = rm -f
@@ -117,7 +118,7 @@ $(DRMHOOK_LIB):
 	$(FINAL_CXX) drm_hook.cpp -shared -ldl -fPIC -I/usr/include/libdrm  -o libdrmhook.so
 
 $(GRID):
-	$(FINAL_CXX) grid.cpp -lSDL2 -o grid
+	$(FINAL_CXX) grid.cpp $(WIN_ONLY_FLAGS) -lSDL2 -lSDL2_ttf -o grid
 
 clean:
 	$(REMOVE) $(OBJS) $(STANDALONE) $(TARGET_LIB).*

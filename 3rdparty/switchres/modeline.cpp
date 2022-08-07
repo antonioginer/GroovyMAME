@@ -657,26 +657,27 @@ int modeline_to_monitor_range(monitor_range *range, modeline *mode)
 
 	double line_time = 1 / mode->hfreq;
 	double pixel_time = line_time / mode->htotal * 1000000;
+	double interlace_factor = mode->interlace? 0.5 : 1.0;
 
 	range->hfront_porch = pixel_time * (mode->hbegin - mode->hactive);
 	range->hsync_pulse = pixel_time * (mode->hend - mode->hbegin);
 	range->hback_porch = pixel_time * (mode->htotal - mode->hend);
 
-	range->vfront_porch = line_time * (mode->vbegin - mode->vactive);
-	range->vsync_pulse = line_time * (mode->vend - mode->vbegin);
-	range->vback_porch = line_time * (mode->vtotal - mode->vend);
+	range->vfront_porch = line_time * (mode->vbegin - mode->vactive) * interlace_factor;
+	range->vsync_pulse = line_time * (mode->vend - mode->vbegin) * interlace_factor;
+	range->vback_porch = line_time * (mode->vtotal - mode->vend) * interlace_factor;
 	range->vertical_blank = range->vfront_porch + range->vsync_pulse + range->vback_porch;
 
 	range->hsync_polarity = mode->hsync;
 	range->vsync_polarity = mode->vsync;
 
-	range->progressive_lines_min = mode->interlace?0:mode->vactive;
-	range->progressive_lines_max = mode->interlace?0:mode->vactive;
-	range->interlaced_lines_min = mode->interlace?mode->vactive:0;
-	range->interlaced_lines_max= mode->interlace?mode->vactive:0;
+	range->progressive_lines_min = mode->interlace? 0 : mode->vactive;
+	range->progressive_lines_max = mode->interlace? 0 : mode->vactive;
+	range->interlaced_lines_min = mode->interlace? mode->vactive : 0;
+	range->interlaced_lines_max= mode->interlace? mode->vactive : 0;
 
-	range->hfreq_min = range->vfreq_min * mode->vtotal;
-	range->hfreq_max = range->vfreq_max * mode->vtotal;
+	range->hfreq_min = range->vfreq_min * mode->vtotal * interlace_factor;
+	range->hfreq_max = range->vfreq_max * mode->vtotal * interlace_factor;
 
 	return 1;
 }
@@ -685,7 +686,7 @@ int modeline_to_monitor_range(monitor_range *range, modeline *mode)
 //  modeline_v_shift
 //============================================================
 
-int modeline_adjust(modeline *mode, generator_settings *cs)
+int modeline_adjust(modeline *mode, double hfreq_max, generator_settings *cs)
 {
 	// If input values are out of range, they are fixed within range and returned in the cs struct.
 
@@ -724,14 +725,40 @@ int modeline_adjust(modeline *mode, generator_settings *cs)
 	// V shift adjustment, positive or negative value
 	if (cs->v_shift != 0)
 	{
-		if (cs->v_shift >= mode->vbegin - mode->vactive)
-			cs->v_shift = mode->vbegin - mode->vactive - 1;
+		int v_front_porch = mode->vbegin - mode->vactive;
+		int v_back_porch =  mode->vend - mode->vtotal;
+		int max_vtotal = hfreq_max / mode->vfreq * (mode->interlace? 2 : 1);
+		int border = max_vtotal - mode->vtotal;
+		int padding = 0;
 
-		else if (cs->v_shift <= mode->vend - mode->vtotal)
-			cs->v_shift = mode->vend - mode->vtotal + 1;
+		if (cs->v_shift >= v_front_porch)
+		{
+			int v_front_porch_ex = v_front_porch + border;
+			if (cs->v_shift >= v_front_porch_ex)
+				cs->v_shift = v_front_porch_ex - 1;
+
+			padding = cs->v_shift - v_front_porch + 1;
+			mode->vbegin += padding;
+			mode->vend += padding;
+			mode->vtotal += padding;
+		}
+
+		else if (cs->v_shift <= v_back_porch + 1)
+			cs->v_shift = v_back_porch + 2;
 
 		mode->vbegin -= cs->v_shift;
 		mode->vend -= cs->v_shift;
+
+		if (padding != 0)
+		{
+			mode->hfreq = mode->vfreq * mode->vtotal / (mode->interlace? 2.0 : 1.0);
+
+			monitor_range range;
+			memset(&range, 0, sizeof(monitor_range));
+			modeline_to_monitor_range(&range, mode);
+			monitor_show_range(&range);
+			modeline_create(mode, mode, &range, cs);
+		}
 	}
 
 	return 0;
