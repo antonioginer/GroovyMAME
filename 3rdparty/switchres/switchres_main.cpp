@@ -226,11 +226,12 @@ int main(int argc, char **argv)
 			modeline *mode = display->get_mode(width, height, refresh, interlaced_flag);
 			if (mode) display->flush_modes();
 
-			if (geometry_flag)
+			if (mode && geometry_flag)
 			{
 				monitor_range range = {};
 				modeline_to_monitor_range(&range, mode);
-				log_info("Adjusted geometry: H: %.3f, %.3f, %.3f V: %.3f, %.3f, %.3f\n",
+				log_info("Adjusted geometry (%.3f:%d:%d) H: %.3f, %.3f, %.3f V: %.3f, %.3f, %.3f\n",
+						display->h_size(), display->h_shift(), display->v_shift(),
 						range.hfront_porch, range.hsync_pulse, range.hback_porch,
 						range.vfront_porch * 1000, range.vsync_pulse * 1000, range.vback_porch * 1000);
 			}
@@ -269,6 +270,9 @@ int main(int argc, char **argv)
 		if (launch_flag)
 		{
 			status_code = system(launch_command.c_str());
+			#ifdef __linux__
+			status_code = WEXITSTATUS(status_code);
+			#endif
 			log_info("Process exited with value %d\n", status_code);
 		}
 	}
