@@ -115,7 +115,9 @@
 #define WINOPTION_FULLSCREENGAMMA       "full_screen_gamma"
 
 // input options
-#define WINOPTION_GLOBAL_INPUTS         "global_inputs"
+#define WINOPTION_KEYBOARD_GLOBAL_INPUTS    "keyboard_global_inputs"
+#define WINOPTION_MOUSE_GLOBAL_INPUTS       "mouse_global_inputs"
+#define WINOPTION_JOYSTICK_GLOBAL_INPUTS    "joystick_global_inputs"
 #define WINOPTION_DUAL_LIGHTGUN         "dual_lightgun"
 
 //============================================================
@@ -226,7 +228,9 @@ public:
 	float full_screen_gamma() const { return float_value(WINOPTION_FULLSCREENGAMMA); }
 
 	// input options
-	bool global_inputs() const { return bool_value(WINOPTION_GLOBAL_INPUTS); }
+	bool keyboard_global_inputs() const { return bool_value(WINOPTION_KEYBOARD_GLOBAL_INPUTS); }
+	bool mouse_global_inputs() const { return bool_value(WINOPTION_MOUSE_GLOBAL_INPUTS); }
+	bool joystick_global_inputs() const { return bool_value(WINOPTION_JOYSTICK_GLOBAL_INPUTS); }
 	bool dual_lightgun() const { return bool_value(WINOPTION_DUAL_LIGHTGUN); }
 
 	static const options_entry s_option_entries[];
