@@ -508,6 +508,7 @@ function osdmodulestargetconf()
 			"dxguid",
 			"oleaut32",
 			"winmm",
+			"hid",
 		}
 	elseif _OPTIONS["targetos"]=="macosx" then
 		links {
