@@ -275,7 +275,9 @@ const options_entry windows_options::s_option_entries[] =
 
 	// input options
 	{ nullptr,                                        nullptr,    core_options::option_type::HEADER,     "INPUT DEVICE OPTIONS" },
-	{ WINOPTION_GLOBAL_INPUTS,                        "0",        core_options::option_type::BOOLEAN,    "enable global inputs" },
+	{ WINOPTION_KEYBOARD_GLOBAL_INPUTS,               "0",        core_options::option_type::BOOLEAN,    "enable keyboard global inputs" },
+	{ WINOPTION_MOUSE_GLOBAL_INPUTS,                  "0",        core_options::option_type::BOOLEAN,    "enable mouse global inputs" },
+	{ WINOPTION_JOYSTICK_GLOBAL_INPUTS,               "0",        core_options::option_type::BOOLEAN,    "enable joystick global inputs" },
 	{ WINOPTION_DUAL_LIGHTGUN ";dual",                "0",        core_options::option_type::BOOLEAN,    "enable dual lightgun input" },
 
 	{ nullptr }

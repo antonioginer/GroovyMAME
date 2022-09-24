@@ -40,10 +40,21 @@ struct mouse_state
 	BYTE                    rgbButtons[8];
 };
 
+// state information for a joystick
+struct joystick_state
+{
+	int32_t                 axes[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+	bool                    bidirectional_trigger_axis[9] = {false, false, false, false, false, false, false, false, false};
+	int32_t                 buttons[MAX_BUTTONS];
+	int32_t                 hats[4] = {0, 0, 0, 0};
+};
+
 class wininput_module : public input_module_base
 {
 protected:
-	bool  m_global_inputs_enabled = false;
+	bool  m_keyboard_global_inputs_enabled = false;
+	bool  m_mouse_global_inputs_enabled = false;
+	bool  m_joystick_global_inputs_enabled = false;
 
 public:
 	wininput_module(const char *type, const char *name) : input_module_base(type, name) { }
@@ -79,7 +90,7 @@ protected:
 
 	bool should_poll_devices(running_machine &machine) override
 	{
-		return input_enabled() && (m_global_inputs_enabled || winwindow_has_focus());
+		return input_enabled() && (m_keyboard_global_inputs_enabled || m_mouse_global_inputs_enabled ||  m_joystick_global_inputs_enabled || winwindow_has_focus());
 	}
 };
 
