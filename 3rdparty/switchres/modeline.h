@@ -137,6 +137,8 @@ int modeline_adjust(modeline *mode, double hfreq_max, generator_settings *cs);
 int modeline_is_different(modeline *n, modeline *p);
 
 int round_near(double number);
+int round_near_odd(double number);
+int round_near_even(double number);
 int normalize(int a, int b);
 int real_res(int x);
 
