@@ -261,7 +261,10 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		vblank_lines = int(t_mode->hfreq * (range->vertical_blank + borders)) + (!cs->interlace_force_even && interlace == 2?0.5:0);
 		margin = (t_mode->vtotal - t_mode->vactive - vblank_lines * scan_factor) / (cs->v_shift_correct? 1 : 2);
 
-		t_mode->vbegin = t_mode->vactive + max(round_near(t_mode->hfreq * range->vfront_porch * scan_factor + margin), 1);
+		double v_front_porch = margin + t_mode->hfreq * range->vfront_porch * scan_factor;
+		int (*pf_round)(double) = interlace? (cs->interlace_force_even? round_near_even : round_near_odd) : round_near;
+
+		t_mode->vbegin = t_mode->vactive + max(pf_round(v_front_porch), 1);
 		t_mode->vend = t_mode->vbegin + max(round_near(t_mode->hfreq * range->vsync_pulse * scan_factor), 1);
 
 		// Recalculate final vfreq
@@ -271,14 +274,6 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		t_mode->vsync = range->vsync_polarity;
 		t_mode->interlace = interlace == 2?1:0;
 		t_mode->doublescan = doublescan == 1?0:1;
-
-		// Apply interlace fixes
-		if (cs->interlace_force_even && interlace == 2)
-		{
-			t_mode->vbegin = (t_mode->vbegin / 2) * 2;
-			t_mode->vend = (t_mode->vend / 2) * 2;
-			t_mode->vtotal = (t_mode->vtotal / 2) * 2;
-		}
 	}
 
 	// finally, store result
@@ -690,11 +685,11 @@ int modeline_adjust(modeline *mode, double hfreq_max, generator_settings *cs)
 {
 	// If input values are out of range, they are fixed within range and returned in the cs struct.
 
-	// H size ajdustment, valid values 0.5-1.5
+	// H size ajdustment, valid values 0.5-2.0
 	if (cs->h_size != 1.0f)
 	{
-		if (cs->h_size > 1.5f)
-			cs->h_size = 1.5f;
+		if (cs->h_size > 2.0f)
+			cs->h_size = 2.0f;
 		else if (cs->h_size < 0.5f)
 			cs->h_size = 0.5f;
 
@@ -832,6 +827,24 @@ int monitor_fill_vesa_range(monitor_range *range, int lines_min, int lines_max)
 int round_near(double number)
 {
 	return number < 0.0 ? ceil(number - 0.5) : floor(number + 0.5);
+}
+
+//============================================================
+//  round_near_odd
+//============================================================
+
+int round_near_odd(double number)
+{
+	return int(ceil(number)) % 2 == 0? floor(number) : ceil(number);
+}
+
+//============================================================
+//  round_near_even
+//============================================================
+
+int round_near_even(double number)
+{
+	return int(ceil(number)) % 2 == 1? floor(number) : ceil(number);
 }
 
 //============================================================
