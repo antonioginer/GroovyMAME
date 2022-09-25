@@ -1595,7 +1595,7 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 	}
 
 	// add geometry sliders
-	slider_alloc(_("CRT H size"), 500, floor(downcast<osd_options &>(machine.options()).h_size() * 1000.0 + 0.5), 1500, 10, std::bind(&mame_ui_manager::slider_h_size, this, _1, _2));
+	slider_alloc(_("CRT H size"), 500, floor(downcast<osd_options &>(machine.options()).h_size() * 1000.0 + 0.5), 2000, 10, std::bind(&mame_ui_manager::slider_h_size, this, _1, _2));
 	slider_alloc(_("CRT H shift"), -64, downcast<osd_options &>(machine.options()).h_shift(), 64, 1, std::bind(&mame_ui_manager::slider_h_shift, this, _1, _2));
 	slider_alloc(_("CRT V shift"), -64, downcast<osd_options &>(machine.options()).h_shift(), 64, 1, std::bind(&mame_ui_manager::slider_v_shift, this, _1, _2));
 
