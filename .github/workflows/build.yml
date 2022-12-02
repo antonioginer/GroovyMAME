@@ -94,7 +94,8 @@ jobs:
     - name: Setup environment
       run: |
         sudo apt update
-        sudo apt-get install git build-essential python libsdl2-dev libsdl2-ttf-dev libfontconfig-dev libdrm-dev qt5-default p7zip
+        sudo apt-get install git build-essential python3 libsdl2-dev libsdl2-ttf-dev libfontconfig-dev libdrm-dev p7zip
+        sudo apt-get install qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools
         sudo apt-get install -y librsvg2-bin latexmk python3-pip python3-sphinx texlive texlive-formats-extra texlive-science
         pip3 install sphinxcontrib-svg2pdfconverter
     - name: Build GroovyMAME
