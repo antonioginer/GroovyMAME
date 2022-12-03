@@ -30,6 +30,7 @@
 #include <switchres/switchres.h>
 #include "switchres_module.h"
 
+#include <cstdarg>
 #include <locale>
 
 #define OPTION_PRIORITY_SWITCHRES OPTION_PRIORITY_MAME_INI + 1
