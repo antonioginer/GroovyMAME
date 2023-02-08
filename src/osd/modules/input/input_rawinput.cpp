@@ -440,8 +440,12 @@ public:
 		const char *const rawinput_pov_names[] = {"DPAD Up", "DPAD Down", "DPAD Left", "DPAD Right"};
 
 		for (size_t pov_index = 0; pov_index != 4; ++pov_index)
-			device.add_item(rawinput_pov_names[pov_index], ITEM_ID_OTHER_SWITCH,
-										generic_button_get_state<int32_t>, &m_joystick.hats[pov_index]);
+			device.add_item(
+					rawinput_pov_names[pov_index],
+					std::string_view(),
+					ITEM_ID_OTHER_SWITCH,
+					generic_button_get_state<int32_t>,
+					&m_joystick.hats[pov_index]);
 
 		// loop over all axes
 		for (int axis = 0; axis != 9; ++axis)
@@ -457,13 +461,21 @@ public:
 				itemid = ITEM_ID_OTHER_AXIS_ABSOLUTE;
 
 			snprintf(temp_name, sizeof(temp_name), "A%d", axis + 1);
-			device.add_item(temp_name, itemid, generic_axis_get_state<std::int32_t>, &m_joystick.axes[axis]);
+			device.add_item(
+					temp_name,
+					std::string_view(),
+					itemid,
+					generic_axis_get_state<std::int32_t>,
+					&m_joystick.axes[axis]);
 		}
 
 		// add the item to the device
 		for (size_t button_index = 0; button_index != MAX_BUTTONS; ++button_index)
-			device.add_item(default_button_name(button_index), static_cast<input_item_id>(ITEM_ID_BUTTON1 + button_index),
-										generic_button_get_state<std::int32_t>, &m_joystick.buttons[button_index]);
+			device.add_item(default_button_name(button_index),
+					std::string_view(),
+					static_cast<input_item_id>(ITEM_ID_BUTTON1 + button_index),
+					generic_button_get_state<std::int32_t>,
+					&m_joystick.buttons[button_index]);
 	}
 
 private:
