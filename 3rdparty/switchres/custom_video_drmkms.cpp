@@ -697,7 +697,7 @@ bool drmkms_timing::init()
 
 int drmkms_timing::get_master_fd()
 {
-	unsigned char path_length= 15;
+	const size_t path_length = 15;
 	char dev_path[path_length];
 	char procpath[50];
 	char fullpath[512];
