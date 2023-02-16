@@ -777,7 +777,7 @@ void render_font::char_expand(char32_t chnum, glyph &gl)
 	}
 
 	// wrap a texture around the bitmap
-	gl.texture = m_manager.texture_alloc(gl.bmheight < 24? nullptr : render_texture::hq_scale);
+	gl.texture = m_manager.texture_alloc(render_texture::hq_scale);
 	gl.texture->set_bitmap(gl.bitmap, gl.bitmap.cliprect(), TEXFORMAT_ARGB32);
 }
 
