@@ -138,6 +138,7 @@ struct jpeg_setjmp_error_mgr : public jpeg_error_mgr
 ***************************************************************************/
 
 /* utilities */
+static void resample_argb_bitmap_integer(u32 *dest, u32 drowpixels, u32 dwidth, u32 dheight, const u32 *source, u32 srowpixels, u32 swidth, u32 sheight, const render_color &color, u32 dx, u32 dy) noexcept;
 static void resample_argb_bitmap_average(u32 *dest, u32 drowpixels, u32 dwidth, u32 dheight, const u32 *source, u32 srowpixels, u32 swidth, u32 sheight, const render_color &color, u32 dx, u32 dy) noexcept;
 static void resample_argb_bitmap_bilinear(u32 *dest, u32 drowpixels, u32 dwidth, u32 dheight, const u32 *source, u32 srowpixels, u32 swidth, u32 sheight, const render_color &color, u32 dx, u32 dy) noexcept;
 static bool copy_png_alpha_to_bitmap(bitmap_argb32 &bitmap, const util::png_info &png) noexcept;
@@ -168,12 +169,68 @@ void render_resample_argb_bitmap_hq(bitmap_argb32 &dest, bitmap_argb32 &source, 
 	u32 dheight = dest.height();
 	u32 dx = (swidth << 12) / dwidth;
 	u32 dy = (sheight << 12) / dheight;
+	bool intscale = (dwidth % swidth == 0 && dheight % sheight == 0);
 
+	if (intscale)
+		resample_argb_bitmap_integer(&dest.pix(0), dest.rowpixels(), dwidth, dheight, sbase, source.rowpixels(), swidth, sheight, color, dx, dy);
 	// if the source is higher res than the target, use full averaging
-	if (dx > 0x1000 || dy > 0x1000 || force)
+	else if (dx > 0x1000 || dy > 0x1000 || force)
 		resample_argb_bitmap_average(&dest.pix(0), dest.rowpixels(), dwidth, dheight, sbase, source.rowpixels(), swidth, sheight, color, dx, dy);
 	else
 		resample_argb_bitmap_bilinear(&dest.pix(0), dest.rowpixels(), dwidth, dheight, sbase, source.rowpixels(), swidth, sheight, color, dx, dy);
+}
+
+
+/*-------------------------------------------------
+    resample_argb_bitmap_integer - resample a texture
+    by performing simple blitting
+-------------------------------------------------*/
+
+static void resample_argb_bitmap_integer(u32 *dest, u32 drowpixels, u32 dwidth, u32 dheight, const u32 *source, u32 srowpixels, u32 swidth, u32 sheight, const render_color &color, u32 dx, u32 dy) noexcept
+{
+	u32 r, g, b, a;
+	u32 x, y;
+
+	/* precompute premultiplied R/G/B/A factors */
+	r = color.r * color.a * 256.0f;
+	g = color.g * color.a * 256.0f;
+	b = color.b * color.a * 256.0f;
+	a = color.a * 256.0f;
+
+	/* loop over the target vertically */
+	for (y = 0; y < dheight; y++)
+	{
+		u32 cury = y * dy;
+
+		/* loop over the target horizontally */
+		for (x = 0; x < dwidth; x++)
+		{
+			u32 sumr, sumg, sumb, suma;
+			u32 curx = x * dx;
+
+			/* fetch the source pixel */
+			rgb_t pix = source[(cury >> 12) * srowpixels + (curx >> 12)];
+
+			/* apply scaling */
+			suma = pix.a() * a / 256;
+			sumr = pix.r() * r / 256;
+			sumg = pix.g() * g / 256;
+			sumb = pix.b() * b / 256;
+
+			/* if we're translucent, add in the destination pixel contribution */
+			if (a < 256)
+			{
+				rgb_t dpix = dest[y * drowpixels + x];
+				suma += dpix.a() * (256 - a);
+				sumr += dpix.r() * (256 - a);
+				sumg += dpix.g() * (256 - a);
+				sumb += dpix.b() * (256 - a);
+			}
+
+			/* store the target pixel, dividing the RGBA values by the overall scale factor */
+			dest[y * drowpixels + x] = rgb_t(suma, sumr, sumg, sumb);
+		}
+	}
 }
 
 
