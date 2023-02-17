@@ -830,7 +830,7 @@ void menu::recompute_metrics(uint32_t width, uint32_t height, float aspect)
 	float const ui_line_height = ui().get_line_height();
 
 	// force whole pixels for line height, gutters and borders
-	m_line_height = std::floor(ui_line_height * float(height)) / float(height);
+	m_line_height = std::round(ui_line_height * float(height)) / float(height);
 	m_gutter_width = std::floor(0.5F * ui_line_height * aspect * float(width)) / float(width);
 	m_tb_border = std::floor(ui().box_tb_border() * float(height)) / float(height);
 	m_lr_border = std::floor(ui().box_lr_border() * aspect * float(width)) / float(width);
