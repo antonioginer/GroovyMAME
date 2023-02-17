@@ -167,8 +167,8 @@ void render_resample_argb_bitmap_hq(bitmap_argb32 &dest, bitmap_argb32 &source, 
 	u32 sheight = source.height();
 	u32 dwidth = dest.width();
 	u32 dheight = dest.height();
-	u32 dx = (swidth << 12) / dwidth;
-	u32 dy = (sheight << 12) / dheight;
+	u32 dx = round(float(swidth << 12) / dwidth);
+	u32 dy = round((sheight << 12) / dheight);
 	bool intscale = (dwidth % swidth == 0 && dheight % sheight == 0);
 
 	if (intscale)
