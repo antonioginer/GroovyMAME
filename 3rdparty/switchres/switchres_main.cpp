@@ -36,6 +36,7 @@ int main(int argc, char **argv)
 {
 
 	switchres_manager switchres;
+	display_manager* df = switchres.display_factory();
 
 	switchres.parse_config("switchres.ini");
 
@@ -54,6 +55,7 @@ int main(int argc, char **argv)
 	bool launch_flag = false;
 	bool force_flag = false;
 	bool interlaced_flag = false;
+	bool rotated_flag = false;
 	bool user_ini_flag = false;
 	bool keep_changes_flag = false;
 	bool geometry_flag = false;
@@ -101,7 +103,7 @@ int main(int argc, char **argv)
 		switch (c)
 		{
 			case OPT_MODELINE:
-				switchres.set_modeline(optarg);
+				df->set_modeline(optarg);
 				break;
 
 			case 'v':
@@ -129,22 +131,22 @@ int main(int argc, char **argv)
 				break;
 
 			case 'm':
-				switchres.set_monitor(optarg);
+				df->set_monitor(optarg);
 				break;
 
 			case 'r':
-				switchres.set_rotation(true);
+				rotated_flag = true;
 				break;
 
 			case 'd':
 				// Add new display in multi-monitor case
 				if (index > 0) switchres.add_display();
 				index ++;
-				switchres.set_screen(optarg);
+				df->set_screen(optarg);
 				break;
 
 			case 'a':
-				switchres.set_monitor_aspect(optarg);
+				df->set_monitor_aspect(optarg);
 				break;
 
 			case 'e':
@@ -163,18 +165,22 @@ int main(int argc, char **argv)
 				break;
 
 			case 'b':
-				switchres.set_api(optarg);
+				df->set_api(optarg);
 				break;
 
 			case 'k':
 				keep_changes_flag = true;
-				switchres.set_keep_changes(true);
+				df->set_keep_changes(true);
 				break;
 
 			case 'g':
-				geometry_flag = true;
-				if (sscanf(optarg, "%lf:%d:%d", &switchres.ds.gs.h_size, &switchres.ds.gs.h_shift, &switchres.ds.gs.v_shift) < 3)
+				double h_size; int h_shift, v_shift;
+				if (sscanf(optarg, "%lf:%d:%d", &h_size, &h_shift, &v_shift) < 3)
 					log_error("Error: use format --geometry <h_size>:<h_shift>:<v_shift>\n");
+				geometry_flag = true;
+				df->set_h_size(h_size);
+				df->set_h_shift(h_shift);
+				df->set_v_shift(v_shift);
 				break;
 
 			default:
@@ -217,6 +223,9 @@ int main(int argc, char **argv)
 	if (user_ini_flag)
 		switchres.parse_config(ini_file.c_str());
 
+	if (calculate_flag)
+		switchres.display()->set_screen("dummy");
+
 	switchres.add_display();
 
 	if (force_flag)
@@ -232,7 +241,8 @@ int main(int argc, char **argv)
 	{
 		for (auto &display : switchres.displays)
 		{
-			modeline *mode = display->get_mode(width, height, refresh, interlaced_flag);
+			int flags = (interlaced_flag? SR_MODE_INTERLACED : 0) | (rotated_flag? SR_MODE_ROTATED : 0);
+			modeline *mode = display->get_mode(width, height, refresh, flags);
 			if (mode) display->flush_modes();
 
 			if (mode && geometry_flag)
@@ -249,14 +259,14 @@ int main(int argc, char **argv)
 		if (edid_flag)
 		{
 			edid_block edid = {};
-			modeline *mode = switchres.display()->best_mode();
+			modeline *mode = switchres.display()->selected_mode();
 			if (mode)
 			{
 				monitor_range *range = &switchres.display()->range[mode->range];
-				edid_from_modeline(mode, range, switchres.ds.monitor, &edid);
+				edid_from_modeline(mode, range, switchres.display()->monitor(), &edid);
 
-				char file_name[sizeof(switchres.ds.monitor) + 4];
-				sprintf(file_name, "%s.bin", switchres.ds.monitor);
+				char file_name[strlen(switchres.display()->monitor()) + 4];
+				sprintf(file_name, "%s.bin", switchres.display()->monitor());
 
 				FILE *file = fopen(file_name, "wb");
 				if (file)
@@ -268,7 +278,7 @@ int main(int argc, char **argv)
 			}
 		}
 
-		if (switch_flag) for (auto &display : switchres.displays) display->set_mode(display->best_mode());
+		if (switch_flag) for (auto &display : switchres.displays) display->set_mode(display->selected_mode());
 
 		if (switch_flag && !launch_flag && !keep_changes_flag)
 		{
