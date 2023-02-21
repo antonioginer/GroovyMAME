@@ -34,11 +34,13 @@ public:
 	int width(int i) { return m_width[i]; }
 	int height(int i) { return m_height[i]; }
 	double refresh(int i) { return m_refresh[i]; }
+	bool rotation(int i)  { return m_rotation[i]; }
 
 	// setters
 	void set_width(int i, int width) { m_width[i] = width; }
 	void set_height(int i, double height) { m_height[i] = height; }
 	void set_refresh(int i, double refresh) { m_refresh[i] = refresh; }
+	void set_rotation(int i, bool rotation) { m_rotation[i] = rotation; }
 
 	// interface
 	void init(running_machine &machine);
@@ -65,6 +67,7 @@ private:
 	int    m_width[MAX_WINDOWS];
 	int    m_height[MAX_WINDOWS];
 	double m_refresh[MAX_WINDOWS];
+	bool   m_rotation[MAX_WINDOWS];
 	char   m_mode_txt[256] = {};
 	int    m_priority = 0;
 };
