@@ -195,17 +195,17 @@ bool drmkms_timing::test_kernel_user_modes()
 	}
 
 	// Create a dummy modeline with a pixel clock higher than 25MHz to avoid
-	// drivers checks rejecting the mode. This is 320x240@60
-	// with min dotclock at 25.0MHz
+	// drivers checks rejecting the mode. Use a modeline that no one would
+	// ever use hopefully
 	strcpy(mode.name, my_name);
-	mode.clock       = 26027;
-	mode.hdisplay    = 1280;
-	mode.hsync_start = 1332;
-	mode.hsync_end   = 1454;
-	mode.htotal      = 1662;
-	mode.vdisplay    = 240;
-	mode.vsync_start = 242;
-	mode.vsync_end   = 245;
+	mode.clock       = 25212;
+	mode.hdisplay    = 1234;
+	mode.hsync_start = 1290;
+	mode.hsync_end   = 1408;
+	mode.htotal      = 1610;
+	mode.vdisplay    = 234;
+	mode.vsync_start = 238;
+	mode.vsync_end   = 241;
 	mode.vtotal      = 261;
 	mode.flags       = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC;
 
