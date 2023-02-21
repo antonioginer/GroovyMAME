@@ -115,7 +115,7 @@ int monitor_show_range(monitor_range *range)
 //  monitor_set_preset
 //============================================================
 
-int monitor_set_preset(char *type, monitor_range *range)
+int monitor_set_preset(const char *type, monitor_range *range)
 {
 	// PAL TV - 50 Hz/625
 	if (!strcmp(type, "pal"))

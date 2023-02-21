@@ -911,7 +911,7 @@ void renderer_d3d9::update_break_scanlines()
 	if (m_switchres->display(window().index()) == nullptr)
 		return;
 
-	modeline *m_switchres_mode = m_switchres->display(window().index())->best_mode();
+	modeline *m_switchres_mode = m_switchres->display(window().index())->selected_mode();
 	if (m_switchres_mode == nullptr)
 		return;
 
@@ -1525,7 +1525,7 @@ void renderer_d3d9::pick_best_mode()
 	switchres_manager *m_switchres = &downcast<windows_osd_interface&>(window().machine().osd()).switchres()->switchres();
 	if (m_switchres->display(window().index()) != nullptr)
 	{
-		modeline *m_switchres_mode = m_switchres->display(window().index())->best_mode();
+		modeline *m_switchres_mode = m_switchres->display(window().index())->selected_mode();
 		if (m_switchres_mode != nullptr)
 		{
 			m_width = m_switchres_mode->type & MODE_ROTATED? m_switchres_mode->height : m_switchres_mode->width;
