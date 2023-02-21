@@ -47,12 +47,16 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 	int x_scale = 0;
 	int y_scale = 0;
 	int v_scale = 0;
+	double x_fscale = 0;
+	double y_fscale = 0;
+	double v_fscale = 0;
 	double x_diff = 0;
 	double y_diff = 0;
 	double v_diff = 0;
 	double y_ratio = 0;
-	double x_ratio = 0;
 	double borders = 0;
+	int rotation = s_mode->type & MODE_ROTATED;
+	double source_aspect = rotation? 1.0 / (STANDARD_CRT_ASPECT) : (STANDARD_CRT_ASPECT);
 	t_mode->result.weight = 0;
 
 	// ≈≈≈ Vertical refresh ≈≈≈
@@ -165,7 +169,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		if (t_mode->type & X_RES_EDITABLE)
 		{
 			x_scale = y_scale;
-			double aspect_corrector = max(1.0f, cs->monitor_aspect / (cs->rotation? (1.0/(STANDARD_CRT_ASPECT)) : (STANDARD_CRT_ASPECT)));
+			double aspect_corrector = max(1.0f, cs->monitor_aspect / source_aspect);
 			t_mode->hactive = normalize(double(t_mode->hactive) * double(x_scale) * aspect_corrector, 8);
 		}
 
@@ -176,7 +180,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 			// if the source width fits our xres, try applying integer scaling
 			if (x_scale)
 			{
-				x_scale = scale_into_aspect(s_mode->hactive, t_mode->hactive, cs->rotation?1.0/(STANDARD_CRT_ASPECT):STANDARD_CRT_ASPECT, cs->monitor_aspect, &x_diff);
+				x_scale = scale_into_aspect(s_mode->hactive, t_mode->hactive, source_aspect, cs->monitor_aspect, &x_diff);
 				if (x_diff > 15.0 && t_mode->hactive < cs->super_width)
 						t_mode->result.weight |= R_RES_STRETCH;
 			}
@@ -203,16 +207,16 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 			t_mode->hactive = max(t_mode->hactive, normalize(STANDARD_CRT_ASPECT * t_mode->vactive, 8));
 
 		// calculate integer scale for prescaling
-		x_scale = max(1, scale_into_aspect(s_mode->hactive, t_mode->hactive, cs->rotation?1.0/(STANDARD_CRT_ASPECT):STANDARD_CRT_ASPECT, cs->monitor_aspect, &x_diff));
+		x_scale = max(1, scale_into_aspect(s_mode->hactive, t_mode->hactive, source_aspect, cs->monitor_aspect, &x_diff));
 		y_scale = max(1, floor(double(t_mode->vactive) / s_mode->vactive));
 
 		scan_factor = interlace;
 		doublescan = 1;
 	}
 
-	x_ratio = double(t_mode->hactive) / s_mode->hactive;
-	y_ratio = double(t_mode->vactive) / s_mode->vactive;
-	v_scale = max(round_near(vfreq_real / s_mode->vfreq), 1);
+	x_fscale = double(t_mode->hactive) / s_mode->hactive * source_aspect / cs->monitor_aspect;
+	y_fscale = double(t_mode->vactive) / s_mode->vactive;
+	v_fscale = vfreq_real / s_mode->vfreq;
 	v_diff = (vfreq_real / v_scale) -  s_mode->vfreq;
 	if (fabs(v_diff) > cs->refresh_tolerance)
 		t_mode->result.weight |= R_V_FREQ_OFF;
@@ -224,12 +228,13 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 		double margin = 0;
 		double vblank_lines = 0;
 		double vvt_ini = 0;
+		double interlace_incr = !cs->interlace_force_even && interlace == 2? 0.5 : 0;
 
 		// Get resulting refresh
 		t_mode->vfreq = vfreq_real;
 
 		// Get total vertical lines
-		vvt_ini = total_lines_for_yres(t_mode->vactive, t_mode->vfreq, range, borders, scan_factor) + (!cs->interlace_force_even && interlace == 2?0.5:0);
+		vvt_ini = total_lines_for_yres(t_mode->vactive, t_mode->vfreq, range, borders, scan_factor) + interlace_incr;
 
 		// Calculate horizontal frequency
 		t_mode->hfreq = t_mode->vfreq * vvt_ini;
@@ -246,6 +251,7 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 			if (t_mode->type & X_RES_EDITABLE)
 			{
 				x_scale *= 2;
+				x_fscale *= 2;
 				t_mode->hactive *= 2;
 				goto horizontal_values;
 			}
@@ -258,11 +264,11 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 
 		// Vertical blanking
 		t_mode->vtotal = vvt_ini * scan_factor;
-		vblank_lines = int(t_mode->hfreq * (range->vertical_blank + borders)) + (!cs->interlace_force_even && interlace == 2?0.5:0);
+		vblank_lines = round_near(t_mode->hfreq * (range->vertical_blank + borders)) + interlace_incr;
 		margin = (t_mode->vtotal - t_mode->vactive - vblank_lines * scan_factor) / (cs->v_shift_correct? 1 : 2);
 
-		double v_front_porch = margin + t_mode->hfreq * range->vfront_porch * scan_factor;
-		int (*pf_round)(double) = interlace? (cs->interlace_force_even? round_near_even : round_near_odd) : round_near;
+		double v_front_porch = margin + t_mode->hfreq * range->vfront_porch * scan_factor + interlace_incr;
+		int (*pf_round)(double) = interlace == 2? (cs->interlace_force_even? round_near_even : round_near_odd) : round_near;
 
 		t_mode->vbegin = t_mode->vactive + max(pf_round(v_front_porch), 1);
 		t_mode->vend = t_mode->vbegin + max(round_near(t_mode->hfreq * range->vsync_pulse * scan_factor), 1);
@@ -272,21 +278,18 @@ int modeline_create(modeline *s_mode, modeline *t_mode, monitor_range *range, ge
 
 		t_mode->hsync = range->hsync_polarity;
 		t_mode->vsync = range->vsync_polarity;
-		t_mode->interlace = interlace == 2?1:0;
-		t_mode->doublescan = doublescan == 1?0:1;
+		t_mode->interlace = interlace == 2? 1 : 0;
+		t_mode->doublescan = doublescan == 1? 0 : 1;
 	}
 
 	// finally, store result
-	t_mode->result.scan_penalty = (s_mode->interlace != t_mode->interlace? 1:0) + (s_mode->doublescan != t_mode->doublescan? 1:0);
-	t_mode->result.x_scale = x_scale;
-	t_mode->result.y_scale = y_scale;
-	t_mode->result.v_scale = v_scale;
+	t_mode->result.scan_penalty = (s_mode->interlace != t_mode->interlace? 1 : 0) + (s_mode->doublescan != t_mode->doublescan? 1 : 0);
+	t_mode->result.x_scale = t_mode->result.weight & R_RES_STRETCH || t_mode->hactive >= cs->super_width ? x_fscale : (double)x_scale;
+	t_mode->result.y_scale = t_mode->result.weight & R_RES_STRETCH? y_fscale : (double)y_scale;
+	t_mode->result.v_scale = v_fscale;
 	t_mode->result.x_diff = x_diff;
 	t_mode->result.y_diff = y_diff;
 	t_mode->result.v_diff = v_diff;
-	t_mode->result.x_ratio = x_ratio;
-	t_mode->result.y_ratio = y_ratio;
-	t_mode->result.v_ratio = 0;
 
 	return 0;
 }
@@ -473,9 +476,9 @@ char * modeline_result(modeline *mode, char *result)
 		sprintf(result, " out of range");
 
 	else
-		sprintf(result, "%4d x%4d_%3.6f%s%s %3.6f [%s] scale(%d, %d, %d) diff(%.2f, %.2f, %.4f) ratio(%.3f, %.3f)",
+		sprintf(result, "%4d x%4d_%3.6f%s%s %3.6f [%s] scale(%.3f, %.3f, %.3f) diff(%.3f, %.3f, %.3f)",
 			mode->hactive, mode->vactive, mode->vfreq, mode->interlace?"i":"p", mode->doublescan?"d":"", mode->hfreq/1000, mode->result.weight & R_RES_STRETCH?"fract":"integ",
-			mode->result.x_scale, mode->result.y_scale, mode->result.v_scale, mode->result.x_diff, mode->result.y_diff, mode->result.v_diff, mode->result.x_ratio, mode->result.y_ratio);
+			mode->result.x_scale, mode->result.y_scale, mode->result.v_scale, mode->result.x_diff, mode->result.y_diff, mode->result.v_diff);
 	return result;
 }
 
@@ -485,7 +488,7 @@ char * modeline_result(modeline *mode, char *result)
 
 int modeline_compare(modeline *t, modeline *best)
 {
-	bool vector = (t->hactive == (int)t->result.x_ratio);
+	bool vector = (t->hactive == (int)t->result.x_scale);
 
 	if (t->result.weight < best->result.weight)
 		return 1;
@@ -497,12 +500,12 @@ int modeline_compare(modeline *t, modeline *best)
 
 		if (t->result.weight & R_RES_STRETCH || vector)
 		{
-			double t_y_score = t->result.y_ratio * (t->interlace?(2.0/3.0):1.0);
-			double b_y_score = best->result.y_ratio * (best->interlace?(2.0/3.0):1.0);
+			double t_y_score = t->result.y_scale * (t->interlace?(2.0/3.0):1.0);
+			double b_y_score = best->result.y_scale * (best->interlace?(2.0/3.0):1.0);
 
 			if  ((t_v_diff <  b_v_diff) ||
 				((t_v_diff == b_v_diff) && (t_y_score > b_y_score)) ||
-				((t_v_diff == b_v_diff) && (t_y_score == b_y_score) && (t->result.x_ratio > best->result.x_ratio)))
+				((t_v_diff == b_v_diff) && (t_y_score == b_y_score) && (t->result.x_scale > best->result.x_scale)))
 					return 1;
 		}
 		else
@@ -621,7 +624,7 @@ int modeline_parse(const char *user_modeline, modeline *mode)
 
 	if (e != 9)
 	{
-		log_error("SwitchRes: missing parameter in user modeline\n  %s\n", user_modeline);
+		log_error("Switchres: missing parameter in user modeline\n  %s\n", user_modeline);
 		memset(mode, 0, sizeof(struct modeline));
 		return false;
 	}
@@ -633,7 +636,7 @@ int modeline_parse(const char *user_modeline, modeline *mode)
 	mode->refresh = mode->vfreq;
 	mode->width = mode->hactive;
 	mode->height = mode->vactive;
-	log_verbose("SwitchRes: user modeline %s\n", modeline_print(mode, modeline_txt, MS_FULL));
+	log_verbose("Switchres: user modeline %s\n", modeline_print(mode, modeline_txt, MS_FULL));
 
 	return true;
 }
@@ -644,11 +647,8 @@ int modeline_parse(const char *user_modeline, modeline *mode)
 
 int modeline_to_monitor_range(monitor_range *range, modeline *mode)
 {
-	if (range->vfreq_min == 0)
-	{
-		range->vfreq_min = mode->vfreq - 0.2;
-		range->vfreq_max = mode->vfreq + 0.2;
-	}
+	range->vfreq_min = mode->vfreq - 0.2;
+	range->vfreq_max = mode->vfreq + 0.2;
 
 	double line_time = 1 / mode->hfreq;
 	double pixel_time = line_time / mode->htotal * 1000000;
@@ -658,9 +658,11 @@ int modeline_to_monitor_range(monitor_range *range, modeline *mode)
 	range->hsync_pulse = pixel_time * (mode->hend - mode->hbegin);
 	range->hback_porch = pixel_time * (mode->htotal - mode->hend);
 
-	range->vfront_porch = line_time * (mode->vbegin - mode->vactive) * interlace_factor;
-	range->vsync_pulse = line_time * (mode->vend - mode->vbegin) * interlace_factor;
-	range->vback_porch = line_time * (mode->vtotal - mode->vend) * interlace_factor;
+	// We floor the vertical fields to remove the half line from interlaced modes, because
+	// the modeline generator will add it automatically. Otherwise it would be added twice.
+	range->vfront_porch = line_time * floor((mode->vbegin - mode->vactive) * interlace_factor);
+	range->vsync_pulse = line_time * floor((mode->vend - mode->vbegin) * interlace_factor);
+	range->vback_porch = line_time * floor((mode->vtotal - mode->vend) * interlace_factor);
 	range->vertical_blank = range->vfront_porch + range->vsync_pulse + range->vback_porch;
 
 	range->hsync_polarity = mode->hsync;
@@ -678,7 +680,7 @@ int modeline_to_monitor_range(monitor_range *range, modeline *mode)
 }
 
 //============================================================
-//  modeline_v_shift
+//  modeline_adjust
 //============================================================
 
 int modeline_adjust(modeline *mode, double hfreq_max, generator_settings *cs)
@@ -720,12 +722,26 @@ int modeline_adjust(modeline *mode, double hfreq_max, generator_settings *cs)
 	// V shift adjustment, positive or negative value
 	if (cs->v_shift != 0)
 	{
-		int v_front_porch = mode->vbegin - mode->vactive;
-		int v_back_porch =  mode->vend - mode->vtotal;
-		int max_vtotal = hfreq_max / mode->vfreq * (mode->interlace? 2 : 1);
-		int border = max_vtotal - mode->vtotal;
+		int vactive = mode->vactive;
+		int vbegin = mode->vbegin;
+		int vend = mode->vend;
+		int vtotal = mode->vtotal;
+
+		if (mode->interlace)
+		{
+			vactive >>= 1;
+			vbegin  >>= 1;
+			vend    >>= 1;
+			vtotal  >>= 1;
+		}
+
+		int v_front_porch = vbegin - vactive;
+		int v_back_porch =  vend - vtotal;
+		int max_vtotal = hfreq_max / mode->vfreq;
+		int border = max_vtotal - vtotal;
 		int padding = 0;
 
+		// v_shift positive
 		if (cs->v_shift >= v_front_porch)
 		{
 			int v_front_porch_ex = v_front_porch + border;
@@ -733,16 +749,35 @@ int modeline_adjust(modeline *mode, double hfreq_max, generator_settings *cs)
 				cs->v_shift = v_front_porch_ex - 1;
 
 			padding = cs->v_shift - v_front_porch + 1;
-			mode->vbegin += padding;
-			mode->vend += padding;
-			mode->vtotal += padding;
+			vbegin += padding;
+			vend += padding;
+			vtotal += padding;
 		}
 
+		// v_shift negative
 		else if (cs->v_shift <= v_back_porch + 1)
-			cs->v_shift = v_back_porch + 2;
+		{
+			int v_back_porch_ex = v_back_porch - border;
+			if (cs->v_shift <= v_back_porch_ex + 1)
+				cs->v_shift = v_back_porch_ex + 2;
 
-		mode->vbegin -= cs->v_shift;
-		mode->vend -= cs->v_shift;
+			padding = -(cs->v_shift - v_back_porch - 2);
+			vtotal += padding;
+		}
+
+		vbegin -= cs->v_shift;
+		vend -= cs->v_shift;
+
+		if (mode->interlace)
+		{
+			vbegin =  (vbegin << 1)  | (mode->vbegin & 1);
+			vend =    (vend << 1)    | (mode->vend & 1);
+			vtotal =  (vtotal << 1)  | (mode->vtotal & 1);
+		}
+
+		mode->vbegin = vbegin;
+		mode->vend = vend;
+		mode->vtotal = vtotal;
 
 		if (padding != 0)
 		{
@@ -767,6 +802,16 @@ int modeline_is_different(modeline *n, modeline *p)
 {
 	// Remove on last fields in modeline comparison
 	return memcmp(n, p, offsetof(struct modeline, vfreq));
+}
+
+//============================================================
+//  modeline_copy_timings
+//============================================================
+
+void modeline_copy_timings(modeline *n, modeline *p)
+{
+	// Only copy relevant timing fields
+	memcpy(n, p, offsetof(struct modeline, width));
 }
 
 //============================================================

@@ -247,6 +247,7 @@ bool sdl2_display::set_mode(modeline *mode)
 	log_verbose("Swithres/SDL2: (%s) SDL2 display mode changed for window/display %d/%d!\n", __FUNCTION__, SDL_GetWindowID(m_sdlwindow), SDL_GetWindowDisplayIndex(m_sdlwindow));
 	log_verbose("               to %dx%d@%d\n",closest.w, closest.h, closest.refresh_rate);
 
+	set_current_mode(mode);
 	return true;
 }
 
