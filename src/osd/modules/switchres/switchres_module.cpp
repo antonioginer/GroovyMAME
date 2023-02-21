@@ -113,38 +113,41 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 
 	m_priority = OPTION_PRIORITY_DEFAULT;
 
+	display_manager* df = switchres().display_factory();
+
 	// Fill in SR's settings with MAME's options
-	switchres().set_monitor(options.monitor());
-	switchres().set_modeline(options.modeline());
-	for (int i = 0; i < MAX_RANGES; i++) switchres().set_crt_range(i, options.crt_range(i));
-	switchres().set_lcd_range(options.lcd_range());
-	switchres().set_modeline_generation(options.modeline_generation());
-	switchres().set_lock_unsupported_modes(options.lock_unsupported_modes());
-	switchres().set_lock_system_modes(options.lock_system_modes());
-	switchres().set_refresh_dont_care(options.refresh_dont_care());
 
-	switchres().set_interlace(options.interlace());
-	switchres().set_doublescan(options.doublescan());
-	switchres().set_dotclock_min(options.dotclock_min());
-	switchres().set_refresh_tolerance(options.sync_refresh_tolerance());
-	switchres().set_super_width(options.super_width());
-	switchres().set_h_size(options.h_size());
-	switchres().set_h_shift(options.h_shift());
-	switchres().set_v_shift(options.v_shift());
-	switchres().set_v_shift_correct(options.v_shift_correct());
-	switchres().set_pixel_precision(options.pixel_precision());
-	switchres().set_interlace_force_even(options.interlace_force_even());
+	df->set_monitor(options.monitor());
+	df->set_modeline(options.modeline());
+	for (int i = 0; i < MAX_RANGES; i++) df->set_crt_range(i, options.crt_range(i));
+	df->set_lcd_range(options.lcd_range());
+	df->set_modeline_generation(options.modeline_generation());
+	df->set_lock_unsupported_modes(options.lock_unsupported_modes());
+	df->set_lock_system_modes(options.lock_system_modes());
+	df->set_refresh_dont_care(options.refresh_dont_care());
 
-	switchres().set_api(options.switchres_backend());
-	switchres().set_screen_compositing(options.screen_compositing());
-	switchres().set_screen_reordering(options.screen_reordering());
-	switchres().set_allow_hardware_refresh(options.allow_hw_refresh());
+	df->set_interlace(options.interlace());
+	df->set_doublescan(options.doublescan());
+	df->set_dotclock_min(options.dotclock_min());
+	df->set_refresh_tolerance(options.sync_refresh_tolerance());
+	df->set_super_width(options.super_width());
+	df->set_h_size(options.h_size());
+	df->set_h_shift(options.h_shift());
+	df->set_v_shift(options.v_shift());
+	df->set_v_shift_correct(options.v_shift_correct());
+	df->set_pixel_precision(options.pixel_precision());
+	df->set_interlace_force_even(options.interlace_force_even());
+
+	df->set_api(options.switchres_backend());
+	df->set_screen_compositing(options.screen_compositing());
+	df->set_screen_reordering(options.screen_reordering());
+	df->set_allow_hardware_refresh(options.allow_hw_refresh());
 
 	modeline user_mode = {};
 	user_mode.width = config->width;
 	user_mode.height = config->height;
 	user_mode.refresh = config->refresh;
-	switchres().set_user_mode(&user_mode);
+	df->set_user_mode(&user_mode);
 
 	// If allowed, try to parse switchres.ini, and raise our priority if found
 	if (options.switchres_ini() && m_switchres->parse_config("switchres.ini"))
@@ -222,7 +225,7 @@ bool switchres_module::init_display(int index, osd_monitor_info *monitor, osd_wi
 	get_game_info(display, target);
 
 	osd_printf_verbose("Switchres: get_mode(%d) %d %d %f %f\n", index, width(index), height(index), refresh(index), display->monitor_aspect());
-	display->get_mode(width(index), height(index), refresh(index), 0);
+	display->get_mode(width(index), height(index), refresh(index), rotation(index)? SR_MODE_ROTATED : 0);
 	if (display->got_mode()) set_mode(index, monitor, target, config);
 
 	return true;
@@ -247,19 +250,19 @@ void switchres_module::delete_display(int index)
 
 void switchres_module::get_game_info(display_manager* display, render_target *target)
 {
-	display->set_rotation(effective_orientation(display, target));
+	bool rotation = effective_orientation(display, target);
+	set_rotation(display->index(), rotation);
 
 	int minwidth, minheight;
 	target->compute_minimum_size(minwidth, minheight);
 
-	if (display->rotation() ^ display->desktop_is_rotated()) std::swap(minwidth, minheight);
+	if (rotation ^ display->desktop_is_rotated()) std::swap(minwidth, minheight);
 	set_width(display->index(), minwidth);
 	set_height(display->index(), minheight);
 
 	// determine the refresh rate of the primary screen
 	const screen_device *primary_screen = screen_device_enumerator(machine().root_device()).first();
 	if (primary_screen != nullptr) set_refresh(display->index(), primary_screen->frame_number() == 0? ATTOSECONDS_TO_HZ(primary_screen->refresh_attoseconds()) : primary_screen->frame_period().as_hz());
-	//if (primary_screen != nullptr) set_refresh(display->index(), primary_screen->frame_period().as_hz());
 }
 
 //============================================================
@@ -286,16 +289,16 @@ bool switchres_module::check_resolution_change(int i, osd_monitor_info *monitor,
 	int old_width = width(i);
 	int old_height = height(i);
 	double old_refresh = refresh(i);
-	bool old_rotation = display->rotation();
+	bool old_rotation = rotation(i);
 
 	get_game_info(display, target);
 
-	if (old_width != width(i) || old_height != height(i) || old_refresh != refresh(i) || old_rotation != display->rotation())
+	if (old_width != width(i) || old_height != height(i) || old_refresh != refresh(i) || old_rotation != rotation(i))
 	{
 		osd_printf_verbose("Switchres: Resolution change from %dx%d@%f %s to %dx%d@%f %s\n",
-			old_width, old_height, old_refresh, old_rotation?"rotated":"normal", width(i), height(i), refresh(i), display->rotation()?"rotated":"normal");
+			old_width, old_height, old_refresh, old_rotation?"rotated":"normal", width(i), height(i), refresh(i), rotation(i)?"rotated":"normal");
 
-		display->get_mode(width(i), height(i), refresh(i), 0);
+		display->get_mode(width(i), height(i), refresh(i), rotation(i)? SR_MODE_ROTATED : 0);
 
 		if (display->got_mode())
 		{
@@ -328,9 +331,9 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 
 	if (display->got_mode())
 	{
-		if (display->is_mode_updated()) display->update_mode(display->best_mode());
+		if (display->is_mode_updated()) display->update_mode(display->selected_mode());
 
-		else if (display->is_mode_new()) display->add_mode(display->best_mode());
+		else if (display->is_mode_new()) display->add_mode(display->selected_mode());
 
 		config->width = display->width();
 		config->height = display->height();
@@ -338,7 +341,7 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 
 		if (options.mode_setting())
 		{
-			display->set_mode(display->best_mode());
+			display->set_mode(display->selected_mode());
 			monitor->refresh();
 			monitor->update_resolution(display->width(), display->height());
 		}
@@ -392,12 +395,12 @@ bool switchres_module::adjust_mode(int i)
 	display->get_mode(width(i), height(i), refresh(i), 0);
 	if (display->got_mode())
 	{
-		if (display->is_mode_updated()) display->update_mode(display->best_mode());
+		if (display->is_mode_updated()) display->update_mode(display->selected_mode());
 
-		else if (display->is_mode_new()) display->add_mode(display->best_mode());
+		else if (display->is_mode_new()) display->add_mode(display->selected_mode());
 
 		if (options.mode_setting())
-			display->set_mode(display->best_mode());
+			display->set_mode(display->selected_mode());
 
 		options.set_value(OSDOPTION_H_SIZE, (float)display->h_size(), OPTION_PRIORITY_CMDLINE);
 		options.set_value(OSDOPTION_H_SHIFT, display->h_shift(), OPTION_PRIORITY_CMDLINE);
