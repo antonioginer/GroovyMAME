@@ -1933,8 +1933,11 @@ bool menu::check_metrics()
 	render_manager &render(machine().render());
 	render_target &target(render.ui_target());
 	std::pair<uint32_t, uint32_t> uisize(target.width(), target.height());
-	if (target.orientation() & ORIENTATION_SWAP_XY)
-		std::swap(uisize.first, uisize.second);
+
+	int orient;
+	orient = orientation_add(render.ui_target().orientation(), render.ui_container().orientation());
+	if (orient & ORIENTATION_SWAP_XY)
+        std::swap(uisize.first, uisize.second);
 
 	float const aspect = render.ui_aspect(&container());
 	if ((uisize == m_last_size) && (std::fabs(1.0F - (aspect / m_last_aspect)) < 1e-6F))
