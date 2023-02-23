@@ -1263,8 +1263,12 @@ bool menu::do_handle()
 	render_manager &render(machine().render());
 	render_target &target(render.ui_target());
 	std::pair<uint32_t, uint32_t> uisize(target.width(), target.height());
-	 if (target.orientation() & ORIENTATION_SWAP_XY)
+
+	int orient;
+	orient = orientation_add(render.ui_target().orientation(), render.ui_container().orientation());
+	if (orient & ORIENTATION_SWAP_XY)
         std::swap(uisize.first, uisize.second);
+
 	float const aspect = render.ui_aspect(&container());
 	if ((uisize != m_last_size) || (aspect != m_last_aspect))
 	{
