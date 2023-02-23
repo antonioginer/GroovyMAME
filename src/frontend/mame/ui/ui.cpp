@@ -36,6 +36,7 @@
 #include "fileio.h"
 #include "natkeyboard.h"
 #include "render.h"
+#include "rendutil.h"
 #include "cheat.h"
 #include "rendfont.h"
 #include "romload.h"
@@ -734,8 +735,11 @@ float mame_ui_manager::get_line_height(float scale)
 	int32_t const raw_font_pixel_height = get_font()->pixel_height();
 	float target_pixel_height = machine().render().ui_target().height();
 	float target_pixel_width = machine().render().ui_target().width();
+//osd_printf_info("get_line_height %d x %d %f\n", target_pixel_width, target_pixel_height, machine().render().ui_target().integer_aspect());
+	int orient;
+	orient = orientation_add(machine().render().ui_target().orientation(), machine().render().ui_container().orientation());
 
-	if (machine().render().ui_target().orientation() & ORIENTATION_SWAP_XY)
+	if (orient & ORIENTATION_SWAP_XY)
 		std::swap(target_pixel_height, target_pixel_width);
 
 	// compute the font pixel height at the nominal size
