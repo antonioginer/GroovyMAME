@@ -167,17 +167,22 @@ void render_resample_argb_bitmap_hq(bitmap_argb32 &dest, bitmap_argb32 &source, 
 	u32 sheight = source.height();
 	u32 dwidth = dest.width();
 	u32 dheight = dest.height();
-	u32 dx = dwidth < swidth ? (swidth << 12) / dwidth : ceil(float(swidth << 12) / dwidth);
-	u32 dy = dheight < sheight ? (sheight << 12) / dheight : ceil(float(sheight << 12) / dheight);
-	bool intscale = (dwidth % swidth == 0 && dheight % sheight == 0);
+	u32 dx = (swidth << 12) / dwidth;
+	u32 dy = (sheight << 12) / dheight;
 
-	if (intscale)
-		resample_argb_bitmap_integer(&dest.pix(0), dest.rowpixels(), dwidth, dheight, sbase, source.rowpixels(), swidth, sheight, color, dx, dy);
 	// if the source is higher res than the target, use full averaging
-	else if (dx > 0x1000 || dy > 0x1000 || force)
+	if (dx > 0x1000 || dy > 0x1000 || force)
 		resample_argb_bitmap_average(&dest.pix(0), dest.rowpixels(), dwidth, dheight, sbase, source.rowpixels(), swidth, sheight, color, dx, dy);
 	else
-		resample_argb_bitmap_bilinear(&dest.pix(0), dest.rowpixels(), dwidth, dheight, sbase, source.rowpixels(), swidth, sheight, color, dx, dy);
+	{
+		dx = ceil(float(swidth << 12) / dwidth);
+		dy = ceil(float(sheight << 12) / dheight);
+
+		if (dwidth % swidth == 0 && dheight % sheight == 0)
+			resample_argb_bitmap_integer(&dest.pix(0), dest.rowpixels(), dwidth, dheight, sbase, source.rowpixels(), swidth, sheight, color, dx, dy);
+		else
+			resample_argb_bitmap_bilinear(&dest.pix(0), dest.rowpixels(), dwidth, dheight, sbase, source.rowpixels(), swidth, sheight, color, dx, dy);
+	}
 }
 
 
