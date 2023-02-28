@@ -827,10 +827,27 @@ void mame_ui_manager::draw_outlined_box(render_container &container, float x0, f
 void mame_ui_manager::draw_outlined_box(render_container &container, float x0, float y0, float x1, float y1, rgb_t fgcolor, rgb_t bgcolor)
 {
 	container.add_rect(x0, y0, x1, y1, bgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-	container.add_line(x0, y0, x1, y0, UI_LINE_WIDTH, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-	container.add_line(x1, y0, x1, y1, UI_LINE_WIDTH, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-	container.add_line(x1, y1, x0, y1, UI_LINE_WIDTH, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-	container.add_line(x0, y1, x0, y0, UI_LINE_WIDTH, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+
+	float tw = 1.0f / machine().render().ui_target().width(); // texel width
+	float th = 1.0f / machine().render().ui_target().height(); // texel height
+
+	int orient;
+	orient = orientation_add(machine().render().ui_target().orientation(), machine().render().ui_container().orientation());
+
+	if (orient & ORIENTATION_SWAP_XY)
+	{
+        std::swap(tw, th);
+		th = th * machine().render().ui_target().integer_aspect();
+	}
+	else
+	{
+		tw = tw / machine().render().ui_target().integer_aspect();
+	}
+
+	container.add_rect(x0, y0, x1, y0 + th, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+	container.add_rect(x1, y0, x1 - tw, y1, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+	container.add_rect(x1, y1, x0, y1 - th, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+	container.add_rect(x0, y1, x0 + tw, y0, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 }
 
 
