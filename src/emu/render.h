@@ -515,6 +515,9 @@ public:
 	bool hidden() const { return ((m_flags & RENDER_CREATE_HIDDEN) != 0); }
 	bool is_ui_target() const;
 	int index() const;
+	float texel_width() const;
+	float texel_height() const;
+	bool is_ui_rotated() const;
 
 	// setters
 	void set_bounds(s32 width, s32 height, float pixel_aspect = 0);
