@@ -995,6 +995,18 @@ bool render_target::is_ui_target() const
 	return (this == &m_manager.ui_target());
 }
 
+//-------------------------------------------------
+//  is_ui_rotated - return true if UI is rotated
+//-------------------------------------------------
+bool render_target::is_ui_rotated() const
+{
+	int orient = orientation_add(orientation(), manager().ui_container().orientation());
+
+	if (orient & ORIENTATION_SWAP_XY)
+		return true;
+	else
+		return false;
+}
 
 //-------------------------------------------------
 //  index - return the index of this target
@@ -1005,6 +1017,44 @@ int render_target::index() const
 	return m_manager.m_targetlist.indexof(*this);
 }
 
+//-------------------------------------------------
+//  texel_width - width of UI pixel after scaling
+//  in 0-1 coordinate range
+//-------------------------------------------------
+
+float render_target::texel_width() const
+{
+		float tw;
+
+		if (is_ui_rotated())
+			tw  = 1.0f / height();
+		else
+		{
+			tw  = 1.0f / width();
+			tw = tw / integer_aspect();
+		}
+		return tw;
+}
+
+//-------------------------------------------------
+//  texel_height - height of UI pixel after scaling
+//  in 0-1 coordinate range
+//-------------------------------------------------
+
+float render_target::texel_height() const
+{
+		float th;
+
+		if (is_ui_rotated())
+		{
+			th = 1.0f / width();
+			th = th * integer_aspect();
+		}
+		else
+			th = 1.0f / height();
+
+		return th;
+}
 
 //-------------------------------------------------
 //  set_bounds - set the bounds and pixel aspect
