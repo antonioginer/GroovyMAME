@@ -735,11 +735,8 @@ float mame_ui_manager::get_line_height(float scale)
 	int32_t const raw_font_pixel_height = get_font()->pixel_height();
 	float target_pixel_height = machine().render().ui_target().height();
 	float target_pixel_width = machine().render().ui_target().width();
-//osd_printf_info("get_line_height %d x %d %f\n", target_pixel_width, target_pixel_height, machine().render().ui_target().integer_aspect());
-	int orient;
-	orient = orientation_add(machine().render().ui_target().orientation(), machine().render().ui_container().orientation());
 
-	if (orient & ORIENTATION_SWAP_XY)
+	if (machine().render().ui_target().is_ui_rotated())
 		std::swap(target_pixel_height, target_pixel_width);
 
 	// compute the font pixel height at the nominal size
@@ -828,26 +825,12 @@ void mame_ui_manager::draw_outlined_box(render_container &container, float x0, f
 {
 	container.add_rect(x0, y0, x1, y1, bgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 
-	float tw = 1.0f / machine().render().ui_target().width(); // texel width
-	float th = 1.0f / machine().render().ui_target().height(); // texel height
-
-	int orient;
-	orient = orientation_add(machine().render().ui_target().orientation(), machine().render().ui_container().orientation());
-
-	if (orient & ORIENTATION_SWAP_XY)
-	{
-        std::swap(tw, th);
-		th = th * machine().render().ui_target().integer_aspect();
-	}
-	else
-	{
-		tw = tw / machine().render().ui_target().integer_aspect();
-	}
-
+	float tw = machine().render().ui_target().texel_width();
+	float th = machine().render().ui_target().texel_height();
 	container.add_rect(x0, y0, x1, y0 + th, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-	container.add_rect(x1, y0, x1 - tw, y1, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+	container.add_rect(x1, y0 + th, x1 - tw, y1 - th, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 	container.add_rect(x1, y1, x0, y1 - th, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-	container.add_rect(x0, y1, x0 + tw, y0, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+	container.add_rect(x0, y1 - th, x0 + tw, y0 + th, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 }
 
 
