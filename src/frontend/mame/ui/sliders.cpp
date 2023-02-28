@@ -13,6 +13,7 @@
 
 #include "ui/slider.h"
 #include "ui/ui.h"
+#include "rendutil.h"
 
 #include "osdepend.h"
 
@@ -312,16 +313,36 @@ void menu_sliders::custom_render(void *selectedref, float top, float bottom, flo
 		default_x = bar_left + bar_width * default_percentage;
 		current_x = bar_left + bar_width * percentage;
 
+		float tw = 1.0f / machine().render().ui_target().width(); // texel width
+		float th = 1.0f / machine().render().ui_target().height(); // texel height
+
+		int orient;
+		orient = orientation_add(machine().render().ui_target().orientation(), machine().render().ui_container().orientation());
+
+		if (orient & ORIENTATION_SWAP_XY)
+		{
+			std::swap(tw, th);
+			th = th * machine().render().ui_target().integer_aspect();
+			default_x = std::floor(default_x * machine().render().ui_target().height()) / machine().render().ui_target().height();
+			current_x = std::floor(current_x * machine().render().ui_target().height()) / machine().render().ui_target().height();
+		}
+		else
+		{
+			tw = tw / machine().render().ui_target().integer_aspect();
+			default_x = std::floor(default_x * machine().render().ui_target().width()) / machine().render().ui_target().width();
+			current_x = std::floor(current_x * machine().render().ui_target().width()) / machine().render().ui_target().width();
+		}
+
 		// fill in the percentage
 		container().add_rect(bar_left, bar_top, current_x, bar_bottom, ui().colors().slider_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 
 		// draw the top and bottom lines
-		container().add_line(bar_left, bar_top, bar_left + bar_width, bar_top, UI_LINE_WIDTH, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-		container().add_line(bar_left, bar_bottom, bar_left + bar_width, bar_bottom, UI_LINE_WIDTH, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+		container().add_rect(bar_left, bar_top, bar_left + bar_width, bar_top + th, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+		container().add_rect(bar_left, bar_bottom, bar_left + bar_width, bar_bottom - th, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 
 		// draw default marker
-		container().add_line(default_x, bar_area_top, default_x, bar_top, UI_LINE_WIDTH, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-		container().add_line(default_x, bar_bottom, default_x, bar_area_top + bar_area_height, UI_LINE_WIDTH, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+		container().add_rect(default_x, bar_area_top, default_x - tw, bar_top, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+		container().add_rect(default_x, bar_bottom, default_x - tw, bar_area_top + bar_area_height, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 
 		// draw the actual text
 		draw_text_normal(

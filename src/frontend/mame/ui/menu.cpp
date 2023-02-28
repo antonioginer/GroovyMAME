@@ -673,16 +673,40 @@ void menu::draw(uint32_t flags)
 			else if (pitem.type() == menu_item_type::SEPARATOR)
 			{
 				// if we're just a divider, draw a line
-				container().add_line(visible_left, line_y0 + 0.5F * line_height(), visible_left + visible_width, line_y0 + 0.5F * line_height(), UI_LINE_WIDTH, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+				float ts = 1.0f / machine().render().ui_target().height(); // texel size
+
+				int orient;
+				orient = orientation_add(machine().render().ui_target().orientation(), machine().render().ui_container().orientation());
+
+				if (orient & ORIENTATION_SWAP_XY)
+					ts = 1.0f / machine().render().ui_target().width() * machine().render().ui_target().integer_aspect();
+
+				// draw separator with 50% alpha
+				rgb_t color = ui().colors().border_color();
+				color.set_a(color.a() / 2);
+				container().add_rect(visible_left, line_y0 + 0.5F * line_height() + ts / 2.0F , visible_left + visible_width, line_y0 + 0.5F * line_height() - ts / 2.0F, color, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 			}
 			else if (pitem.subtext().empty())
 			{
 				// if we don't have a subitem, just draw the string centered
 				if (pitem.flags() & FLAG_UI_HEADING)
 				{
+					float ts = 1.0f / machine().render().ui_target().height(); // texel size
+
+					int orient;
+					orient = orientation_add(machine().render().ui_target().orientation(), machine().render().ui_container().orientation());
+
+					if (orient & ORIENTATION_SWAP_XY)
+						ts = 1.0f / machine().render().ui_target().width() * machine().render().ui_target().integer_aspect();
+
 					float heading_width = get_string_width(itemtext);
-					container().add_line(visible_left, line_y0 + 0.5F * line_height(), visible_left + ((visible_width - heading_width) / 2) - lr_border(), line_y0 + 0.5F * line_height(), UI_LINE_WIDTH, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-					container().add_line(visible_left + visible_width - ((visible_width - heading_width) / 2) + lr_border(), line_y0 + 0.5F * line_height(), visible_left + visible_width, line_y0 + 0.5F * line_height(), UI_LINE_WIDTH, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+
+					// draw ui heading lines with 50% alpha
+					rgb_t color = ui().colors().border_color();
+					color.set_a(color.a() / 2);
+					container().add_rect(visible_left, line_y0 + 0.5F * line_height() + ts / 2.0F, visible_left + ((visible_width - heading_width) / 2) - lr_border(), line_y0 + 0.5F * line_height() - ts / 2.0F, color, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+					container().add_rect(visible_left + visible_width - ((visible_width - heading_width) / 2) + lr_border(), line_y0 + 0.5F * line_height() + ts / 2.0F, visible_left + visible_width, line_y0 + 0.5F * line_height() - ts / 2.0F, color, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+
 				}
 				ui().draw_text_full(
 						container(),
