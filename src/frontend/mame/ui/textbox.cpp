@@ -253,18 +253,16 @@ void menu_textbox::draw(uint32_t flags)
 			m_top_line ? (m_top_line + 1) : 0, text_lines,
 			effective_left, visible_top + (m_top_line ? line_height() : 0.0F));
 
-	float ts = 1.0f / machine().render().ui_target().height(); // texel size
-
-	int orient;
-	orient = orientation_add(machine().render().ui_target().orientation(), machine().render().ui_container().orientation());
-
-	if (orient & ORIENTATION_SWAP_XY)
-		ts = 1.0f / machine().render().ui_target().width() * machine().render().ui_target().integer_aspect();
-
 	// draw separator with 50% alpha
 	rgb_t color = ui().colors().border_color();
 	color.set_a(color.a() / 2);
-	container().add_rect(line_x0 + lr_border(), separator + 0.5F * line_height() + ts / 2.0F , line_x1 - lr_border(), separator + 0.5F * line_height() - ts / 2.0F, color, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+	container().add_rect(
+			x1 + machine().render().ui_target().texel_width() * 3.0F,
+			separator + 0.5F * line_height() + machine().render().ui_target().texel_height() / 2.0F,
+			x2 - machine().render().ui_target().texel_width() * 3.0F,
+			separator + 0.5F * line_height() - machine().render().ui_target().texel_height() / 2.0F,
+			color,
+			PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 
 	float const line_y0 = separator + line_height();
 	float const line_y1 = line_y0 + line_height();

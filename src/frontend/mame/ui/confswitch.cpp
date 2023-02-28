@@ -410,22 +410,21 @@ void menu_settings_dip_switches::custom_render(void *selectedref, float top, flo
 			unsigned const cnt(group.switch_count());
 			ui().draw_outlined_box(
 					container(),
-					switchleft, liney, switchleft + (m_single_width * cnt), switchbottom,
+					switchleft,
+					liney,
+					switchleft + (m_single_width * cnt),
+					switchbottom,
 					ui().colors().background_color());
-
-			float ts = 1.0f / machine().render().ui_target().width() / machine().render().ui_target().integer_aspect(); // texel size
-
-			int orient;
-			orient = orientation_add(machine().render().ui_target().orientation(), machine().render().ui_container().orientation());
-
-			if (orient & ORIENTATION_SWAP_XY)
-				ts = 1.0f / machine().render().ui_target().height();
 
 			for (unsigned i = 1; cnt > i; ++i)
 			{
 				container().add_rect(
-						switchleft + (m_single_width * i) + ts / 2.0F, liney, switchleft + (m_single_width * i) - ts / 2.0F, switchbottom,
-						ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+						switchleft + (m_single_width * i) + machine().render().ui_target().texel_width() / 2.0F,
+						liney + machine().render().ui_target().texel_height(),
+						switchleft + (m_single_width * i) - machine().render().ui_target().texel_width() / 2.0F,
+						switchbottom - machine().render().ui_target().texel_height(),
+						ui().colors().border_color(),
+						PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 			}
 
 			// compute top and bottom for on and off positions
