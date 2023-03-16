@@ -392,7 +392,7 @@ bool switchres_module::adjust_mode(int i)
 	display->set_h_shift(options.h_shift());
 	display->set_v_shift(options.v_shift());
 
-	display->get_mode(width(i), height(i), refresh(i), 0);
+	display->get_mode(width(i), height(i), refresh(i), rotation(i)? SR_MODE_ROTATED : 0);
 	if (display->got_mode())
 	{
 		if (display->is_mode_updated()) display->update_mode(display->selected_mode());
