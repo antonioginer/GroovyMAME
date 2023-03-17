@@ -459,7 +459,7 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 	// Disable -syncrefresh if our vfreq is scaled or out of syncrefresh_tolerance
 	if (options.autosync())
 	{
-		bool sync_refresh_effective = (options.black_frame_insertion() > 0) || !((display->is_refresh_off()) || display->v_scale() > 1);
+		bool sync_refresh_effective = (options.black_frame_insertion() > 0) || !((display->is_refresh_off()) || floorf(display->v_scale()) > 1.0f);
 	#if defined(OSD_WINDOWS)
 		set_option(OSDOPTION_WAITVSYNC, true);
 	#elif defined(OSD_SDL)
