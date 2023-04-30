@@ -382,13 +382,13 @@ public:
 	virtual void process_event(RAWINPUT const &rawinput) override
 	{
 		for (size_t button_index = 0; button_index != MAX_BUTTONS; ++button_index)
-			m_joystick.buttons[button_index] = 0;
+			m_joystick.buttons[button_index] = 0x00;
 
 		for (size_t axis_index = 0; axis_index != 9; ++axis_index)
 			m_joystick.axes[axis_index] = 0;
 
 		for (size_t hat_index = 0; hat_index != 4; ++hat_index)
-			m_joystick.hats[hat_index] = 0;
+			m_joystick.hats[hat_index] = 0x00;
 
 		UINT preparsed_data_buf_size = 0;
 		if (GetRawInputDeviceInfo(rawinput.header.hDevice, RIDI_PREPARSEDDATA, NULL, &preparsed_data_buf_size) != 0)
@@ -444,7 +444,7 @@ public:
 					rawinput_pov_names[pov_index],
 					std::string_view(),
 					ITEM_ID_OTHER_SWITCH,
-					generic_button_get_state<int32_t>,
+					generic_button_get_state<BYTE>,
 					&m_joystick.hats[pov_index]);
 
 		// loop over all axes
@@ -465,7 +465,7 @@ public:
 					temp_name,
 					std::string_view(),
 					itemid,
-					generic_axis_get_state<std::int32_t>,
+					generic_axis_get_state<int32_t>,
 					&m_joystick.axes[axis]);
 		}
 
@@ -474,25 +474,67 @@ public:
 			device.add_item(default_button_name(button_index),
 					std::string_view(),
 					static_cast<input_item_id>(ITEM_ID_BUTTON1 + button_index),
-					generic_button_get_state<std::int32_t>,
+					generic_button_get_state<BYTE>,
 					&m_joystick.buttons[button_index]);
 	}
 
 private:
 	joystick_state m_joystick;
 
-	void set_axis_value(const ULONG usage_value, const HIDP_VALUE_CAPS& value_cap, const size_t axis_index)
+	int32_t sign_extend(uint32_t value, size_t bits)
 	{
-		const unsigned long bitmask = (1  << value_cap.BitSize) - 1;
-		const double current_value = static_cast<double>(usage_value & bitmask);
+		const int32_t mask = 1U << (bits - 1);
+		return (value ^ mask) - mask;
+	}
 
-		if (m_joystick.bidirectional_trigger_axis[axis_index] == true && current_value == 0.0)
+	const unsigned long get_bitmask(const unsigned short bits)
+	{
+		return (1 << bits) - 1;
+	}
+
+	void set_axis_value(RAWINPUT const &rawinput, const PHIDP_PREPARSED_DATA& preparsed_data_buf_ptr, const HIDP_VALUE_CAPS& value_cap, const size_t axis_index)
+	{
+		if (m_joystick.bidirectional_trigger_axis[axis_index] == true)
 			return;
+		
+		// get scaled value
+		if (value_cap.PhysicalMin < value_cap.PhysicalMax)
+		{
+			LONG scaled_axis_value = 0;
+			if (HidP_GetScaledUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &scaled_axis_value, preparsed_data_buf_ptr,
+				(PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
+			{
+				return;
+			}
 
-		const double min_value = static_cast<double>(value_cap.LogicalMin & bitmask);
-		const double max_value = static_cast<double>(value_cap.LogicalMax & bitmask);
+			m_joystick.axes[axis_index] = normalize_absolute_axis(static_cast<double>(scaled_axis_value), static_cast<double>(value_cap.PhysicalMin), static_cast<double>(value_cap.PhysicalMax));
 
-		m_joystick.axes[axis_index] = normalize_absolute_axis(current_value, min_value, max_value);
+		}
+		else
+		{
+			ULONG axis_value = 0;
+			if (HidP_GetUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &axis_value, preparsed_data_buf_ptr,
+				(PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
+			{
+				return;
+			}
+
+			const unsigned long bitmask = get_bitmask(value_cap.BitSize);
+			const ULONG logical_min = value_cap.LogicalMin & bitmask;
+			const ULONG logical_max = value_cap.LogicalMax & bitmask;
+
+			if (logical_min < logical_max)
+			{
+				m_joystick.axes[axis_index] = normalize_absolute_axis(static_cast<double>(axis_value & bitmask), static_cast<double>(logical_min), static_cast<double>(logical_max));
+			}
+			else
+			{
+				m_joystick.axes[axis_index] = normalize_absolute_axis(
+					static_cast<double>(sign_extend(axis_value & bitmask, value_cap.BitSize)), 
+					static_cast<double>(sign_extend(logical_min, value_cap.BitSize)),
+						static_cast<double>(sign_extend(logical_max, value_cap.BitSize)));
+			}
+		}
 	}
 
 	void set_value_caps(RAWINPUT const &rawinput, const PHIDP_PREPARSED_DATA& preparsed_data_buf_ptr, USHORT number_input_value_caps)
@@ -500,50 +542,46 @@ private:
 		if (number_input_value_caps < 1)
 			return;
 
-		std::unique_ptr<HIDP_VALUE_CAPS[]> value_caps(new HIDP_VALUE_CAPS[number_input_value_caps]);
+		std::vector<HIDP_VALUE_CAPS> value_caps(number_input_value_caps);
+		if (HidP_GetValueCaps(HidP_Input, value_caps.data(), &number_input_value_caps, preparsed_data_buf_ptr) != HIDP_STATUS_SUCCESS)
+		return;
 
-		if (HidP_GetValueCaps(HidP_Input, value_caps.get(), reinterpret_cast<PUSHORT>(&number_input_value_caps), preparsed_data_buf_ptr) != HIDP_STATUS_SUCCESS)
-			return;
-
-		for (size_t value_cap_index = 0; value_cap_index != number_input_value_caps; ++value_cap_index)
+		for (HIDP_VALUE_CAPS& value_cap : value_caps)
 		{
-			const HIDP_VALUE_CAPS& value_cap = value_caps[value_cap_index];
-
-			ULONG usage_value;
-			if (HidP_GetUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &usage_value, preparsed_data_buf_ptr,
-									(PCHAR)(rawinput.data.hid.bRawData), rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
-				continue;
-
 			switch (value_cap.Range.UsageMin)
 			{
-				case HID_USAGE_GENERIC_X:
-				case HID_USAGE_GENERIC_Y:
-				case HID_USAGE_GENERIC_Z:
-				case HID_USAGE_GENERIC_RX:
-				case HID_USAGE_GENERIC_RY:
-				case HID_USAGE_GENERIC_RZ:
-				case HID_USAGE_GENERIC_SLIDER:
-				case HID_USAGE_GENERIC_DIAL:
-				case HID_USAGE_GENERIC_WHEEL:
-				{
-					set_axis_value(usage_value, value_cap, value_cap.Range.UsageMin - HID_USAGE_GENERIC_X);
-
-					break;
-				}
 				case HID_USAGE_GENERIC_HATSWITCH:
 				{
-					const LONG hat_value = usage_value - value_cap.LogicalMin;
+					ULONG usage_value;
+					if (HidP_GetUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &usage_value, preparsed_data_buf_ptr,
+						(PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
+					{
+						return;
+					}
 
-					m_joystick.hats[0] = (hat_value == 0 || hat_value == 1 || hat_value == 7) ? 0x80 : 0;
-					m_joystick.hats[1] = (hat_value == 3 || hat_value == 4 || hat_value == 5) ? 0x80 : 0;
-					m_joystick.hats[2] = (hat_value == 5 || hat_value == 6 || hat_value == 7) ? 0x80 : 0;
-					m_joystick.hats[3] = (hat_value == 1 || hat_value == 2 || hat_value == 3) ? 0x80 : 0;
+					if (usage_value >= value_cap.LogicalMin && usage_value <= value_cap.LogicalMax)
+					{
+						const LONG hat_value = usage_value - value_cap.LogicalMin;
 
+						m_joystick.hats[0] = (hat_value == 0 || hat_value == 1 || hat_value == 7) ? 0x80 : 0x00;
+						m_joystick.hats[1] = (hat_value == 3 || hat_value == 4 || hat_value == 5) ? 0x80 : 0x00;
+						m_joystick.hats[2] = (hat_value == 5 || hat_value == 6 || hat_value == 7) ? 0x80 : 0x00;
+						m_joystick.hats[3] = (hat_value == 1 || hat_value == 2 || hat_value == 3) ? 0x80 : 0x00;
+					}
+					
 					break;
 				}
 				default:
+				{
+					const size_t axis_index = static_cast<size_t>(value_cap.Range.UsageMin) - static_cast<size_t>(HID_USAGE_GENERIC_X);
+					
+					if (axis_index >= 0 && axis_index <= 8)
+					{
+						set_axis_value(rawinput, preparsed_data_buf_ptr, value_cap, axis_index);
+					}
 
 					break;
+				}
 			}
 		}
 	}
@@ -553,26 +591,28 @@ private:
 		if (number_input_button_caps < 1)
 			return;
 
-		std::vector<HIDP_BUTTON_CAPS> button_caps(number_input_button_caps);
-
-		if (HidP_GetButtonCaps(HidP_Input, button_caps.data(), reinterpret_cast<PUSHORT>(&number_input_button_caps), preparsed_data_buf_ptr) != HIDP_STATUS_SUCCESS)
-			return;
-
-		ULONG usageLength = button_caps.data()->Range.UsageMax - button_caps.data()->Range.UsageMin + 1;
-
-		if (usageLength < 1)
-			return;
-
-		std::unique_ptr<USAGE[]> usages = std::make_unique<USAGE[]>(usageLength);
-
-		if (HidP_GetUsages(HidP_Input, button_caps.data()->UsagePage, 0, usages.get(), &usageLength, preparsed_data_buf_ptr,
-							(PCHAR)(rawinput.data.hid.bRawData), rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
-			return;
-
-		for (size_t usageIndex = 0; usageIndex != usageLength; ++usageIndex)
+		ULONG buttons_length = 0;
+		if (HidP_GetUsagesEx(HidP_Input, 0, nullptr, &buttons_length, preparsed_data_buf_ptr, (PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) != HIDP_STATUS_BUFFER_TOO_SMALL)
 		{
-			const size_t button_index = static_cast<size_t>(usages[usageIndex]) - static_cast<size_t>(button_caps.data()->Range.UsageMin);
-			m_joystick.buttons[button_index] = 0x80;
+			return;
+		}
+		
+		std::unique_ptr<USAGE_AND_PAGE[]> usages = std::make_unique<USAGE_AND_PAGE[]>(buttons_length);
+		if (HidP_GetUsagesEx(HidP_Input, 0, usages.get(), &buttons_length, preparsed_data_buf_ptr, (PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) == HIDP_STATUS_SUCCESS)
+		{
+			for (size_t usage_page_index = 0; usage_page_index < buttons_length; usage_page_index++)
+			{
+				const uint16_t usage_page = usages[usage_page_index].UsagePage;
+				const uint16_t usage = usages[usage_page_index].Usage;
+				if (usage_page == HID_USAGE_PAGE_BUTTON && usage > 0)
+				{
+					const size_t button_index = static_cast<size_t>(usage - 1);
+					if (button_index < MAX_BUTTONS)
+					{
+						m_joystick.buttons[button_index] = 0x80;
+					}
+				}
+			}
 		}
 	}
 };
