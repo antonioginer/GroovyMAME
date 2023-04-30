@@ -39,8 +39,8 @@ struct joystick_state
 {
 	int32_t axes[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 	bool    bidirectional_trigger_axis[9] = {false, false, false, false, false, false, false, false, false};
-	int32_t buttons[MAX_BUTTONS];
-	int32_t hats[4] = {0, 0, 0, 0};
+	BYTE	buttons[MAX_BUTTONS];
+	BYTE	hats[4] = { 0x00, 0x00, 0x00, 0x00 };
 };
 
 } // namespace osd
