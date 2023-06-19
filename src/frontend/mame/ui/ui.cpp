@@ -2418,6 +2418,12 @@ void mame_ui_manager::sliders_save(config_type cfg_type, util::xml::data_node *p
 	// save UI sliders
 	for (auto &slider : m_sliders)
 	{
+		if (slider->description.find("Frame Delay") == std::string::npos &&
+			slider->description.find("V-Sync Offset") == std::string::npos &&
+			slider->description.find("Overclock") == std::string::npos &&
+			slider->description.find("CRT") == std::string::npos)
+			continue;
+
 		int32_t curval = slider->update(&tempstring, SLIDER_NOCHANGE);
 		if (curval != slider->defval)
 		{
