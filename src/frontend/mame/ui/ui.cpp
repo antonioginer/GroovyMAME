@@ -2421,6 +2421,7 @@ void mame_ui_manager::sliders_save(config_type cfg_type, util::xml::data_node *p
 		if (slider->description.find("Frame Delay") == std::string::npos &&
 			slider->description.find("V-Sync Offset") == std::string::npos &&
 			slider->description.find("Overclock") == std::string::npos &&
+			slider->description.find("Screen Refresh Rate") == std::string::npos &&
 			slider->description.find("CRT") == std::string::npos)
 			continue;
 
