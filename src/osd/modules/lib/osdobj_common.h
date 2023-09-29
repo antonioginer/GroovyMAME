@@ -131,6 +131,8 @@
 #define OSDOPTION_PS_TIMING             "ps_timing"
 #define OSDOPTION_LCD_RANGE             "lcd_range"
 #define OSDOPTION_CRT_RANGE             "crt_range"
+#define OSDOPTION_NOGPU_IP              "nogpu_ip"
+#define OSDOPTION_NOGPU_COMPRESSION     "nogpu_compression"
 
 #define OSDOPTVAL_AUTO                  "auto"
 #define OSDOPTVAL_NONE                  "none"
@@ -212,6 +214,8 @@ public:
 	const char *ps_timing() const { return value(OSDOPTION_PS_TIMING); }
 	const char *lcd_range() const { return value(OSDOPTION_LCD_RANGE); }
 	const char *crt_range(int index) const { return value(util::string_format("%s%d", OSDOPTION_CRT_RANGE, index)); }
+	const char *nogpu_ip() const { return value(OSDOPTION_NOGPU_IP); }
+	const char *nogpu_compression() const { return value(OSDOPTION_NOGPU_COMPRESSION); }
 
 	// accelerated video options
 	bool filter() const { return bool_value(OSDOPTION_FILTER); }
