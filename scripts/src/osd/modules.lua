@@ -129,6 +129,7 @@ function osdmodulesbuild()
 		MAME_DIR .. "src/osd/modules/render/drawnone.cpp",
 		MAME_DIR .. "src/osd/modules/render/drawogl.cpp",
 		MAME_DIR .. "src/osd/modules/render/drawsdl.cpp",
+		MAME_DIR .. "src/osd/modules/render/drawnogpu.cpp",
 		MAME_DIR .. "src/osd/modules/render/render_module.h",
 		MAME_DIR .. "src/osd/modules/sound/coreaudio_sound.cpp",
 		MAME_DIR .. "src/osd/modules/sound/js_sound.cpp",
@@ -574,6 +575,7 @@ function osdmodulestargetconf()
 			"oleaut32",
 			"winmm",
 			"hid",
+			"lz4",
 		}
 	elseif _OPTIONS["targetos"]=="macosx" then
 		links {
