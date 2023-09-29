@@ -734,6 +734,27 @@ end
 
 
 --------------------------------------------------
+-- lz4 library objects
+--------------------------------------------------
+
+project "lz4"
+	uuid "88b89ceb-8382-4d44-860f-75b8fa6823ad"
+	kind "StaticLib"
+
+files {
+		MAME_DIR .. "3rdparty/lz4/lz4.c",
+		MAME_DIR .. "3rdparty/lz4/lz4file.c",
+		MAME_DIR .. "3rdparty/lz4/lz4frame.c",
+		MAME_DIR .. "3rdparty/lz4/lz4hc.c",
+		MAME_DIR .. "3rdparty/lz4/xxhash.c"
+	}
+
+buildoptions_c {
+		"-Wno-bad-function-cast"
+	}
+
+
+--------------------------------------------------
 -- lib7z library objects
 --------------------------------------------------
 
