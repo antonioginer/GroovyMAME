@@ -163,6 +163,10 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	// Always override SR's display option with MAME's -screen option
 	display->set_screen(monitor->devicename().c_str());
 
+	// Use dummy display for nogpu device
+	if (strcmp(options.video(), "nogpu") == 0)
+		display->set_screen("dummy");
+
 	// Finally, override SR's settings with MAME's options of higher priority
 	if (options.get_entry(OSDOPTION_MONITOR)->priority() > m_priority) display->set_monitor(options.monitor());
 	if (options.get_entry(OSDOPTION_MODELINE)->priority() > m_priority) display->set_modeline(options.modeline());
