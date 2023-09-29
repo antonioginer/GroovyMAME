@@ -146,6 +146,8 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_CRT_RANGE "7",                   OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "Add custom CRT range" },
 	{ OSDOPTION_CRT_RANGE "8",                   OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "Add custom CRT range" },
 	{ OSDOPTION_CRT_RANGE "9",                   OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "Add custom CRT range" },
+	{ OSDOPTION_NOGPU_IP,                        "0.0.0.0",        core_options::option_type::STRING,    "nogpu device ip address" },
+	{ OSDOPTION_NOGPU_COMPRESSION,               OSDOPTVAL_NONE,   core_options::option_type::STRING,    "nogpu device frame compression algorithm (none, lz4)" },
 
 	{ nullptr,                                   nullptr,          core_options::option_type::HEADER,    "OSD ACCELERATED VIDEO OPTIONS" },
 	{ OSDOPTION_FILTER ";glfilter;flt",          "0",              core_options::option_type::BOOLEAN,   "use bilinear filtering when scaling emulated video" },
@@ -297,6 +299,7 @@ void osd_common_t::register_options()
 	REGISTER_MODULE(m_mod_man, RENDERER_SDL1);
 #endif
 	REGISTER_MODULE(m_mod_man, RENDERER_NONE);
+	REGISTER_MODULE(m_mod_man, RENDERER_NOGPU);
 
 	REGISTER_MODULE(m_mod_man, SOUND_DSOUND);
 	REGISTER_MODULE(m_mod_man, SOUND_XAUDIO2);
