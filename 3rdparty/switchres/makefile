@@ -64,6 +64,9 @@ else
     CPPFLAGS += -DSR_WITH_KMSDRM
     EXTRA_LIBS = libdrm
     SRC += custom_video_drmkms.cpp
+    ifeq ($(SR_WITH_DRMHOOK),1)
+        CPPFLAGS += -DSR_WITH_DRMHOOK
+    endif
 endif
 
 # SDL2 misses a test for drm as drm.h is required
