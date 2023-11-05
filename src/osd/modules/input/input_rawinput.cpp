@@ -502,38 +502,34 @@ private:
 		{
 			LONG scaled_axis_value = 0;
 			if (HidP_GetScaledUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &scaled_axis_value, preparsed_data_buf_ptr,
-				(PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
+				(PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) == HIDP_STATUS_SUCCESS)
 			{
+				m_joystick.axes[axis_index] = normalize_absolute_axis(static_cast<double>(scaled_axis_value), static_cast<double>(value_cap.PhysicalMin), static_cast<double>(value_cap.PhysicalMax));
 				return;
 			}
+		}
 
-			m_joystick.axes[axis_index] = normalize_absolute_axis(static_cast<double>(scaled_axis_value), static_cast<double>(value_cap.PhysicalMin), static_cast<double>(value_cap.PhysicalMax));
+		ULONG axis_value = 0;
+		if (HidP_GetUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &axis_value, preparsed_data_buf_ptr,
+			(PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
+		{
+			return;
+		}
 
+		const unsigned long bitmask = get_bitmask(value_cap.BitSize);
+		const ULONG logical_min = value_cap.LogicalMin & bitmask;
+		const ULONG logical_max = value_cap.LogicalMax & bitmask;
+
+		if (logical_min < logical_max)
+		{
+			m_joystick.axes[axis_index] = normalize_absolute_axis(static_cast<double>(axis_value & bitmask), static_cast<double>(logical_min), static_cast<double>(logical_max));
 		}
 		else
 		{
-			ULONG axis_value = 0;
-			if (HidP_GetUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &axis_value, preparsed_data_buf_ptr,
-				(PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
-			{
-				return;
-			}
-
-			const unsigned long bitmask = get_bitmask(value_cap.BitSize);
-			const ULONG logical_min = value_cap.LogicalMin & bitmask;
-			const ULONG logical_max = value_cap.LogicalMax & bitmask;
-
-			if (logical_min < logical_max)
-			{
-				m_joystick.axes[axis_index] = normalize_absolute_axis(static_cast<double>(axis_value & bitmask), static_cast<double>(logical_min), static_cast<double>(logical_max));
-			}
-			else
-			{
-				m_joystick.axes[axis_index] = normalize_absolute_axis(
-					static_cast<double>(sign_extend(axis_value & bitmask, value_cap.BitSize)), 
-					static_cast<double>(sign_extend(logical_min, value_cap.BitSize)),
-						static_cast<double>(sign_extend(logical_max, value_cap.BitSize)));
-			}
+			m_joystick.axes[axis_index] = normalize_absolute_axis(
+				static_cast<double>(sign_extend(axis_value & bitmask, value_cap.BitSize)),
+				static_cast<double>(sign_extend(logical_min, value_cap.BitSize)),
+					static_cast<double>(sign_extend(logical_max, value_cap.BitSize)));
 		}
 	}
 
@@ -552,23 +548,67 @@ private:
 			{
 				case HID_USAGE_GENERIC_HATSWITCH:
 				{
-					ULONG usage_value;
-					if (HidP_GetUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &usage_value, preparsed_data_buf_ptr,
-						(PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
-					{
-						return;
-					}
+					m_joystick.hats[0] = 0x00;
+					m_joystick.hats[1] = 0x00;
+					m_joystick.hats[2] = 0x00;
+					m_joystick.hats[3] = 0x00;
 
-					if (usage_value >= value_cap.LogicalMin && usage_value <= value_cap.LogicalMax)
+					LONG scaled_usage_value = 0;
+					if (HidP_GetScaledUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &scaled_usage_value, preparsed_data_buf_ptr,
+						(PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) == HIDP_STATUS_SUCCESS)
 					{
-						const LONG hat_value = usage_value - value_cap.LogicalMin;
-
-						m_joystick.hats[0] = (hat_value == 0 || hat_value == 1 || hat_value == 7) ? 0x80 : 0x00;
-						m_joystick.hats[1] = (hat_value == 3 || hat_value == 4 || hat_value == 5) ? 0x80 : 0x00;
-						m_joystick.hats[2] = (hat_value == 5 || hat_value == 6 || hat_value == 7) ? 0x80 : 0x00;
-						m_joystick.hats[3] = (hat_value == 1 || hat_value == 2 || hat_value == 3) ? 0x80 : 0x00;
+						switch (scaled_usage_value)
+						{
+							case 0:
+							{
+								m_joystick.hats[0] = 0x80;
+								break;
+							}
+							case 45:
+							{
+								m_joystick.hats[0] = 0x80;
+								m_joystick.hats[3] = 0x80;
+								break;
+							}
+							case 90:
+							{
+								m_joystick.hats[3] = 0x80;
+								break;
+							}
+							case 135:
+							{
+								m_joystick.hats[1] = 0x80;
+								m_joystick.hats[3] = 0x80;
+								break;
+							}
+							case 180:
+							{
+								m_joystick.hats[1] = 0x80;
+								break;
+							}
+							case 225:
+							{
+								m_joystick.hats[1] = 0x80;
+								m_joystick.hats[2] = 0x80;
+								break;
+							}
+							case 270:
+							{
+								m_joystick.hats[2] = 0x80;
+								break;
+							}
+							case 315:
+							{
+								m_joystick.hats[0] = 0x80;
+								m_joystick.hats[2] = 0x80;
+								break;
+							}
+							default:
+							{
+								break;
+							}
+						}
 					}
-					
 					break;
 				}
 				default:
