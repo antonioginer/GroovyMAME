@@ -135,11 +135,14 @@ private:
 
 	// npgpu private members
 	bool m_initialized = false;
+	bool m_first_blit = false;
 	int m_compression = 0;
 	int m_frame = 0;
 	int m_width = 0;
 	int m_height = 0;
 	nogpu_status m_status;
+	int m_vtotal = 0;
+	double m_period = 16.666667;
 
 	SOCKET m_sockfd = INVALID_SOCKET;
 	char m_fb[MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3];
@@ -159,9 +162,11 @@ private:
 	void nogpu_send_mtu(char *buffer, int bytes_to_send, int chunk_max_size);
 	void nogpu_send_lz4(char *buffer, int bytes_to_send, int block_size);
 	int nogpu_compress(int id_compress, char *buffer_comp, const char *buffer_rgb, uint32_t buffer_size);
-	void nogpu_get_status(nogpu_status *status);
-	void nogpu_wait_status(nogpu_status *status);
+	bool nogpu_get_status(nogpu_status *status, DWORD timeout);
+	bool nogpu_wait_status(nogpu_status *status, DWORD timeout);
 };
+
+inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
 
 //============================================================
 //  renderer_nogpu::create
@@ -195,12 +200,8 @@ renderer_nogpu::~renderer_nogpu()
 {
 	osd_printf_verbose("nogpu: Sending CMD_CLOSE...");
 	cmd_close command;
-	int clientResult = send(m_sockfd, (const char *)&command, sizeof(command), 0);
-	if (clientResult == SOCKET_ERROR)
-	{
-		osd_printf_verbose("nogpu: Sending back response got an error: %d\n", WSAGetLastError());
-		WSACleanup();
-	}
+
+	nogpu_send_command(&command, sizeof(command));
 	osd_printf_verbose("done.\n");
 }
 
@@ -288,32 +289,48 @@ int renderer_nogpu::draw(const int update)
 	// change video mode right before the blit
 	if (m_initialized) nogpu_switch_video_mode();
 
-	DWORD time_start = timeGetTime();
+	static osd_ticks_t time_start = osd_ticks();
+	static osd_ticks_t time_entry = time_start;
+	static osd_ticks_t time_blit = time_start;
+	static osd_ticks_t time_exit = time_start;
 
-	if (0)
+	bool valid_status = false;
+
+	time_entry = osd_ticks();
+
+	if (video_config.syncrefresh && m_first_blit)
 	{
-		nogpu_get_status(&m_status);
-		osd_printf_verbose("entry: status_frame %d status_scanline %d\n", m_status.frame_num, m_status.vcount);
+		valid_status = nogpu_get_status(&m_status, 2);
+
+		m_first_blit = false;
+		m_frame = m_status.frame_num + 1;
+
+		osd_printf_verbose("start: frame %d status_frame %d status_scanline %d\n", m_frame, m_status.frame_num, m_status.vcount);
 	}
 
 	// Blit now
 	nogpu_blit(m_frame, m_width, m_height);
 
+	time_blit = osd_ticks();
+	osd_printf_verbose("[%.3f] emulation_time: %.3f blit_time: %.3f ", get_ms(time_entry - time_start), get_ms(time_entry - time_exit), get_ms(time_blit - time_entry));
+
+	// Wait raster position
 	if (video_config.syncrefresh)
-		nogpu_wait_status(&m_status);
+		valid_status = nogpu_wait_status(&m_status, 32);
 
-	DWORD time_end = timeGetTime();
+	time_exit = osd_ticks();
+	osd_printf_verbose("wait_time: %.3f\n", get_ms(time_exit - time_blit));
 
-	if (0)
-		osd_printf_verbose("m_frame %d status_frame %d status_scanline %d wait_time %d\n", m_frame, m_status.frame_num, m_status.vcount, time_end - time_start);
-
-	if (m_status.frame_num > m_frame)
+	if (video_config.syncrefresh && valid_status)
 	{
-		osd_printf_verbose("nogpu: missed frame %d\n", m_frame);
-		m_frame = m_status.frame_num;
+		osd_printf_verbose("[%.3f] frame %d status_frame %d status_scanline %d\n\n", get_ms(time_exit - time_start), m_frame, m_status.frame_num, m_status.vcount);
+		m_frame = m_status.frame_num + 1;
 	}
-
-	m_frame++;
+	else
+	{
+		osd_printf_verbose("[%.3f] frame %d\n\n", get_ms(time_exit - time_start), m_frame);
+		m_frame ++;
+	}
 
 	return 0;
 }
@@ -414,7 +431,7 @@ bool renderer_nogpu::nogpu_switch_video_mode()
 	prev_mode = mode;
 
 	// Send new modeline to nogpu
-	osd_printf_verbose("nogpu: Sending CMD_SWITCHRES...");
+	osd_printf_verbose("nogpu: Sending CMD_SWITCHRES...\n");
 
 	cmd_switchres command;
 	nogpu_modeline *m = &command.mode;
@@ -432,6 +449,9 @@ bool renderer_nogpu::nogpu_switch_video_mode()
 
 	m_width = mode->hactive;
 	m_height = mode->vactive;
+	m_vtotal = mode->vtotal;
+	m_period = 1000.0 / (double(mode->pclock) / (mode->htotal * mode->vtotal));
+	m_first_blit = true;
 
 	return nogpu_send_command(&command, sizeof(command));
 }
@@ -440,20 +460,18 @@ bool renderer_nogpu::nogpu_switch_video_mode()
 //  renderer_nogpu::get_status
 //============================================================
 
-void get_status_completion(DWORD dwError, DWORD cbTransferred, LPWSAOVERLAPPED lpOverlapped, DWORD dwFlags) {};
-
-void renderer_nogpu::nogpu_get_status(nogpu_status *status)
+bool renderer_nogpu::nogpu_get_status(nogpu_status *status, DWORD timeout)
 {
 	cmd_get_status command;
 	nogpu_send_command(&command, sizeof(command));
-	nogpu_wait_status(status);
+	return nogpu_wait_status(status, timeout);
 }
 
 //============================================================
 //  renderer_nogpu::wait_status
 //============================================================
 
-void renderer_nogpu::nogpu_wait_status(nogpu_status *status)
+bool renderer_nogpu::nogpu_wait_status(nogpu_status *status, DWORD timeout)
 {
 	m_databuf_recv.len = sizeof(nogpu_status);
 	m_databuf_recv.buf = (char *)status;
@@ -462,28 +480,33 @@ void renderer_nogpu::nogpu_wait_status(nogpu_status *status)
 	DWORD Flags = 0;
 	DWORD bytes_recv;
 
-	for (;;)
-	{
-		int rc = WSARecvFrom(m_sockfd, &m_databuf_recv, 1, &bytes_recv, &Flags, nullptr, nullptr, &m_overlapped_recv, get_status_completion);
-		if (rc != 0)
-		{
-			if ((rc == SOCKET_ERROR) && (WSA_IO_PENDING != (err = WSAGetLastError())))
-			{
-				osd_printf_verbose("nogpu: WSARecvFrom wait status failed with error: %d\n", err);
-				return;
-			}
+	status->vcount = 0;
+	status->frame_num = 0;
 
-			rc = WSAWaitForMultipleEvents(1, &m_overlapped_recv.hEvent, FALSE, 32, TRUE);
-			if (rc == WSA_WAIT_TIMEOUT)
-			{
-				osd_printf_verbose("nogpu: WSAWaitForMultipleEvents wait status timeout\n");
-				break;
-			}
-			else if (rc == WSA_WAIT_FAILED)
-				osd_printf_verbose("nogpu: WSAWaitForMultipleEvents wait status failed with error: %d\n"), WSAGetLastError();
+	int rc = WSARecvFrom(m_sockfd, &m_databuf_recv, 1, &bytes_recv, &Flags, nullptr, nullptr, &m_overlapped_recv, nullptr);
+	if (rc != 0)
+	{
+		if ((rc == SOCKET_ERROR) && (WSA_IO_PENDING != (err = WSAGetLastError())))
+		{
+			osd_printf_verbose("nogpu_wait_status: WSARecvFrom wait status failed with error: %d\n", err);
+			return false;
 		}
-		break;
+
+		rc = WSAWaitForMultipleEvents(1, &m_overlapped_recv.hEvent, FALSE, timeout, TRUE);
+		WSAResetEvent(m_overlapped_recv.hEvent);
+
+		if (rc == WSA_WAIT_TIMEOUT)
+		{
+			osd_printf_verbose("nogpu_wait_status: WSAWaitForMultipleEvents wait status timeout\n");
+			return false;
+		}
+		else if (rc == WSA_WAIT_FAILED)
+		{
+			osd_printf_verbose("nogpu_wait_status: WSAWaitForMultipleEvents wait status failed with error: %d\n"), WSAGetLastError();
+			return false;
+		}
 	}
+	return true;
 }
 
 //============================================================
@@ -555,7 +578,7 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 	// Send CMD_BLIT
 	cmd_blit command;
 	command.frame = frame;
-	command.vsync = height * ((float)(video_config.framedelay + 0) / 10) + 10; //vsync;
+	command.vsync = height * ((float)(video_config.framedelay + 0) / 10) + 24; //vsync;
 	command.block_size = block_size;
 	nogpu_send_command(&command, sizeof(command));
 
@@ -583,23 +606,24 @@ bool renderer_nogpu::nogpu_send_command(void *command, int command_size)
 	{
 		if (rc == SOCKET_ERROR && WSA_IO_PENDING != (err = WSAGetLastError()))
 		{
-			osd_printf_verbose("nogpu: WSASend failed with error: %d\n", err);
+			osd_printf_verbose("nogpu_send_command: WSASend failed with error: %d\n", err);
 			return false;
 		}
 
-		if (WSA_WAIT_FAILED == WSAWaitForMultipleEvents(1, &m_overlapped.hEvent, true, WSA_INFINITE, false))
+		rc = WSAWaitForMultipleEvents(1, &m_overlapped.hEvent, true, WSA_INFINITE, false);
+		WSAResetEvent(m_overlapped.hEvent);
+
+		if (rc == WSA_WAIT_FAILED)
 		{
-			osd_printf_verbose("nogpu: WSAWaitForMultipleEvents failed with error: %d\n", WSAGetLastError());
+			osd_printf_verbose("nogpu_send_command: WSAWaitForMultipleEvents failed with error: %d\n", WSAGetLastError());
 			return false;
 		}
 
 		if (false == WSAGetOverlappedResult(m_sockfd, &m_overlapped, &bytes_sent, false, &flags))
 		{
-			osd_printf_verbose("nogpu: WSAGetOverlapped init failed with error: %d\n", WSAGetLastError());
+			osd_printf_verbose("nogpu_send_command: WSAGetOverlapped init failed with error: %d\n", WSAGetLastError());
 			return false;
 		}
-
-		WSAResetEvent(m_overlapped.hEvent);
 	}
 	return true;
 }
