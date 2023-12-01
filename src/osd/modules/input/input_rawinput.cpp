@@ -410,31 +410,10 @@ public:
 
 	virtual void configure(input_device &device) override
 	{
-		// dual shock 4 and dual sense gamepads have bi-directional triggers and don't behave the same as other axes;
-		// their released state is 100% negative
 		RID_DEVICE_INFO rdi = {};
 		rdi.cbSize = sizeof(RID_DEVICE_INFO);
 		UINT rdi_size = rdi.cbSize;
 		GetRawInputDeviceInfoW(device_handle(), RIDI_DEVICEINFO, &rdi, &rdi_size);
-
-		if (rdi.hid.dwVendorId == 0x054C) // Sony vendor ID
-		{
-			switch (rdi.hid.dwProductId)
-			{
-				case 0x05C4:    // dualShock4Gen1ProductId
-				case 0x09CC:    // dualShock4Gen2ProductId
-				case 0x0CE6:    // dualSenseProductId
-				{
-					m_joystick.bidirectional_trigger_axis[3] = true;
-					m_joystick.bidirectional_trigger_axis[4] = true;
-					break;
-				}
-				default:
-				{
-					break;
-				}
-			}
-		}
 
 		// populate it
 		const char *const rawinput_pov_names[] = {"DPAD Up", "DPAD Down", "DPAD Left", "DPAD Right"};
@@ -494,10 +473,6 @@ private:
 
 	void set_axis_value(RAWINPUT const &rawinput, const PHIDP_PREPARSED_DATA& preparsed_data_buf_ptr, const HIDP_VALUE_CAPS& value_cap, const size_t axis_index)
 	{
-		if (m_joystick.bidirectional_trigger_axis[axis_index] == true)
-			return;
-		
-		// get scaled value
 		if (value_cap.PhysicalMin < value_cap.PhysicalMax)
 		{
 			LONG scaled_axis_value = 0;
@@ -553,51 +528,53 @@ private:
 					m_joystick.hats[2] = 0x00;
 					m_joystick.hats[3] = 0x00;
 
-					LONG scaled_usage_value = 0;
-					if (HidP_GetScaledUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &scaled_usage_value, preparsed_data_buf_ptr,
+					ULONG usage_value = 0;
+					if (HidP_GetUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &usage_value, preparsed_data_buf_ptr,
 						(PCHAR)rawinput.data.hid.bRawData, rawinput.data.hid.dwSizeHid) == HIDP_STATUS_SUCCESS)
 					{
-						switch (scaled_usage_value)
+						const LONG hat_value = usage_value - value_cap.LogicalMin;
+
+						switch (hat_value)
 						{
 							case 0:
 							{
 								m_joystick.hats[0] = 0x80;
 								break;
 							}
-							case 45:
+							case 1:
 							{
 								m_joystick.hats[0] = 0x80;
 								m_joystick.hats[3] = 0x80;
 								break;
 							}
-							case 90:
+							case 2:
 							{
 								m_joystick.hats[3] = 0x80;
 								break;
 							}
-							case 135:
+							case 3:
 							{
 								m_joystick.hats[1] = 0x80;
 								m_joystick.hats[3] = 0x80;
 								break;
 							}
-							case 180:
+							case 4:
 							{
 								m_joystick.hats[1] = 0x80;
 								break;
 							}
-							case 225:
+							case 5:
 							{
 								m_joystick.hats[1] = 0x80;
 								m_joystick.hats[2] = 0x80;
 								break;
 							}
-							case 270:
+							case 6:
 							{
 								m_joystick.hats[2] = 0x80;
 								break;
 							}
-							case 315:
+							case 7:
 							{
 								m_joystick.hats[0] = 0x80;
 								m_joystick.hats[2] = 0x80;
