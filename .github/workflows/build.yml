@@ -56,7 +56,7 @@ jobs:
         install: |
               git make mingw-w64-x86_64-gcc mingw-w64-x86_64-python mingw-w64-x86_64-lld mingw-w64-x86_64-libc++ p7zip
               mingw-w64-x86_64-librsvg mingw-w64-x86_64-python-sphinx mingw-w64-x86_64-python-sphinxcontrib-svg2pdfconverter
-              mingw-w64-x86_64-texlive-fonts-recommended mingw-w64-x86_64-texlive-latex-extra
+              mingw-w64-x86_64-texlive-fonts-recommended mingw-w64-x86_64-texlive-latex-extra mingw-w64-x86_64-llvm
     - uses: actions/checkout@v2
     - name: Build GroovyMAME
       run: |
