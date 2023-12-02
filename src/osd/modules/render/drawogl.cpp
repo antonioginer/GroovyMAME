@@ -3184,7 +3184,9 @@ int video_opengl::init(osd_interface &osd, osd_options const &options)
 	osd_printf_verbose("Using SDL multi-window OpenGL driver (SDL 2.0+)\n");
 #endif // defined(OSD_WINDOWS)
 
+#ifdef SDLMAME_X11
 	dri_device = dynamic_cast<sdl_options const &>(options).dri_device();
+#endif
 
 	return 0;
 }
