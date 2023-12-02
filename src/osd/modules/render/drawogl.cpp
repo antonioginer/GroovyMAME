@@ -63,6 +63,7 @@ typedef uint64_t HashT;
 
 
 #ifdef SDLMAME_X11
+#include <unistd.h>
 // DRM
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -563,9 +564,10 @@ static int glsl_shader_feature = glsl_shader_info::FEAT_PLAIN; // FIXME: why is 
 bool renderer_ogl::s_shown_video_info = false;
 
 #ifdef SDLMAME_X11
-static int drm_open();
+static int drm_open(const char *dri_device);
 static void drm_waitvblank(int crtc);
 static int fd = 0;
+static const char* dri_device = nullptr;
 #endif
 
 //============================================================
@@ -780,7 +782,7 @@ int renderer_ogl::create()
 	if (window().index() == 0 && video_config.syncrefresh && video_config.sync_mode != 0)
 	{
 		// Try to open DRM device
-		fd = drm_open();
+		fd = drm_open(dri_device);
 		if (fd != 0)
 			m_gl_context->set_swap_interval((video_config.sync_mode == 2 || video_config.sync_mode == 4)? 1 : 0);
 	}
@@ -816,18 +818,94 @@ int renderer_ogl::create()
 //  drm_open
 //============================================================
 
-static int drm_open()
+static int drm_open(const char *dri_device)
 {
 	int fd = 0;
-	const char *node = {"/dev/dri/card0"};
+	char dri_path[16];
+	char *node = dri_path;
+
+	// Dri device forced by user
+	if (strcmp(dri_device, "auto") != 0)
+	{
+		osd_printf_verbose("drm_open: %s for by user\n", dri_device);
+		snprintf(node, sizeof(dri_path), "/dev/dri/%s", dri_device);
+	}
+
+	// Automatic selection
+	else
+	{
+		// Get an array of drm devices to check
+		int num_devices = drmGetDevices2(0, NULL, 0);
+		if (num_devices <= 0)
+		{
+			osd_printf_error("drm_open: couldn't find any drm device\n");
+			return 0;
+		}
+
+		drmDevicePtr *devices = (drmDevicePtr*)calloc(num_devices, sizeof(drmDevicePtr));
+		if (drmGetDevices2(0, devices, num_devices) < 0)
+		{
+			osd_printf_error("drm_open: drmGetDevices2() failed\n");
+			return 0;
+		}
+
+		// Parse device list to find the first one with a valid connector
+		bool found = false;
+
+		for (int i = 0; i < num_devices; i++)
+		{
+			// Skip non-primary nodes
+			if (devices[i]->available_nodes & (1 << DRM_NODE_PRIMARY))
+				node = devices[i]->nodes[DRM_NODE_PRIMARY];
+
+			else continue;
+
+			fd = open(node, O_RDWR | O_CLOEXEC);
+			if (fd < 0)
+			{
+				osd_printf_error("drm_open: couldn't open %s\n", node);
+				continue;
+			}
+			drmModeRes *resources = drmModeGetResources(fd);
+			if (resources && resources->count_connectors > 0 && resources->count_encoders > 0 && resources->count_crtcs > 0)
+			{
+				for (int j = 0; j < resources->count_connectors; j++)
+				{
+					drmModeConnector *conn = drmModeGetConnector(fd, resources->connectors[j]);
+					if (!conn) continue;
+
+					// We found a valid connector, use it
+					if (conn->connection == DRM_MODE_CONNECTED && conn->count_modes > 0)
+						found = true;
+
+					drmModeFreeConnector(conn);
+					if (found) break;
+				}
+			}
+			drmModeFreeResources(resources);
+			close(fd);
+
+			if (found) break;
+		}
+
+		drmFreeDevices(devices, num_devices);
+		free(devices);
+
+		if (!found)
+		{
+			osd_printf_error("drm_open: couldn't find any device with a valid connector\n");
+			return 0;
+		}
+	}
 
 	fd = open(node, O_RDWR | O_CLOEXEC);
 	if (fd < 0)
 	{
-		fprintf(stderr, "cannot open %s\n", node);
+		osd_printf_error("drm_open: cannot open %s\n", node);
 		return 0;
 	}
-	osd_printf_verbose("%s successfully opened\n", node);
+
+	osd_printf_verbose("drm_open: %s successfully opened\n", node);
 	return fd;
 }
 
@@ -3105,6 +3183,8 @@ int video_opengl::init(osd_interface &osd, osd_options const &options)
 #else // defined(OSD_WINDOWS)
 	osd_printf_verbose("Using SDL multi-window OpenGL driver (SDL 2.0+)\n");
 #endif // defined(OSD_WINDOWS)
+
+	dri_device = dynamic_cast<sdl_options const &>(options).dri_device();
 
 	return 0;
 }
