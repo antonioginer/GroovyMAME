@@ -225,7 +225,6 @@ render_primitive_list *renderer_nogpu::get_primitives()
 		m_height = std::min(dimensions.height(), MAX_BUFFER_HEIGHT);
 	}
 
-	//window().target()->set_bounds(dimensions.width(), dimensions.height(), window().pixel_aspect());
 	window().target()->set_bounds(m_width, m_height, window().pixel_aspect());
 	return &window().target()->get_primitives();
 }
@@ -242,12 +241,23 @@ int renderer_nogpu::draw(const int update)
 	if (win.m_resize_state == win_window_info::RESIZE_STATE_PENDING)
 		win.m_resize_state = win_window_info::RESIZE_STATE_NORMAL;
 
+	// resize window if required
 	static int old_width = 0;
 	static int old_height = 0;
 	if (old_width != m_width || old_height != m_height)
 	{
 		old_width = m_width;
 		old_height = m_height;
+
+		RECT client_rect;
+		RECT window_rect;
+		GetClientRect(win.platform_window(), &client_rect);
+		GetWindowRect(win.platform_window(), &window_rect);
+
+		int extra_width = (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
+		int extra_height = (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
+
+		SetWindowPos(win.platform_window(), nullptr, 0, 0, m_width + extra_width, m_height + extra_height	, SWP_NOMOVE | SWP_NOZORDER);
 	}
 
 	// compute pitch of target
