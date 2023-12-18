@@ -35,8 +35,9 @@
 
 #include <switchres/switchres.h>
 
-#define MAX_BUFFER_WIDTH 1024
-#define MAX_BUFFER_HEIGHT 768
+#define MAX_BUFFER_WIDTH 768
+#define MAX_BUFFER_HEIGHT 576
+#define VRAM_BUFFER_SIZE 65536
 
 // nogpu UDP server
 #define UDP_PORT 32100
@@ -135,14 +136,21 @@ private:
 
 	// npgpu private members
 	bool m_initialized = false;
-	bool m_first_blit = false;
+	bool m_first_blit = true;
 	int m_compression = 0;
 	int m_frame = 0;
 	int m_width = 0;
 	int m_height = 0;
-	nogpu_status m_status;
 	int m_vtotal = 0;
+	int m_vsync_scanline = 0;
 	double m_period = 16.666667;
+	nogpu_status m_status;
+	modeline m_current_mode;
+
+	osd_ticks_t time_start = 0;
+	osd_ticks_t time_entry = 0;
+	osd_ticks_t time_blit = 0;
+	osd_ticks_t time_exit = 0;
 
 	SOCKET m_sockfd = INVALID_SOCKET;
 	char m_fb[MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3];
@@ -162,8 +170,8 @@ private:
 	void nogpu_send_mtu(char *buffer, int bytes_to_send, int chunk_max_size);
 	void nogpu_send_lz4(char *buffer, int bytes_to_send, int block_size);
 	int nogpu_compress(int id_compress, char *buffer_comp, const char *buffer_rgb, uint32_t buffer_size);
-	bool nogpu_get_status(nogpu_status *status, DWORD timeout);
-	bool nogpu_wait_status(nogpu_status *status, DWORD timeout);
+	bool nogpu_get_status(nogpu_status *status, double timeout);
+	bool nogpu_wait_status(nogpu_status *status, double timeout);
 };
 
 inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
@@ -184,10 +192,6 @@ int renderer_nogpu::create()
 	m_bminfo.bmiHeader.biYPelsPerMeter   = 0;
 	m_bminfo.bmiHeader.biClrUsed         = 0;
 	m_bminfo.bmiHeader.biClrImportant    = 0;
-
-	m_initialized = nogpu_init();
-	if (m_initialized)
-		osd_printf_verbose("done.\n");
 
 	return 0;
 }
@@ -217,8 +221,8 @@ render_primitive_list *renderer_nogpu::get_primitives()
 		if ((dimensions.width() <= 0) || (dimensions.height() <= 0))
 			return nullptr;
 
-		m_width = dimensions.width();
-		m_height = dimensions.height();
+		m_width = std::min(dimensions.width(), MAX_BUFFER_WIDTH);
+		m_height = std::min(dimensions.height(), MAX_BUFFER_HEIGHT);
 	}
 
 	//window().target()->set_bounds(dimensions.width(), dimensions.height(), window().pixel_aspect());
@@ -272,27 +276,37 @@ int renderer_nogpu::draw(const int update)
 			0, 0, m_width, m_height,
 			m_bmdata.get(), &m_bminfo, DIB_RGB_COLORS, SRCCOPY);
 
+	// initialize nogpu right before first blit
+	if (m_first_blit && !m_initialized)
+	{
+		m_initialized = nogpu_init();
+		if (m_initialized)
+			osd_printf_verbose("done.\n");
+	}
+
 	// only send frame if nogpu is initialized
 	if (!m_initialized)
 		return 0;
 
 	// convert RGBA buffer to RGB
-	int j = 0;
-	for (int i = 0; i <= m_bmsize; i += 4)
+	int i = 0, j = 0, k = 0;
+	int lstart = m_current_mode.interlace? pitch * 4 * ((m_status.vcount + 1) % 2) : 0;
+	int lend = (m_height - 1) * pitch * 4;
+	int lstep = pitch * 4 * (m_current_mode.interlace? 2 : 1);
+	osd_printf_verbose("lstart %d lend %d lstep %d\n", lstart, lend, lstep);
+	for (i = lstart; i <= lend ; i += lstep)
 	{
-		m_fb[j] = (char)m_bmdata[i];
-		m_fb[j+1] = (char)m_bmdata[i+1];
-		m_fb[j+2] = (char)m_bmdata[i+2];
-		j += 3;
+		for (j = 0; j < pitch * 4; j += 4)
+		{
+			m_fb[k] = (char)m_bmdata[i+j];
+			m_fb[k+1] = (char)m_bmdata[i+j+1];
+			m_fb[k+2] = (char)m_bmdata[i+j+2];
+			k += 3;
+		}
 	}
 
 	// change video mode right before the blit
 	if (m_initialized) nogpu_switch_video_mode();
-
-	static osd_ticks_t time_start = osd_ticks();
-	static osd_ticks_t time_entry = time_start;
-	static osd_ticks_t time_blit = time_start;
-	static osd_ticks_t time_exit = time_start;
 
 	bool valid_status = false;
 
@@ -300,7 +314,12 @@ int renderer_nogpu::draw(const int update)
 
 	if (video_config.syncrefresh && m_first_blit)
 	{
-		valid_status = nogpu_get_status(&m_status, 2);
+		time_start = time_entry;
+		time_blit = time_entry;
+		time_exit = time_entry;
+
+		m_status = {};
+		valid_status = nogpu_get_status(&m_status, m_period);
 
 		m_first_blit = false;
 		m_frame = m_status.frame_num + 1;
@@ -309,26 +328,25 @@ int renderer_nogpu::draw(const int update)
 	}
 
 	// Blit now
-	nogpu_blit(m_frame, m_width, m_height);
+	nogpu_blit(m_frame, m_width, m_height / (m_current_mode.interlace? 2 : 1));
 
 	time_blit = osd_ticks();
-	osd_printf_verbose("[%.3f] emulation_time: %.3f blit_time: %.3f ", get_ms(time_entry - time_start), get_ms(time_entry - time_exit), get_ms(time_blit - time_entry));
+	osd_printf_verbose("[%.3f] emulation_time: %.3f blit_time: %.3f \n", get_ms(time_entry - time_start), get_ms(time_entry - time_exit), get_ms(time_blit - time_entry));
 
 	// Wait raster position
 	if (video_config.syncrefresh)
-		valid_status = nogpu_wait_status(&m_status, 32);
+		valid_status = nogpu_wait_status(&m_status, std::max(0.0d, m_period - get_ms(time_blit - time_exit)));
 
 	time_exit = osd_ticks();
-	osd_printf_verbose("wait_time: %.3f\n", get_ms(time_exit - time_blit));
 
 	if (video_config.syncrefresh && valid_status)
 	{
-		osd_printf_verbose("[%.3f] frame %d status_frame %d status_scanline %d\n\n", get_ms(time_exit - time_start), m_frame, m_status.frame_num, m_status.vcount);
+		osd_printf_verbose("[%.3f] frame %d status_frame %d status_scanline %d wait_time: %.3f\n\n", get_ms(time_exit - time_start), m_frame, m_status.frame_num, m_status.vcount, get_ms(time_exit - time_blit));
 		m_frame = m_status.frame_num + 1;
 	}
 	else
 	{
-		osd_printf_verbose("[%.3f] frame %d\n\n", get_ms(time_exit - time_start), m_frame);
+		osd_printf_verbose("[%.3f] frame %d wait_time: %.3f\n\n", get_ms(time_exit - time_start), m_frame, get_ms(time_exit - time_blit));
 		m_frame ++;
 	}
 
@@ -404,6 +422,9 @@ bool renderer_nogpu::nogpu_init()
 	command.compression = m_compression;
 	command.block_size = m_compression? 8192 : 0;
 
+	// Reset current mode
+	m_current_mode = {};
+
 	return nogpu_send_command(&command, sizeof(command));
 }
 
@@ -414,8 +435,6 @@ bool renderer_nogpu::nogpu_init()
 bool renderer_nogpu::nogpu_switch_video_mode()
 {
 	// Check if we have a pending mode change
-	static modeline *prev_mode = nullptr;
-
 	switchres_manager *m_switchres = &downcast<windows_osd_interface&>(window().machine().osd()).switchres()->switchres();
 	if (m_switchres->display(window().index()) == nullptr)
 		return false;
@@ -425,10 +444,10 @@ bool renderer_nogpu::nogpu_switch_video_mode()
 		return false;
 
 	// If not, we're done
-	if (mode == prev_mode)
+	if (!modeline_is_different(mode, &m_current_mode))
 		return true;
 
-	prev_mode = mode;
+	m_current_mode = *mode;
 
 	// Send new modeline to nogpu
 	osd_printf_verbose("nogpu: Sending CMD_SWITCHRES...\n");
@@ -450,8 +469,7 @@ bool renderer_nogpu::nogpu_switch_video_mode()
 	m_width = mode->hactive;
 	m_height = mode->vactive;
 	m_vtotal = mode->vtotal;
-	m_period = 1000.0 / (double(mode->pclock) / (mode->htotal * mode->vtotal));
-	m_first_blit = true;
+	m_period = 1000.0 / (double(mode->pclock) / (mode->htotal * mode->vtotal)) / (mode->interlace? 2: 1);
 
 	return nogpu_send_command(&command, sizeof(command));
 }
@@ -460,7 +478,7 @@ bool renderer_nogpu::nogpu_switch_video_mode()
 //  renderer_nogpu::get_status
 //============================================================
 
-bool renderer_nogpu::nogpu_get_status(nogpu_status *status, DWORD timeout)
+bool renderer_nogpu::nogpu_get_status(nogpu_status *status, double timeout)
 {
 	cmd_get_status command;
 	nogpu_send_command(&command, sizeof(command));
@@ -471,7 +489,7 @@ bool renderer_nogpu::nogpu_get_status(nogpu_status *status, DWORD timeout)
 //  renderer_nogpu::wait_status
 //============================================================
 
-bool renderer_nogpu::nogpu_wait_status(nogpu_status *status, DWORD timeout)
+bool renderer_nogpu::nogpu_wait_status(nogpu_status *status, double timeout)
 {
 	m_databuf_recv.len = sizeof(nogpu_status);
 	m_databuf_recv.buf = (char *)status;
@@ -479,33 +497,58 @@ bool renderer_nogpu::nogpu_wait_status(nogpu_status *status, DWORD timeout)
 	int err = 0;
 	DWORD Flags = 0;
 	DWORD bytes_recv;
+	int size_sender = sizeof(m_server_addr);
+	int retries = 0;
+	osd_ticks_t time_1 = 0;
+	osd_ticks_t time_2 = 0;
 
-	status->vcount = 0;
-	status->frame_num = 0;
+	osd_printf_verbose("[%.3f] wait_status[%.3f]: frame %d ", get_ms(osd_ticks() - time_start), timeout, m_frame);
+	time_1 = osd_ticks();
 
-	int rc = WSARecvFrom(m_sockfd, &m_databuf_recv, 1, &bytes_recv, &Flags, nullptr, nullptr, &m_overlapped_recv, nullptr);
+	int rc = WSARecvFrom(m_sockfd, &m_databuf_recv, 1, &bytes_recv, &Flags, (SOCKADDR*)&m_server_addr, &size_sender, &m_overlapped_recv, nullptr);
+
+	// We didn't get a response immediately, wait for it until timeout is reached
 	if (rc != 0)
 	{
 		if ((rc == SOCKET_ERROR) && (WSA_IO_PENDING != (err = WSAGetLastError())))
 		{
-			osd_printf_verbose("nogpu_wait_status: WSARecvFrom wait status failed with error: %d\n", err);
+			osd_printf_verbose("error: WSARecvFrom wait status failed with error: %d\n", err);
 			return false;
 		}
 
-		rc = WSAWaitForMultipleEvents(1, &m_overlapped_recv.hEvent, FALSE, timeout, TRUE);
-		WSAResetEvent(m_overlapped_recv.hEvent);
+	retry:
 
-		if (rc == WSA_WAIT_TIMEOUT)
+		WSAEVENT event = WSACreateEvent();
+
+		rc = WSAWaitForMultipleEvents(1, &event, FALSE, 1, TRUE);
+
+		WSACloseEvent(event);
+
+		if (rc == WSA_WAIT_FAILED)
 		{
-			osd_printf_verbose("nogpu_wait_status: WSAWaitForMultipleEvents wait status timeout\n");
+			osd_printf_verbose("error: WSAWaitForMultipleEvents wait status failed with error: %d\n"), WSAGetLastError();
 			return false;
 		}
-		else if (rc == WSA_WAIT_FAILED)
+
+		retries++;
+		time_2 = osd_ticks();
+
+		if (status->frame_num < m_frame)
 		{
-			osd_printf_verbose("nogpu_wait_status: WSAWaitForMultipleEvents wait status failed with error: %d\n"), WSAGetLastError();
-			return false;
+			if (get_ms(time_2 - time_1) < timeout)
+				goto retry;
+			else
+			{
+				osd_printf_verbose("timeout: %.3f retries %d\n", timeout, retries);
+				return false;
+			}
 		}
 	}
+	// We got an immediate response, just check the clock here
+	else
+		time_2 = osd_ticks();
+
+	osd_printf_verbose("success: frame %d vcount %d wait %.3f retries %d\n", status->frame_num, status->vcount, get_ms(time_2 - time_1), retries);
 	return true;
 }
 
@@ -575,10 +618,17 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 	// Compressed blocks are 16 lines long
 	int block_size = m_compression? (width << 4) * 3 : 0;
 
+	// We need to make sure we don't blit until VRAM is empty
+	//int min_sync_line = std::max(height - VRAM_BUFFER_SIZE / width, 0);
+	int min_sync_line = 0;
+
+	// Update vsync scanline
+	m_vsync_scanline = (height - min_sync_line) * ((float)(video_config.framedelay) / 10) + min_sync_line + 1;
+
 	// Send CMD_BLIT
 	cmd_blit command;
 	command.frame = frame;
-	command.vsync = height * ((float)(video_config.framedelay + 0) / 10) + 24; //vsync;
+	command.vsync = video_config.syncrefresh? m_vsync_scanline : 0;
 	command.block_size = block_size;
 	nogpu_send_command(&command, sizeof(command));
 
