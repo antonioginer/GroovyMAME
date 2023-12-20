@@ -87,7 +87,7 @@ void switchres_module::init(running_machine &machine)
 	#endif
 
 	// Set logging functions
-	if (strcmp(options.video(), "nogpu") == 0)
+	if (strcmp(options.video(), "mister") == 0)
 		// Disable info logs for nogpu to avoid glitches
 		switchres().set_log_info_fn((void *)sr_printf_verbose);
 	else
@@ -175,7 +175,7 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	display->set_screen(monitor->devicename().c_str());
 
 	// Use dummy display for nogpu device
-	if (strcmp(options.video(), "nogpu") == 0)
+	if (strcmp(options.video(), "mister") == 0)
 		display->set_screen("dummy");
 
 	// Finally, override SR's settings with MAME's options of higher priority
