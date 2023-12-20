@@ -133,6 +133,7 @@
 #define OSDOPTION_CRT_RANGE             "crt_range"
 #define OSDOPTION_NOGPU_IP              "nogpu_ip"
 #define OSDOPTION_NOGPU_COMPRESSION     "nogpu_compression"
+#define OSDOPTION_NOGPU_WINDOW          "nogpu_window"
 
 #define OSDOPTVAL_AUTO                  "auto"
 #define OSDOPTVAL_NONE                  "none"
@@ -216,6 +217,7 @@ public:
 	const char *crt_range(int index) const { return value(util::string_format("%s%d", OSDOPTION_CRT_RANGE, index)); }
 	const char *nogpu_ip() const { return value(OSDOPTION_NOGPU_IP); }
 	const char *nogpu_compression() const { return value(OSDOPTION_NOGPU_COMPRESSION); }
+	bool nogpu_window() const { return bool_value(OSDOPTION_NOGPU_WINDOW); }
 
 	// accelerated video options
 	bool filter() const { return bool_value(OSDOPTION_FILTER); }
