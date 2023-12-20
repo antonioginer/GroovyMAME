@@ -138,6 +138,7 @@ private:
 	bool m_initialized = false;
 	bool m_first_blit = true;
 	int m_compression = 0;
+	bool m_show_window = false;
 	int m_frame = 0;
 	int m_width = 0;
 	int m_height = 0;
@@ -249,15 +250,18 @@ int renderer_nogpu::draw(const int update)
 		old_width = m_width;
 		old_height = m_height;
 
-		RECT client_rect;
-		RECT window_rect;
-		GetClientRect(win.platform_window(), &client_rect);
-		GetWindowRect(win.platform_window(), &window_rect);
+		if (m_show_window)
+		{
+			RECT client_rect;
+			RECT window_rect;
+			GetClientRect(win.platform_window(), &client_rect);
+			GetWindowRect(win.platform_window(), &window_rect);
 
-		int extra_width = (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
-		int extra_height = (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
+			int extra_width = (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
+			int extra_height = (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
 
-		SetWindowPos(win.platform_window(), nullptr, 0, 0, m_width + extra_width, m_height + extra_height	, SWP_NOMOVE | SWP_NOZORDER);
+			SetWindowPos(win.platform_window(), nullptr, 0, 0, m_width + extra_width, m_height + extra_height, SWP_NOMOVE | SWP_NOZORDER);
+		}
 	}
 
 	// compute pitch of target
@@ -281,10 +285,11 @@ int renderer_nogpu::draw(const int update)
 	m_bminfo.bmiHeader.biHeight = -m_height;
 
 	// blit to the screen
-	StretchDIBits(
-			win.m_dc, 0, 0, m_width, m_height,
-			0, 0, m_width, m_height,
-			m_bmdata.get(), &m_bminfo, DIB_RGB_COLORS, SRCCOPY);
+	if (m_show_window)
+		StretchDIBits(
+				win.m_dc, 0, 0, m_width, m_height,
+				0, 0, m_width, m_height,
+				m_bmdata.get(), &m_bminfo, DIB_RGB_COLORS, SRCCOPY);
 
 	// initialize nogpu right before first blit
 	if (m_first_blit && !m_initialized)
@@ -303,7 +308,7 @@ int renderer_nogpu::draw(const int update)
 	int lstart = m_current_mode.interlace? pitch * 4 * ((m_status.vcount + 1) % 2) : 0;
 	int lend = (m_height - 1) * pitch * 4;
 	int lstep = pitch * 4 * (m_current_mode.interlace? 2 : 1);
-	osd_printf_verbose("lstart %d lend %d lstep %d\n", lstart, lend, lstep);
+
 	for (i = lstart; i <= lend ; i += lstep)
 	{
 		for (j = 0; j < pitch * 4; j += 4)
@@ -434,6 +439,15 @@ bool renderer_nogpu::nogpu_init()
 
 	// Reset current mode
 	m_current_mode = {};
+
+	// Hide window optionally
+	m_show_window = downcast<windows_options &>(window().machine().options()).nogpu_window();
+	if (!m_show_window)
+	{
+		auto &win = dynamic_cast<win_window_info &>(window());
+		SetWindowLong(win.platform_window(), GWL_EXSTYLE, WS_EX_LAYERED);
+		SetLayeredWindowAttributes(win.platform_window(), 0, 0, LWA_ALPHA);
+	}
 
 	return nogpu_send_command(&command, sizeof(command));
 }
