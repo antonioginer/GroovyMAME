@@ -131,9 +131,9 @@
 #define OSDOPTION_PS_TIMING             "ps_timing"
 #define OSDOPTION_LCD_RANGE             "lcd_range"
 #define OSDOPTION_CRT_RANGE             "crt_range"
-#define OSDOPTION_NOGPU_IP              "nogpu_ip"
-#define OSDOPTION_NOGPU_COMPRESSION     "nogpu_compression"
-#define OSDOPTION_NOGPU_WINDOW          "nogpu_window"
+#define OSDOPTION_MISTER_IP             "mister_ip"
+#define OSDOPTION_MISTER_COMPRESSION    "mister_compression"
+#define OSDOPTION_MISTER_WINDOW         "mister_window"
 
 #define OSDOPTVAL_AUTO                  "auto"
 #define OSDOPTVAL_NONE                  "none"
@@ -215,9 +215,9 @@ public:
 	const char *ps_timing() const { return value(OSDOPTION_PS_TIMING); }
 	const char *lcd_range() const { return value(OSDOPTION_LCD_RANGE); }
 	const char *crt_range(int index) const { return value(util::string_format("%s%d", OSDOPTION_CRT_RANGE, index)); }
-	const char *nogpu_ip() const { return value(OSDOPTION_NOGPU_IP); }
-	const char *nogpu_compression() const { return value(OSDOPTION_NOGPU_COMPRESSION); }
-	bool nogpu_window() const { return bool_value(OSDOPTION_NOGPU_WINDOW); }
+	const char *mister_ip() const { return value(OSDOPTION_MISTER_IP); }
+	const char *mister_compression() const { return value(OSDOPTION_MISTER_COMPRESSION); }
+	bool mister_window() const { return bool_value(OSDOPTION_MISTER_WINDOW); }
 
 	// accelerated video options
 	bool filter() const { return bool_value(OSDOPTION_FILTER); }
