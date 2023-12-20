@@ -377,6 +377,12 @@ bool renderer_nogpu::nogpu_init()
 	WSADATA wsa;
 	int result;
 
+	#if defined(OSD_WINDOWS)
+		windows_options &options = downcast<windows_options &>(window().machine().options());
+	#elif defined(OSD_SDL)
+		sdl_options &options = downcast<sdl_options &>(machine().options());
+	#endif
+
 	osd_printf_verbose("nogpu: Initializing Winsock...");
 	result = WSAStartup(MAKEWORD(2, 2), &wsa);
 	if (result != NO_ERROR)
@@ -396,7 +402,7 @@ bool renderer_nogpu::nogpu_init()
 	osd_printf_verbose("done.\n");
 
 	short port = UDP_PORT;
-	const char* local_host = downcast<windows_options &>(window().machine().options()).nogpu_ip();
+	const char* local_host = options.mister_ip();
 	m_server_addr.sin_family = AF_INET;
 	m_server_addr.sin_port = htons(port);
 	m_server_addr.sin_addr.s_addr = inet_addr(local_host);
@@ -423,7 +429,7 @@ bool renderer_nogpu::nogpu_init()
 	}
 
 	m_compression = 0; // raw
-	const char* compression = downcast<windows_options &>(window().machine().options()).nogpu_compression();
+	const char* compression = options.mister_compression();
 	if (!strcmp(compression, "lz4"))
 	{
 		m_compression = 0x01;
@@ -441,7 +447,7 @@ bool renderer_nogpu::nogpu_init()
 	m_current_mode = {};
 
 	// Hide window optionally
-	m_show_window = downcast<windows_options &>(window().machine().options()).nogpu_window();
+	m_show_window = options.mister_window();
 	if (!m_show_window)
 	{
 		auto &win = dynamic_cast<win_window_info &>(window());
@@ -707,7 +713,7 @@ bool renderer_nogpu::nogpu_send_command(void *command, int command_size)
 class video_nogpu : public osd_module, public render_module
 {
 public:
-	video_nogpu() : osd_module(OSD_RENDERER_PROVIDER, "nogpu") { }
+	video_nogpu() : osd_module(OSD_RENDERER_PROVIDER, "mister") { }
 
 	virtual int init(osd_interface &osd, osd_options const &options) override { return 0; }
 	virtual void exit() override { }
@@ -727,5 +733,5 @@ std::unique_ptr<osd_renderer> video_nogpu::create(osd_window &window)
 
 } // namespace osd
 
-MODULE_DEFINITION(RENDERER_NOGPU, osd::video_nogpu)
+MODULE_DEFINITION(RENDERER_MISTER, osd::video_nogpu)
 
