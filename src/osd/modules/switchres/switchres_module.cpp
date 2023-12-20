@@ -80,9 +80,20 @@ void switchres_module::init(running_machine &machine)
 	m_machine = &machine;
 	m_switchres = new switchres_manager;
 
+	#if defined(OSD_WINDOWS)
+		windows_options &options = downcast<windows_options &>(machine.options());
+	#elif defined(OSD_SDL)
+		sdl_options &options = downcast<sdl_options &>(machine.options());
+	#endif
+
 	// Set logging functions
+	if (strcmp(options.video(), "nogpu") == 0)
+		// Disable info logs for nogpu to avoid glitches
+		switchres().set_log_info_fn((void *)sr_printf_verbose);
+	else
+		switchres().set_log_info_fn((void *)sr_printf_info);
+
 	switchres().set_log_verbose_fn((void *)sr_printf_verbose);
-	switchres().set_log_info_fn((void *)sr_printf_info);
 	switchres().set_log_error_fn((void *)sr_printf_error);
 
 	if (machine.options().verbose()) switchres().set_log_level(3);
