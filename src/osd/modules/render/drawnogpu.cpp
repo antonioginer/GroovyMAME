@@ -167,6 +167,7 @@ private:
 	bool m_first_blit = true;
 	int m_compression = 0;
 	bool m_show_window = false;
+	bool m_is_internal_fe = false;
 	int m_frame = 0;
 	int m_field = 0;
 	int m_width = 0;
@@ -175,6 +176,7 @@ private:
 	int m_vsync_scanline = 0;
 	double m_period = 16.666667;
 	double m_line_period = 0.064;
+	double m_frame_delay = 0.0;
 	nogpu_status m_status;
 	nogpu_blit_status m_blit_status;
 	modeline m_current_mode;
@@ -183,6 +185,9 @@ private:
 	osd_ticks_t time_entry = 0;
 	osd_ticks_t time_blit = 0;
 	osd_ticks_t time_exit = 0;
+	osd_ticks_t time_frame[16];
+	osd_ticks_t time_frame_avg = 0;
+	osd_ticks_t time_frame_dm = 0;
 
 	SOCKET m_sockfd = INVALID_SOCKET;
 	SOCKADDR_IN m_server_addr;
@@ -198,6 +203,7 @@ private:
 	void nogpu_send_lz4(char *buffer, int bytes_to_send, int block_size);
 	int nogpu_compress(int id_compress, char *buffer_comp, const char *buffer_rgb, uint32_t buffer_size);
 	bool nogpu_wait_status(nogpu_blit_status *status, double timeout);
+	void nogpu_register_frametime(osd_ticks_t frametime);
 };
 
 inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
@@ -370,20 +376,23 @@ int renderer_nogpu::draw(const int update)
 	nogpu_blit(m_frame, m_width, m_height / (m_current_mode.interlace? 2 : 1));
 
 	time_blit = osd_ticks();
-	osd_printf_verbose("[%.3f] frame: %d emulation_time: %.3f blit_time: %.3f \n", get_ms(time_entry - time_start), m_frame, get_ms(time_entry - time_exit), get_ms(time_blit - time_entry));
+	osd_printf_verbose("[%.3f] frame: %d emulation_time: %.3f blit_time: %.3f \n",
+			get_ms(time_entry - time_start), m_frame,get_ms(time_entry - time_exit), get_ms(time_blit - time_entry));
 
 	// Wait raster position
 	if (video_config.syncrefresh)
 		valid_status = nogpu_wait_status(&m_blit_status, std::max(0.0d, m_period - get_ms(time_blit - time_exit)));
-
-	time_exit = osd_ticks();
 
 	if (video_config.syncrefresh && valid_status)
 		m_frame = m_blit_status.frame_req + 1;
 	else
 		m_frame ++;
 
-	osd_printf_verbose("[%.3f] wait_time: %.3f\n\n", get_ms(time_exit - time_start), get_ms(time_exit - time_blit));
+	nogpu_register_frametime(time_blit - time_exit);
+
+	time_exit = osd_ticks();
+	osd_printf_verbose("[%.3f] ft_avg %.3f Dm: %.3f fd: %.3f wait_time: %.3f\n\n",
+		get_ms(time_exit - time_start), get_ms(time_frame_avg), get_ms(time_frame_dm), m_frame_delay * 10.0, get_ms(time_exit - time_blit));
 
 	return 0;
 }
@@ -472,6 +481,8 @@ bool renderer_nogpu::nogpu_init()
 		SetWindowLong(win.platform_window(), GWL_EXSTYLE, WS_EX_LAYERED);
 		SetLayeredWindowAttributes(win.platform_window(), 0, 0, LWA_ALPHA);
 	}
+
+	m_is_internal_fe = strcmp(window().machine().system().name, "___empty") == 0;
 
 	return nogpu_send_command(&command, sizeof(command));
 }
@@ -594,6 +605,43 @@ bool renderer_nogpu::nogpu_wait_status(nogpu_blit_status *status, double timeout
 }
 
 //============================================================
+//  renderer_nogpu::nogpu_register_frametime
+//============================================================
+
+void renderer_nogpu::nogpu_register_frametime(osd_ticks_t frametime)
+{
+	static int i = 0;
+	static int regs = 0;
+	const int max_regs = sizeof(time_frame) / sizeof(time_frame[0]);
+	osd_ticks_t acum = 0;
+	osd_ticks_t acum_diff = 0;
+	int diff = 0;
+
+	if (frametime <= 0)
+		return;
+
+	time_frame[i] = frametime;
+	i++;
+
+	if (i > max_regs)
+		i = 0;
+
+	if (regs < max_regs)
+		regs++;
+
+	for (int k = 0; k <= regs; k++)
+	{
+		acum += time_frame[k];
+		diff = time_frame[k] - time_frame_avg;
+		acum_diff += abs(diff);
+	}
+
+	time_frame_avg = acum / regs;
+	time_frame_dm = acum_diff / regs;
+
+}
+
+//============================================================
 //  renderer_nogpu::nogpu_send_mtu
 //============================================================
 
@@ -663,8 +711,16 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 	//int min_sync_line = std::max(height - VRAM_BUFFER_SIZE / width, 0);
 	int min_sync_line = 0;
 
+	// Calculate frame delay factor
+	if (video_config.framedelay == 0 && !m_is_internal_fe)
+		// automatic
+		m_frame_delay = std::max((double)(m_period - get_ms(time_frame_avg + time_frame_dm)) / m_period, 0.0d);
+	else
+		// user defined
+		m_frame_delay = (double)(video_config.framedelay) / 10.0d;
+
 	// Update vsync scanline
-	m_vsync_scanline = (m_current_mode.vtotal - min_sync_line) * ((float)(video_config.framedelay) / 10) + min_sync_line + 1;
+	m_vsync_scanline = (m_current_mode.vtotal - min_sync_line) * m_frame_delay + min_sync_line + 1;
 
 	// Send CMD_BLIT
 	cmd_blit_vsync command;
