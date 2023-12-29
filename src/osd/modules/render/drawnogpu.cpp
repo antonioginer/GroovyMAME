@@ -379,6 +379,8 @@ int renderer_nogpu::draw(const int update)
 	osd_printf_verbose("[%.3f] frame: %d emulation_time: %.3f blit_time: %.3f \n",
 			get_ms(time_entry - time_start), m_frame,get_ms(time_entry - time_exit), get_ms(time_blit - time_entry));
 
+	nogpu_register_frametime(time_entry - time_exit);
+
 	// Wait raster position
 	if (video_config.syncrefresh)
 		valid_status = nogpu_wait_status(&m_blit_status, std::max(0.0d, m_period - get_ms(time_blit - time_exit)));
@@ -387,8 +389,6 @@ int renderer_nogpu::draw(const int update)
 		m_frame = m_blit_status.frame_req + 1;
 	else
 		m_frame ++;
-
-	nogpu_register_frametime(time_blit - time_exit);
 
 	time_exit = osd_ticks();
 	osd_printf_verbose("[%.3f] ft_avg %.3f Dm: %.3f fd: %.3f wait_time: %.3f\n\n",
@@ -577,12 +577,11 @@ bool renderer_nogpu::nogpu_wait_status(nogpu_blit_status *status, double timeout
 	if (m_current_mode.interlace)
 		lines_to_wait /= 2;
 
-	if (lines_to_wait > 0)
-	{
-		//double time_target = time_exit + (double)lines_to_wait * m_line_period * osd_ticks_per_second() / 1000.0;
-		double time_target = time_entry + (double)lines_to_wait * m_line_period * osd_ticks_per_second() / 1000.0;
+	osd_ticks_t time_target = time_entry + (osd_ticks_t)((double)lines_to_wait * m_line_period * osd_ticks_per_second() / 1000.0) - time_frame_avg;
 
-		osd_printf_verbose("to wait[%d | %.3f]\n", lines_to_wait, get_ms(time_target - osd_ticks()));
+	if ((int)(time_target - osd_ticks()) > 0)
+	{
+		osd_printf_verbose("to wait[%d|%.3f]\n", lines_to_wait, get_ms(time_target - osd_ticks()));
 
 		do
 		{
@@ -614,10 +613,9 @@ void renderer_nogpu::nogpu_register_frametime(osd_ticks_t frametime)
 	static int regs = 0;
 	const int max_regs = sizeof(time_frame) / sizeof(time_frame[0]);
 	osd_ticks_t acum = 0;
-	osd_ticks_t acum_diff = 0;
 	int diff = 0;
 
-	if (frametime <= 0)
+	if (frametime <= 0 || get_ms(frametime) > m_period)
 		return;
 
 	time_frame[i] = frametime;
@@ -629,16 +627,22 @@ void renderer_nogpu::nogpu_register_frametime(osd_ticks_t frametime)
 	if (regs < max_regs)
 		regs++;
 
-	for (int k = 0; k <= regs; k++)
-	{
+	for (int k = 0; k < regs; k++)
 		acum += time_frame[k];
-		diff = time_frame[k] - time_frame_avg;
-		acum_diff += abs(diff);
-	}
 
 	time_frame_avg = acum / regs;
-	time_frame_dm = acum_diff / regs;
 
+	osd_ticks_t max_diff = 0;
+
+	for (int k = 1; k <= regs; k++)
+	{
+		diff = time_frame[k] - time_frame[k-1];
+
+		if (diff > 0 && diff > max_diff)
+			max_diff = diff;
+	}
+
+	time_frame_dm = max_diff;
 }
 
 //============================================================
@@ -707,20 +711,21 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 	// Compressed blocks are 16 lines long
 	int block_size = m_compression? (width << 4) * 3 : 0;
 
-	// We need to make sure we don't blit until VRAM is empty
-	//int min_sync_line = std::max(height - VRAM_BUFFER_SIZE / width, 0);
-	int min_sync_line = 0;
+	int vsync_offset = 0;
 
 	// Calculate frame delay factor
 	if (video_config.framedelay == 0 && !m_is_internal_fe)
 		// automatic
-		m_frame_delay = std::max((double)(m_period - get_ms(time_frame_avg + time_frame_dm)) / m_period, 0.0d);
+		m_frame_delay = std::max((double)(m_period - std::max(1.0d, get_ms(time_frame_dm))) / m_period, 0.0d);
 	else
+	{
 		// user defined
 		m_frame_delay = (double)(video_config.framedelay) / 10.0d;
+		vsync_offset = window().machine().video().vsync_offset();
+	}
 
 	// Update vsync scanline
-	m_vsync_scanline = (m_current_mode.vtotal - min_sync_line) * m_frame_delay + min_sync_line + 1;
+	m_vsync_scanline = std::min<int>((m_current_mode.vtotal) * m_frame_delay + vsync_offset + 1, m_current_mode.vtotal);
 
 	// Send CMD_BLIT
 	cmd_blit_vsync command;
