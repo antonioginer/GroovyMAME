@@ -149,6 +149,7 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_MISTER_IP,                       "0.0.0.0",        core_options::option_type::STRING,    "nogpu device ip address" },
 	{ OSDOPTION_MISTER_COMPRESSION,              OSDOPTVAL_NONE,   core_options::option_type::STRING,    "nogpu device frame compression algorithm (none, lz4)" },
 	{ OSDOPTION_MISTER_WINDOW,                   "0",              core_options::option_type::BOOLEAN,   "nogpu show client window (affects performace)" },
+	{ OSDOPTION_MISTER_FD_MARGIN,                "1.5",            core_options::option_type::FLOAT,     "nogpu security margin for automatic frame delay, in ms."},
 
 	{ nullptr,                                   nullptr,          core_options::option_type::HEADER,    "OSD ACCELERATED VIDEO OPTIONS" },
 	{ OSDOPTION_FILTER ";glfilter;flt",          "0",              core_options::option_type::BOOLEAN,   "use bilinear filtering when scaling emulated video" },
