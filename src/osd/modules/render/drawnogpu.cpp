@@ -19,9 +19,16 @@
 
 #include "render_module.h"
 
-// standard windows headers
+#ifdef _WIN32
 #include <windows.h>
 #include <winsock2.h>
+#define socklen_t int
+#else
+#include <fcntl.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif
 
 // MAMEOS headers
 #if defined(OSD_WINDOWS)
@@ -38,6 +45,7 @@
 #define MAX_BUFFER_WIDTH 768
 #define MAX_BUFFER_HEIGHT 576
 #define VRAM_BUFFER_SIZE 65536
+#define SEND_BIFFER_SIZE 2097152 //2 * 1024 * 1024
 
 // nogpu UDP server
 #define UDP_PORT 32100
@@ -158,7 +166,9 @@ public:
 	virtual void toggle_fsfx() override {}
 
 private:
+#if defined(OSD_WINDOWS)
 	BITMAPINFO                  m_bminfo;
+#endif
 	std::unique_ptr<uint8_t []> m_bmdata;
 	size_t                      m_bmsize;
 
@@ -174,9 +184,11 @@ private:
 	int m_height = 0;
 	int m_vtotal = 0;
 	int m_vsync_scanline = 0;
+	bool m_sleep_allowed = false;
 	double m_period = 16.666667;
 	double m_line_period = 0.064;
 	double m_frame_delay = 0.0;
+	double m_fd_margin = 1.5;
 	nogpu_status m_status;
 	nogpu_blit_status m_blit_status;
 	modeline m_current_mode;
@@ -188,9 +200,11 @@ private:
 	osd_ticks_t time_frame[16];
 	osd_ticks_t time_frame_avg = 0;
 	osd_ticks_t time_frame_dm = 0;
+	osd_ticks_t time_sleep = 1 * osd_ticks_per_second() / 1000.0; // 1 ms
 
-	SOCKET m_sockfd = INVALID_SOCKET;
-	SOCKADDR_IN m_server_addr;
+	int m_sockfd = -1; //INVALID_SOCKET;
+	sockaddr_in m_server_addr;
+
 	char m_fb[MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3];
 	char m_fb_compressed[MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3];
 	char inp_buf[2][MAX_BUFFER_WIDTH * 16 * 3 + 1];
@@ -214,16 +228,18 @@ inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_
 
 int renderer_nogpu::create()
 {
-	// fill in the bitmap info header
-	m_bminfo.bmiHeader.biSize            = sizeof(m_bminfo.bmiHeader);
-	m_bminfo.bmiHeader.biPlanes          = 1;
-	m_bminfo.bmiHeader.biBitCount        = 32;
-	m_bminfo.bmiHeader.biCompression     = BI_RGB;
-	m_bminfo.bmiHeader.biSizeImage       = 0;
-	m_bminfo.bmiHeader.biXPelsPerMeter   = 0;
-	m_bminfo.bmiHeader.biYPelsPerMeter   = 0;
-	m_bminfo.bmiHeader.biClrUsed         = 0;
-	m_bminfo.bmiHeader.biClrImportant    = 0;
+	#if defined(OSD_WINDOWS)
+		// fill in the bitmap info header
+		m_bminfo.bmiHeader.biSize            = sizeof(m_bminfo.bmiHeader);
+		m_bminfo.bmiHeader.biPlanes          = 1;
+		m_bminfo.bmiHeader.biBitCount        = 32;
+		m_bminfo.bmiHeader.biCompression     = BI_RGB;
+		m_bminfo.bmiHeader.biSizeImage       = 0;
+		m_bminfo.bmiHeader.biXPelsPerMeter   = 0;
+		m_bminfo.bmiHeader.biYPelsPerMeter   = 0;
+		m_bminfo.bmiHeader.biClrUsed         = 0;
+		m_bminfo.bmiHeader.biClrImportant    = 0;
+	#endif
 
 	return 0;
 }
@@ -267,11 +283,17 @@ render_primitive_list *renderer_nogpu::get_primitives()
 
 int renderer_nogpu::draw(const int update)
 {
-	auto &win = dynamic_cast<win_window_info &>(window());
+	#if defined(OSD_WINDOWS)
+		auto &win = dynamic_cast<win_window_info &>(window());
+	#elif defined(OSD_SDL)
+		auto &win = dynamic_cast<sdl_window_info &>(window());
+	#endif
 
+	#if defined(OSD_WINDOWS)
 	// we don't have any special resize behaviors
 	if (win.m_resize_state == win_window_info::RESIZE_STATE_PENDING)
 		win.m_resize_state = win_window_info::RESIZE_STATE_NORMAL;
+	#endif
 
 	// resize window if required
 	static int old_width = 0;
@@ -281,6 +303,7 @@ int renderer_nogpu::draw(const int update)
 		old_width = m_width;
 		old_height = m_height;
 
+		#if defined(OSD_WINDOWS)
 		if (m_show_window)
 		{
 			RECT client_rect;
@@ -293,6 +316,7 @@ int renderer_nogpu::draw(const int update)
 
 			SetWindowPos(win.platform_window(), nullptr, 0, 0, m_width + extra_width, m_height + extra_height, SWP_NOMOVE | SWP_NOZORDER);
 		}
+		#endif
 	}
 
 	// compute pitch of target
@@ -311,16 +335,20 @@ int renderer_nogpu::draw(const int update)
 	software_renderer<uint32_t, 0,0,0, 16,8,0>::draw_primitives(*win.m_primlist, m_bmdata.get(), m_width, m_height, pitch);
 	win.m_primlist->release_lock();
 
-	// fill in bitmap-specific info
-	m_bminfo.bmiHeader.biWidth = pitch;
-	m_bminfo.bmiHeader.biHeight = -m_height;
-
 	// blit to the screen
+	#if defined(OSD_WINDOWS)
 	if (m_show_window)
+	{
+		// fill in bitmap-specific info
+		m_bminfo.bmiHeader.biWidth = pitch;
+		m_bminfo.bmiHeader.biHeight = -m_height;
+
 		StretchDIBits(
 				win.m_dc, 0, 0, m_width, m_height,
 				0, 0, m_width, m_height,
 				m_bmdata.get(), &m_bminfo, DIB_RGB_COLORS, SRCCOPY);
+	}
+	#endif
 
 	// initialize nogpu right before first blit
 	if (m_first_blit && !m_initialized)
@@ -403,23 +431,25 @@ int renderer_nogpu::draw(const int update)
 
 bool renderer_nogpu::nogpu_init()
 {
-	WSADATA wsa;
 	int result;
 
 	#if defined(OSD_WINDOWS)
 		windows_options &options = downcast<windows_options &>(window().machine().options());
 	#elif defined(OSD_SDL)
-		sdl_options &options = downcast<sdl_options &>(machine().options());
+		sdl_options &options = downcast<sdl_options &>(window().machine().options());
 	#endif
 
-	osd_printf_verbose("nogpu: Initializing Winsock...");
-	result = WSAStartup(MAKEWORD(2, 2), &wsa);
-	if (result != NO_ERROR)
-	{
-		osd_printf_verbose("Failed. Error code : %d", WSAGetLastError());
-		return false;
-	}
-	osd_printf_verbose("done.\n");
+	#ifdef _WIN32
+		osd_printf_verbose("nogpu: Initializing Winsock...");
+		WSADATA wsa;
+		result = WSAStartup(MAKEWORD(2, 2), &wsa);
+		if (result != NO_ERROR)
+		{
+			osd_printf_verbose("Failed. Error code : %d", WSAGetLastError());
+			return false;
+		}
+		osd_printf_verbose("done.\n");
+	#endif
 
 	osd_printf_verbose("nogpu: Initializing socket... ");
 	m_sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -442,12 +472,25 @@ bool renderer_nogpu::nogpu_init()
 
 	osd_printf_verbose("nogpu: Setting socket async...\n");
 
-	u_long opt = 1;
-	if (ioctlsocket(m_sockfd, FIONBIO, &opt) < 0)
-		osd_printf_verbose("Could not set nonblocking.\n");
+	#ifdef _WIN32
+		u_long opt = 1;
+		if (ioctlsocket(m_sockfd, FIONBIO, &opt) < 0)
+			osd_printf_verbose("Could not set nonblocking.\n");
+	#else
+		int flags;
+		flags = fcntl(m_sockfd, F_GETFD, 0);
+		if (flags < 0)
+			osd_printf_verbose("Could not get socket flags.\n");
+		else
+		{
+			flags |= O_NONBLOCK;
+			if (fcntl(m_sockfd, F_SETFL, flags) < 0)
+				osd_printf_verbose("Could not set nonblocking.\n");
+		}
+	#endif
 
-	osd_printf_verbose("nogpu: Setting send buffer to 2097152 bytes...\n");
-	int opt_val = 2097152;
+	osd_printf_verbose("nogpu: Setting send buffer to %d bytes...\n", SEND_BIFFER_SIZE);
+	int opt_val = SEND_BIFFER_SIZE;
 	result = setsockopt(m_sockfd, SOL_SOCKET, SO_SNDBUF, (char*)&opt_val, sizeof(opt_val));
 	if (result < 0)
 	{
@@ -475,13 +518,17 @@ bool renderer_nogpu::nogpu_init()
 
 	// Hide window optionally
 	m_show_window = options.mister_window();
-	if (!m_show_window)
-	{
-		auto &win = dynamic_cast<win_window_info &>(window());
-		SetWindowLong(win.platform_window(), GWL_EXSTYLE, WS_EX_LAYERED);
-		SetLayeredWindowAttributes(win.platform_window(), 0, 0, LWA_ALPHA);
-	}
+	#if defined(OSD_WINDOWS)
+		if (!m_show_window)
+		{
+			auto &win = dynamic_cast<win_window_info &>(window());
+			SetWindowLong(win.platform_window(), GWL_EXSTYLE, WS_EX_LAYERED);
+			SetLayeredWindowAttributes(win.platform_window(), 0, 0, LWA_ALPHA);
+		}
+	#endif
 
+	m_fd_margin = (double)options.mister_fd_margin();
+	m_sleep_allowed = options.sleep();
 	m_is_internal_fe = strcmp(window().machine().system().name, "___empty") == 0;
 
 	return nogpu_send_command(&command, sizeof(command));
@@ -493,8 +540,13 @@ bool renderer_nogpu::nogpu_init()
 
 bool renderer_nogpu::nogpu_switch_video_mode()
 {
+	#if defined(OSD_WINDOWS)
+		switchres_manager *m_switchres = &downcast<windows_osd_interface&>(window().machine().osd()).switchres()->switchres();
+	#elif defined(OSD_SDL)
+		switchres_manager *m_switchres = &downcast<sdl_osd_interface&>(window().machine().osd()).switchres()->switchres();
+	#endif
+
 	// Check if we have a pending mode change
-	switchres_manager *m_switchres = &downcast<windows_osd_interface&>(window().machine().osd()).switchres()->switchres();
 	if (m_switchres->display(window().index()) == nullptr)
 		return false;
 
@@ -544,16 +596,17 @@ bool renderer_nogpu::nogpu_wait_status(nogpu_blit_status *status, double timeout
 	int retries = 0;
 	osd_ticks_t time_1 = 0;
 	osd_ticks_t time_2 = 0;
-	int server_addr_size = sizeof(m_server_addr);
+	socklen_t server_addr_size = sizeof(m_server_addr);
 	int bytes_recv = 0;
 
 	osd_printf_verbose("[%.3f] wait_status[%.3f]: ", get_ms(osd_ticks() - time_start), timeout);
 	time_1 = osd_ticks();
 
+	// Poll server for blit line timestamp
 	do
 	{
 		retries++;
-		bytes_recv = recvfrom(m_sockfd, (char *)status, sizeof(nogpu_blit_status), 0, (SOCKADDR*)&m_server_addr, &server_addr_size);
+		bytes_recv = recvfrom(m_sockfd, (char *)status, sizeof(nogpu_blit_status), 0, (sockaddr*)&m_server_addr, &server_addr_size);
 
 		if (bytes_recv > 0 && m_frame == status->frame_req)
 			break;
@@ -565,7 +618,7 @@ bool renderer_nogpu::nogpu_wait_status(nogpu_blit_status *status, double timeout
 			return false;
 		}
 
-		Sleep(1);
+		if (m_sleep_allowed) osd_sleep(time_sleep);
 
 	} while (true);
 
@@ -573,12 +626,15 @@ bool renderer_nogpu::nogpu_wait_status(nogpu_blit_status *status, double timeout
 	// We have a valid timestamp
 	osd_printf_verbose("success[%d] ack[%d][%d]->[%d][%d] ", retries, status->frame_req, status->vcount_req, status->frame_gpu, status->vcount_gpu);
 
+	// Compute line target for next blit, relative to last blit line timestamp
 	int lines_to_wait = (status->frame_req - status->frame_gpu) * m_current_mode.vtotal + status->vcount_req - status->vcount_gpu;
 	if (m_current_mode.interlace)
 		lines_to_wait /= 2;
 
+	// Compute time target for emulation of next frame, so that blit after it happens at desired line target
 	osd_ticks_t time_target = time_entry + (osd_ticks_t)((double)lines_to_wait * m_line_period * osd_ticks_per_second() / 1000.0) - time_frame_avg;
 
+	// Wait for target time
 	if ((int)(time_target - osd_ticks()) > 0)
 	{
 		osd_printf_verbose("to wait[%d|%.3f]\n", lines_to_wait, get_ms(time_target - osd_ticks()));
@@ -589,14 +645,15 @@ bool renderer_nogpu::nogpu_wait_status(nogpu_blit_status *status, double timeout
 			if (time_2 >= time_target)
 				break;
 
-			if (get_ms(time_target - time_2) > 2.0)
-				Sleep(1);
+			if (m_sleep_allowed && get_ms(time_target - time_2) > 2.0)
+				osd_sleep(time_sleep);
 
 		} while (true);
 	}
 	else
 		osd_printf_verbose("delayed, exiting\n");
 
+	// Make sure our frame counter hasn't fallen behind gpu's
 	if (status->frame_gpu > status->frame_req)
 		status->frame_req = status->frame_gpu + 1;
 
@@ -615,9 +672,11 @@ void renderer_nogpu::nogpu_register_frametime(osd_ticks_t frametime)
 	osd_ticks_t acum = 0;
 	int diff = 0;
 
+	// Discard invalid values
 	if (frametime <= 0 || get_ms(frametime) > m_period)
 		return;
 
+	// Register value and compute current average
 	time_frame[i] = frametime;
 	i++;
 
@@ -632,6 +691,7 @@ void renderer_nogpu::nogpu_register_frametime(osd_ticks_t frametime)
 
 	time_frame_avg = acum / regs;
 
+	// Compute current max deviation
 	osd_ticks_t max_diff = 0;
 
 	for (int k = 1; k <= regs; k++)
@@ -716,7 +776,7 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 	// Calculate frame delay factor
 	if (video_config.framedelay == 0 && !m_is_internal_fe)
 		// automatic
-		m_frame_delay = std::max((double)(m_period - std::max(1.0d, get_ms(time_frame_dm))) / m_period, 0.0d);
+		m_frame_delay = std::max((double)(m_period - std::max(m_fd_margin, get_ms(time_frame_dm))) / m_period, 0.0d);
 	else
 	{
 		// user defined
@@ -747,7 +807,7 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 
 bool renderer_nogpu::nogpu_send_command(void *command, int command_size)
 {
-	int rc = sendto(m_sockfd, (char *)command, command_size, 0, (SOCKADDR*)&m_server_addr, sizeof(m_server_addr));
+	int rc = sendto(m_sockfd, (char *)command, command_size, 0, (sockaddr*)&m_server_addr, sizeof(m_server_addr));
 
 	if (rc < 0)
 	{
