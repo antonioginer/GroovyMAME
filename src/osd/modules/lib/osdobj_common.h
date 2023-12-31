@@ -134,6 +134,7 @@
 #define OSDOPTION_MISTER_IP             "mister_ip"
 #define OSDOPTION_MISTER_COMPRESSION    "mister_compression"
 #define OSDOPTION_MISTER_WINDOW         "mister_window"
+#define OSDOPTION_MISTER_FD_MARGIN      "mister_fd_margin"
 
 #define OSDOPTVAL_AUTO                  "auto"
 #define OSDOPTVAL_NONE                  "none"
@@ -218,6 +219,7 @@ public:
 	const char *mister_ip() const { return value(OSDOPTION_MISTER_IP); }
 	const char *mister_compression() const { return value(OSDOPTION_MISTER_COMPRESSION); }
 	bool mister_window() const { return bool_value(OSDOPTION_MISTER_WINDOW); }
+	float mister_fd_margin() const { return float_value(OSDOPTION_MISTER_FD_MARGIN); }
 
 	// accelerated video options
 	bool filter() const { return bool_value(OSDOPTION_FILTER); }
