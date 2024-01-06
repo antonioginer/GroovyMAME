@@ -189,6 +189,8 @@ private:
 	double m_line_period = 0.064;
 	double m_frame_delay = 0.0;
 	double m_fd_margin = 1.5;
+	float m_aspect = 4.0 / 3.0;
+	float m_pixel_aspect = 1.0;
 	nogpu_status m_status;
 	nogpu_blit_status m_blit_status;
 	modeline m_current_mode;
@@ -273,7 +275,7 @@ render_primitive_list *renderer_nogpu::get_primitives()
 		m_height = std::min(dimensions.height(), MAX_BUFFER_HEIGHT);
 	}
 
-	window().target()->set_bounds(m_width, m_height, window().pixel_aspect());
+	window().target()->set_bounds(m_width, m_height, m_pixel_aspect);
 	return &window().target()->get_primitives();
 }
 
@@ -583,6 +585,9 @@ bool renderer_nogpu::nogpu_switch_video_mode()
 	m_period = 1000.0 / (double(mode->pclock) / (mode->htotal * mode->vtotal)) / (mode->interlace? 2: 1);
 	m_line_period = 1000.0 / mode->hfreq;
 	m_field = 0;
+
+	m_aspect = m_switchres->display(window().index())->monitor_aspect();
+	m_pixel_aspect = m_aspect / ((float)m_width / m_height);
 
 	return nogpu_send_command(&command, sizeof(command));
 }
