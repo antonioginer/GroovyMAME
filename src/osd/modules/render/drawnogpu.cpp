@@ -46,6 +46,7 @@
 #define MAX_BUFFER_HEIGHT 576
 #define VRAM_BUFFER_SIZE 65536
 #define SEND_BIFFER_SIZE 2097152 //2 * 1024 * 1024
+#define MAX_LZ4_BLOCK   61440
 
 // nogpu UDP server
 #define UDP_PORT 32100
@@ -178,6 +179,8 @@ private:
 	int m_compression = 0;
 	bool m_show_window = false;
 	bool m_is_internal_fe = false;
+	bool m_autofilter = false;
+	bool m_bilinear = false;
 	int m_frame = 0;
 	int m_field = 0;
 	int m_width = 0;
@@ -209,7 +212,7 @@ private:
 
 	char m_fb[MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3];
 	char m_fb_compressed[MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3];
-	char inp_buf[2][MAX_BUFFER_WIDTH * 16 * 3 + 1];
+	char inp_buf[2][MAX_LZ4_BLOCK + 1];
 
 	bool nogpu_init();
 	bool nogpu_send_command(void *command, int command_size);
@@ -334,7 +337,10 @@ int renderer_nogpu::draw(const int update)
 
 	// draw the primitives to the bitmap
 	win.m_primlist->acquire_lock();
-	software_renderer<uint32_t, 0,0,0, 16,8,0>::draw_primitives(*win.m_primlist, m_bmdata.get(), m_width, m_height, pitch);
+	if (m_bilinear)
+		software_renderer<uint32_t, 0,0,0, 16,8,0,0, 1>::draw_primitives(*win.m_primlist, m_bmdata.get(), m_width, m_height, pitch);
+	else
+		software_renderer<uint32_t, 0,0,0, 16,8,0,0, 0>::draw_primitives(*win.m_primlist, m_bmdata.get(), m_width, m_height, pitch);
 	win.m_primlist->release_lock();
 
 	// blit to the screen
@@ -531,6 +537,7 @@ bool renderer_nogpu::nogpu_init()
 
 	m_fd_margin = (double)options.mister_fd_margin();
 	m_sleep_allowed = options.sleep();
+	m_autofilter = options.autofilter();
 	m_is_internal_fe = strcmp(window().machine().system().name, "___empty") == 0;
 
 	return nogpu_send_command(&command, sizeof(command));
@@ -547,14 +554,26 @@ bool renderer_nogpu::nogpu_switch_video_mode()
 	#elif defined(OSD_SDL)
 		switchres_manager *m_switchres = &downcast<sdl_osd_interface&>(window().machine().osd()).switchres()->switchres();
 	#endif
+	display_manager *display = m_switchres->display(window().index());
 
 	// Check if we have a pending mode change
-	if (m_switchres->display(window().index()) == nullptr)
+	if (display == nullptr)
 		return false;
 
-	modeline *mode = m_switchres->display(window().index())->selected_mode();
+	modeline *mode = display->selected_mode();
 	if (mode == nullptr)
 		return false;
+
+	// Make sure SR's mode isn't bigger than our buffer
+	if (mode->hactive > MAX_BUFFER_WIDTH || mode->vactive > MAX_BUFFER_HEIGHT)
+	{
+		// Force 640x480 otherwise
+		display->get_mode(640, 480, mode->vfreq, 0);
+		if (!display->got_mode())
+			return false;
+
+		mode = display->selected_mode();
+	}
 
 	// If not, we're done
 	if (!modeline_is_different(mode, &m_current_mode))
@@ -585,8 +604,9 @@ bool renderer_nogpu::nogpu_switch_video_mode()
 	m_period = 1000.0 / (double(mode->pclock) / (mode->htotal * mode->vtotal)) / (mode->interlace? 2: 1);
 	m_line_period = 1000.0 / mode->hfreq;
 	m_field = 0;
+	m_bilinear = m_autofilter & display->is_stretched();
 
-	m_aspect = m_switchres->display(window().index())->monitor_aspect();
+	m_aspect = display->monitor_aspect();
 	m_pixel_aspect = m_aspect / ((float)m_width / m_height);
 
 	return nogpu_send_command(&command, sizeof(command));
@@ -756,7 +776,7 @@ void renderer_nogpu::nogpu_send_lz4(char *buffer, int bytes_to_send, int block_s
 		char* const inp_ptr = inp_buf[inp_buf_index];
 		memcpy((char *)&inp_ptr[0], buffer + offset, chunk_size);
 
-		const uint16_t c_size = LZ4_compress_fast_continue(lz4_stream, inp_ptr, (char *)&m_fb_compressed[2], bytes_this_chunk, sizeof(m_fb_compressed), 1);
+		const uint16_t c_size = LZ4_compress_fast_continue(lz4_stream, inp_ptr, (char *)&m_fb_compressed[2], bytes_this_chunk, MAX_LZ4_BLOCK, 1);
 		uint16_t *c_size_ptr = (uint16_t *)&m_fb_compressed[0];
 		*c_size_ptr = c_size;
 
@@ -779,7 +799,11 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 	int vsync_offset = 0;
 
 	// Calculate frame delay factor
-	if (video_config.framedelay == 0 && !m_is_internal_fe)
+	if (m_is_internal_fe)
+		// Internal frontend needs fd > 0
+		m_frame_delay = .5d;
+
+	else if (video_config.framedelay == 0)
 		// automatic
 		m_frame_delay = std::max((double)(m_period - std::max(m_fd_margin, get_ms(time_frame_dm))) / m_period, 0.0d);
 	else
