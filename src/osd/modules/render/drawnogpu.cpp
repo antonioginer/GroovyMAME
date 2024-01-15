@@ -47,6 +47,8 @@
 #define VRAM_BUFFER_SIZE 65536
 #define SEND_BIFFER_SIZE 2097152 //2 * 1024 * 1024
 #define MAX_LZ4_BLOCK   61440
+#define MAX_SAMPLE_RATE 48000
+#define STREAMS_UPDATE_FREQUENCY 50 // sound.h
 
 // nogpu UDP server
 #define UDP_PORT 32100
@@ -55,7 +57,7 @@
 #define CMD_CLOSE 1
 #define CMD_INIT 2
 #define CMD_SWITCHRES 3
-#define CMD_BLIT 4
+#define CMD_AUDIO 4
 #define CMD_GET_STATUS 5
 #define CMD_BLIT_VSYNC 6
 
@@ -66,7 +68,7 @@
 #define VRAM_FRAMESKIP   1 << 3
 #define VGA_VBLANK       1 << 4
 #define VGA_FIELD        1 << 5
-#define VGA_PIXELS       1 << 6
+#define FPGA_AUDIO       1 << 6
 #define VGA_QUEUE        1 << 7
 
 #pragma pack(1)
@@ -104,7 +106,8 @@ typedef struct cmd_init
 {
 	const uint8_t cmd = CMD_INIT;
 	uint8_t	compression;
-	uint16_t block_size;
+	uint8_t sound_rate;
+	uint8_t sound_channels;
 } cmd_init;
 
 typedef struct cmd_close
@@ -118,12 +121,10 @@ typedef struct cmd_switchres
 	nogpu_modeline mode;
 } cmd_switchres;
 
-typedef struct cmd_blit
+typedef struct cmd_audio
 {
-	const uint8_t cmd = CMD_BLIT;
-	uint32_t frame;
-	uint16_t vsync;
-	uint16_t block_size;
+	const uint8_t cmd = CMD_AUDIO;
+	uint16_t sample_bytes;
 } cmd_blit;
 
 typedef struct cmd_blit_vsync
@@ -194,6 +195,7 @@ private:
 	double m_fd_margin = 1.5;
 	float m_aspect = 4.0 / 3.0;
 	float m_pixel_aspect = 1.0;
+	int m_sample_rate = MAX_SAMPLE_RATE;
 	nogpu_status m_status;
 	nogpu_blit_status m_blit_status;
 	modeline m_current_mode;
@@ -213,6 +215,7 @@ private:
 	char m_fb[MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3];
 	char m_fb_compressed[MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3];
 	char inp_buf[2][MAX_LZ4_BLOCK + 1];
+	char m_ab[MAX_SAMPLE_RATE / STREAMS_UPDATE_FREQUENCY * 2 * 2];
 
 	bool nogpu_init();
 	bool nogpu_send_command(void *command, int command_size);
@@ -223,6 +226,7 @@ private:
 	int nogpu_compress(int id_compress, char *buffer_comp, const char *buffer_rgb, uint32_t buffer_size);
 	bool nogpu_wait_status(nogpu_blit_status *status, double timeout);
 	void nogpu_register_frametime(osd_ticks_t frametime);
+	void add_audio_to_recording(const int16_t *buffer, int samples_this_frame);
 };
 
 inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
@@ -516,10 +520,27 @@ bool renderer_nogpu::nogpu_init()
 	else if (strcmp(compression, "none"))
 		osd_printf_verbose("nogpu: compression algorithm %s not supported\n", compression);
 
+	switch(options.sample_rate())
+	{
+		case 22050:
+			m_sample_rate = 1;
+			break;
+		case 44100:
+			m_sample_rate = 2;
+			break;
+		case 48000:
+			m_sample_rate = 3;
+			break;
+		default:
+			m_sample_rate = 0;
+			osd_printf_verbose("nogpu: not valid sample rate %d\n", options.sample_rate());
+	}
+
 	osd_printf_verbose("nogpu: Sending CMD_INIT...");
 	cmd_init command;
 	command.compression = m_compression;
-	command.block_size = m_compression? 8192 : 0;
+	command.sound_rate = m_sample_rate;
+	command.sound_channels = 2;
 
 	// Reset current mode
 	m_current_mode = {};
@@ -828,6 +849,24 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 
 	else
 		nogpu_send_lz4(&m_fb[0], width * height * 3, block_size);
+}
+
+//============================================================
+//  renderer_nogpu::add_audio_to_recording
+//============================================================
+
+void renderer_nogpu::add_audio_to_recording(const int16_t *buffer, int samples_this_frame)
+{
+	if (m_blit_status.bits & FPGA_AUDIO && m_sample_rate)
+	{
+		osd_printf_verbose("audio samples sent: %d\n", samples_this_frame);
+
+		// Send CMD_AUDIO
+		cmd_audio command;
+		command.sample_bytes = samples_this_frame << 2;
+		nogpu_send_command(&command, sizeof(command));
+		nogpu_send_mtu((char*)buffer, command.sample_bytes, 1472);
+	}
 }
 
 //============================================================
