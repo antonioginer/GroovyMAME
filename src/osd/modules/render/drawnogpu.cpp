@@ -224,6 +224,7 @@ private:
 	void nogpu_send_mtu(char *buffer, int bytes_to_send, int chunk_max_size);
 	void nogpu_send_lz4(char *buffer, int bytes_to_send, int block_size);
 	int nogpu_compress(int id_compress, char *buffer_comp, const char *buffer_rgb, uint32_t buffer_size);
+	bool nogpu_wait_ack(double timeout);
 	bool nogpu_wait_status(nogpu_blit_status *status, double timeout);
 	void nogpu_register_frametime(osd_ticks_t frametime);
 	void add_audio_to_recording(const int16_t *buffer, int samples_this_frame);
@@ -264,6 +265,13 @@ renderer_nogpu::~renderer_nogpu()
 
 	nogpu_send_command(&command, sizeof(command));
 	osd_printf_verbose("done.\n");
+
+#ifdef WIN32
+	closesocket(m_sockfd);
+	WSACleanup();
+#else
+	close(m_sockfd);
+#endif
 }
 
 //============================================================
@@ -368,6 +376,13 @@ int renderer_nogpu::draw(const int update)
 		m_initialized = nogpu_init();
 		if (m_initialized)
 			osd_printf_verbose("done.\n");
+		else
+		{
+			osd_printf_verbose("failed.\n");
+			window().machine().video().set_throttled(true);
+			window().machine().video().set_sync_refresh(false);
+			m_first_blit = false;
+		}
 	}
 
 	// only send frame if nogpu is initialized
@@ -561,7 +576,10 @@ bool renderer_nogpu::nogpu_init()
 	m_autofilter = options.autofilter();
 	m_is_internal_fe = strcmp(window().machine().system().name, "___empty") == 0;
 
-	return nogpu_send_command(&command, sizeof(command));
+	if (nogpu_send_command(&command, sizeof(command)))
+		return nogpu_wait_ack(1000);
+
+	return false;
 }
 
 //============================================================
@@ -634,7 +652,38 @@ bool renderer_nogpu::nogpu_switch_video_mode()
 }
 
 //============================================================
-//  renderer_nogpu::wait_status
+//  renderer_nogpu::nogpu_wait_ack
+//============================================================
+
+bool renderer_nogpu::nogpu_wait_ack(double timeout)
+{
+	osd_ticks_t time_1 = osd_ticks();
+	socklen_t server_addr_size = sizeof(m_server_addr);
+
+	// Poll server for ack
+	do
+	{
+		int bytes_recv = recvfrom(m_sockfd, (char *)&m_status, sizeof(nogpu_blit_status), 0, (sockaddr*)&m_server_addr, &server_addr_size);
+
+		if (bytes_recv == sizeof(nogpu_blit_status))
+			break;
+
+		osd_ticks_t time_2 = osd_ticks();
+		if (get_ms(time_2 - time_1) > timeout)
+		{
+			osd_printf_verbose("timeout: %.3f ms\n", timeout);
+			return false;
+		}
+
+		osd_sleep(time_sleep);
+
+	} while (true);
+
+	return true;
+}
+
+//============================================================
+//  renderer_nogpu::nogpu_wait_status
 //============================================================
 
 bool renderer_nogpu::nogpu_wait_status(nogpu_blit_status *status, double timeout)
