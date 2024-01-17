@@ -24,6 +24,7 @@
 #include <winsock2.h>
 #define socklen_t int
 #else
+#include <unistd.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
