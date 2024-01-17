@@ -2206,12 +2206,6 @@ if _OPTIONS["targetos"]=="linux" then
 		backtick("pkg-config --cflags sdl2"),
 	}
 
-	if _OPTIONS["gcc"]~=nil and string.find(_OPTIONS["gcc"], "clang") then
-		buildoptions {
-			"-Wno-unused-private-field",
-		}
-	end
-
 	links {
 		"Xrandr",
 	}
@@ -2219,4 +2213,10 @@ if _OPTIONS["targetos"]=="linux" then
 	local str = backtick("pkg-config --libs libdrm")
 	addlibfromstring(str)
 	addoptionsfromstring(str)
+end
+
+if _OPTIONS["gcc"]~=nil and string.find(_OPTIONS["gcc"], "clang") then
+	buildoptions {
+		"-Wno-unused-private-field",
+	}
 end
