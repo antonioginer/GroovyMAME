@@ -137,6 +137,13 @@ void sdl_osd_interface::build_slider_list()
 	}
 }
 
+void sdl_osd_interface::add_audio_to_recording(const int16_t *buffer, int samples_this_frame)
+{
+	auto const &window = osd_common_t::window_list().front(); // We only record on the first window
+	if (window)
+		window->renderer().add_audio_to_recording(buffer, samples_this_frame);
+}
+
 //============================================================
 //  sdlwindow_exit
 //  (main thread)

@@ -151,6 +151,9 @@ public:
 	// input overridables
 	virtual void customize_input_type_list(std::vector<input_type_entry> &typelist) override;
 
+	// video overridables
+	virtual void add_audio_to_recording(const int16_t *buffer, int samples_this_frame) override;
+
 	virtual bool video_init() override;
 	virtual bool window_init() override;
 
