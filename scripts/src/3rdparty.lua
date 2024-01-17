@@ -2206,6 +2206,12 @@ if _OPTIONS["targetos"]=="linux" then
 		backtick("pkg-config --cflags sdl2"),
 	}
 
+	if _OPTIONS["gcc"]~=nil and string.find(_OPTIONS["gcc"], "clang") then
+		buildoptions {
+			"-Wno-unused-private-field",
+		}
+	end
+
 	links {
 		"Xrandr",
 	}
