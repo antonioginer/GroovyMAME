@@ -167,6 +167,7 @@ public:
 	virtual void save() override {}
 	virtual void record() override {}
 	virtual void toggle_fsfx() override {}
+	virtual void add_audio_to_recording(const int16_t *buffer, int samples_this_frame) override;
 
 private:
 #if defined(OSD_WINDOWS)
@@ -228,7 +229,6 @@ private:
 	bool nogpu_wait_ack(double timeout);
 	bool nogpu_wait_status(nogpu_blit_status *status, double timeout);
 	void nogpu_register_frametime(osd_ticks_t frametime);
-	void add_audio_to_recording(const int16_t *buffer, int samples_this_frame);
 };
 
 inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
@@ -439,7 +439,7 @@ int renderer_nogpu::draw(const int update)
 
 	// Wait raster position
 	if (video_config.syncrefresh)
-		valid_status = nogpu_wait_status(&m_blit_status, std::max(0.0d, m_period - get_ms(time_blit - time_exit)));
+		valid_status = nogpu_wait_status(&m_blit_status, std::max(0.0, m_period - get_ms(time_blit - time_exit)));
 
 	if (video_config.syncrefresh && valid_status)
 		m_frame = m_blit_status.frame_req + 1;
@@ -872,15 +872,15 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 	// Calculate frame delay factor
 	if (m_is_internal_fe)
 		// Internal frontend needs fd > 0
-		m_frame_delay = .5d;
+		m_frame_delay = .5;
 
 	else if (video_config.framedelay == 0)
 		// automatic
-		m_frame_delay = std::max((double)(m_period - std::max(m_fd_margin, get_ms(time_frame_dm))) / m_period, 0.0d);
+		m_frame_delay = std::max((double)(m_period - std::max(m_fd_margin, get_ms(time_frame_dm))) / m_period, 0.0);
 	else
 	{
 		// user defined
-		m_frame_delay = (double)(video_config.framedelay) / 10.0d;
+		m_frame_delay = (double)(video_config.framedelay) / 10.0;
 		vsync_offset = window().machine().video().vsync_offset();
 	}
 
