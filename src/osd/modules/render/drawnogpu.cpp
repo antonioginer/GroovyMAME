@@ -261,6 +261,9 @@ int renderer_nogpu::create()
 
 renderer_nogpu::~renderer_nogpu()
 {
+	// Wait for fpga to flush last blit
+	osd_sleep(m_period * osd_ticks_per_second() / 1000.0);
+
 	osd_printf_verbose("nogpu: Sending CMD_CLOSE...");
 	cmd_close command;
 
@@ -426,6 +429,9 @@ int renderer_nogpu::draw(const int update)
 
 		m_first_blit = false;
 		m_frame = 1;
+
+		// Skip blitting first frame, so we avoid glitches while MAME loads roms
+		return 0;
 	}
 
 	// Blit now
