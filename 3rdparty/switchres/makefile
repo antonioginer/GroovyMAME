@@ -153,8 +153,8 @@ install:
 	$(INSTALL) -Dm644 switchres.h $(INCDIR)/switchres/switchres.h
 	$(INSTALL) -Dm644 switchres.pc $(PKGDIR)/switchres.pc
 ifneq ($(SO_NAME),)
-	$(LN) -s $(REAL_SO_NAME) $(LIBDIR)/$(SO_NAME)
-	$(LN) -s $(SO_NAME) $(LIBDIR)/$(LINKER_NAME)
+	$(LN) -s -f $(REAL_SO_NAME) $(LIBDIR)/$(SO_NAME)
+	$(LN) -s -f $(SO_NAME) $(LIBDIR)/$(LINKER_NAME)
 endif
 
 uninstall:
