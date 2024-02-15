@@ -109,6 +109,7 @@ switchres_manager::switchres_manager()
 	display()->set_v_shift_correct(0);
 	display()->set_pixel_precision(1);
 	display()->set_interlace_force_even(0);
+	display()->set_scale_proportional(1);
 
 	// Set logger properties
 	set_log_info_fn((void*)printf);
@@ -357,6 +358,10 @@ void switchres_manager::set_option(const char* key, const char* value)
 
 		case s2i("interlace_force_even"):
 			display()->set_interlace_force_even(atoi(value));
+			break;
+
+		case s2i("scale_proportional"):
+			display()->set_scale_proportional(atoi(value));
 			break;
 
 		// Custom video backend options
