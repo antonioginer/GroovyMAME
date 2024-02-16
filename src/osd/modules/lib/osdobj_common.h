@@ -120,6 +120,7 @@
 #define OSDOPTION_AUTOSYNC              "autosync"
 #define OSDOPTION_AUTOFILTER            "autofilter"
 #define OSDOPTION_AUTOSTRETCH           "autostretch"
+#define OSDOPTION_SCALE_PROPORTIONAL    "scale_proportional"
 #define OSDOPTION_DRI_DEVICE            "dri_device"
 #define OSDOPTION_SCREEN_COMPOSITING    "screen_compositing"
 #define OSDOPTION_SCREEN_REORDERING     "screen_reordering"
@@ -206,6 +207,7 @@ public:
 	bool autosync() const { return bool_value(OSDOPTION_AUTOSYNC); }
 	bool autofilter() const { return bool_value(OSDOPTION_AUTOFILTER); }
 	bool autostretch() const { return bool_value(OSDOPTION_AUTOSTRETCH); }
+	bool scale_proportional() const { return bool_value(OSDOPTION_SCALE_PROPORTIONAL); }
 	const char *dri_device() const { return value(OSDOPTION_DRI_DEVICE); }
 	bool screen_compositing() const { return bool_value(OSDOPTION_SCREEN_COMPOSITING); }
 	bool screen_reordering() const { return bool_value(OSDOPTION_SCREEN_REORDERING); }
