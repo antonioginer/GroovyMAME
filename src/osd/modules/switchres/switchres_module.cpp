@@ -148,6 +148,7 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	df->set_v_shift_correct(options.v_shift_correct());
 	df->set_pixel_precision(options.pixel_precision());
 	df->set_interlace_force_even(options.interlace_force_even());
+	df->set_scale_proportional(options.scale_proportional());
 
 	df->set_api(options.switchres_backend());
 	df->set_screen_compositing(options.screen_compositing());
@@ -200,6 +201,7 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 	if (options.get_entry(OSDOPTION_V_SHIFT_CORRECT)->priority() > m_priority) display->set_v_shift_correct(options.v_shift_correct());
 	if (options.get_entry(OSDOPTION_PIXEL_PRECISION)->priority() > m_priority) display->set_pixel_precision(options.pixel_precision());
 	if (options.get_entry(OSDOPTION_INTERLACE_FORCE_EVEN)->priority() > m_priority) display->set_interlace_force_even(options.interlace_force_even());
+	if (options.get_entry(OSDOPTION_SCALE_PROPORTIONAL)->priority() > m_priority) display->set_scale_proportional(options.scale_proportional());
 
 	if (options.get_entry(OSDOPTION_SWITCHRES_BACKEND)->priority() > m_priority) display->set_api(options.switchres_backend());
 	if (options.get_entry(OSDOPTION_SCREEN_COMPOSITING)->priority() > m_priority) display->set_screen_compositing(options.screen_compositing());
