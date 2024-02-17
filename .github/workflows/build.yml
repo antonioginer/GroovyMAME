@@ -54,9 +54,7 @@ jobs:
       with:
         update: true
         install: |
-              git make mingw-w64-x86_64-gcc mingw-w64-x86_64-python mingw-w64-x86_64-lld mingw-w64-x86_64-libc++ p7zip
-              mingw-w64-x86_64-librsvg mingw-w64-x86_64-python-sphinx mingw-w64-x86_64-python-sphinxcontrib-svg2pdfconverter
-              mingw-w64-x86_64-texlive-fonts-recommended mingw-w64-x86_64-texlive-latex-extra mingw-w64-x86_64-llvm
+              git make make mingw-w64-x86_64-gcc mingw-w64-x86_64-python mingw-w64-x86_64-lld mingw-w64-x86_64-llvm mingw-w64-x86_64-libc++ p7zip
     - uses: actions/checkout@v2
     - name: Build GroovyMAME
       run: |
@@ -65,7 +63,6 @@ jobs:
         export ARCHOPTS=-fuse-ld=lld
         export OVERRIDE_AR=llvm-ar
         make -j$(nproc) TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=0 SYMLEVEL=1 REGENIE=1
-        make -f dist.mak PTR64=1
         cp -rf artwork bgfx hlsl plugins samples build/release/x64/Release/mame/
     - name: Create MAME basic configuration
       run: |
@@ -96,12 +93,9 @@ jobs:
         sudo apt update
         sudo apt-get install git build-essential python3 libsdl2-dev libsdl2-ttf-dev libfontconfig-dev libdrm-dev p7zip
         sudo apt-get install qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools
-        sudo apt-get install -y librsvg2-bin latexmk python3-pip python3-sphinx texlive texlive-formats-extra texlive-science
-        pip3 install sphinxcontrib-svg2pdfconverter
     - name: Build GroovyMAME
       run: |
         make -j$(nproc) TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=0 SYMLEVEL=1 REGENIE=1
-        make -f dist.mak PTR64=1
     - name: Create Release Asset
       run: |
         tag="${GITHUB_REF#refs/*/}"
