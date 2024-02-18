@@ -63,6 +63,7 @@ jobs:
         export ARCHOPTS=-fuse-ld=lld
         export OVERRIDE_AR=llvm-ar
         make -j$(nproc) TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=0 SYMLEVEL=1 REGENIE=1
+        make -f dist.mak PTR64=1
         cp -rf artwork bgfx hlsl plugins samples build/release/x64/Release/mame/
     - name: Create MAME basic configuration
       run: |
@@ -96,6 +97,7 @@ jobs:
     - name: Build GroovyMAME
       run: |
         make -j$(nproc) TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=0 SYMLEVEL=1 REGENIE=1
+        make -f dist.mak PTR64=1
     - name: Create Release Asset
       run: |
         tag="${GITHUB_REF#refs/*/}"
@@ -130,7 +132,6 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    #needs: [mingw-windows-build, msys-windows-build, linux-build]
     needs: [msys-windows-build, linux-build, make_patch]
     steps:
       - name: Prepare data
@@ -163,4 +164,4 @@ jobs:
             ./binaries-win32-msys/groovymame_*.7z
             ./binaries-linux-gcc/groovymame_*.tar.bz2
             ./GroovyMAME-patch/GroovyMAME*.patch
-#            ./binaries-win32-mingw/groovymame-mingw-win32-64bits.7z
+
