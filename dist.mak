@@ -106,7 +106,7 @@ GEN_FOLDERS := $(addprefix $(STAGEDIR)/,$(CREATED_DIRS))
 COPY_BINARIES := $(addprefix $(STAGEDIR)/,$(addsuffix $(EXE),$(BINARIES)) $(SYMFILE))
 COPY_FILES := $(addprefix $(STAGEDIR)/,$(COPIED_FILES))
 
-all: $(COPY_BINARIES) $(COPY_FILES) $(STAGEDIR)/docs/MAME.pdf
+all: $(COPY_BINARIES) $(COPY_FILES)
 
 clean:
 	$(SILENT) rm -rf $(STAGEDIR)
@@ -123,11 +123,5 @@ $(STAGEDIR)/%.sym: $(BINDIR)/%.sym | $(GEN_FOLDERS)
 
 $(STAGEDIR)/%: % | $(GEN_FOLDERS)
 	$(call COPY,$<,$@)
-
-$(STAGEDIR)/docs/MAME.pdf: docs/build/latex/MAME.pdf | $(GEN_FOLDERS)
-	$(call COPY,$<,$@)
-
-docs/build/latex/MAME.pdf:
-	$(MAKE) -C docs PAPER=a4 latexpdf
 
 .PHONY: all clean
