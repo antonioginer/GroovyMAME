@@ -405,7 +405,7 @@ int renderer_nogpu::draw(const int update)
 
 	for (i = lstart; i <= lend ; i += lstep)
 	{
-		for (j = 0; j < pitch * 4; j += 4)
+		for (j = 0; j < m_width * 4; j += 4)
 		{
 			m_fb[k] = (char)m_bmdata[i+j];
 			m_fb[k+1] = (char)m_bmdata[i+j+1];
