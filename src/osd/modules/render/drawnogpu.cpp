@@ -133,7 +133,7 @@ typedef struct cmd_blit_vsync
 	const uint8_t cmd = CMD_BLIT_VSYNC;
 	uint32_t frame;
 	uint16_t vsync;
-	uint16_t block_size;
+	uint32_t compressed_data_size;
 } cmd_blit_vsync;
 
 
@@ -184,6 +184,7 @@ private:
 	bool m_is_internal_fe = false;
 	bool m_autofilter = false;
 	bool m_bilinear = false;
+	bool m_interlaced_fb = false;
 	int m_frame = 0;
 	int m_field = 0;
 	int m_width = 0;
@@ -215,7 +216,7 @@ private:
 	sockaddr_in m_server_addr;
 
 	char m_fb[MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3];
-	char m_fb_compressed[MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3];
+	char m_fb_compressed[LZ4_COMPRESSBOUND(MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3)];
 	char inp_buf[2][MAX_LZ4_BLOCK + 1];
 	char m_ab[MAX_SAMPLE_RATE / STREAMS_UPDATE_FREQUENCY * 2 * 2];
 
@@ -224,7 +225,7 @@ private:
 	bool nogpu_switch_video_mode();
 	void nogpu_blit(uint32_t frame, uint16_t vsync, uint16_t line_width);
 	void nogpu_send_mtu(char *buffer, int bytes_to_send, int chunk_max_size);
-	void nogpu_send_lz4(char *buffer, int bytes_to_send, int block_size);
+	//void nogpu_send_lz4(char *buffer, int bytes_to_send, int block_size);
 	int nogpu_compress(int id_compress, char *buffer_comp, const char *buffer_rgb, uint32_t buffer_size);
 	bool nogpu_wait_ack(double timeout);
 	bool nogpu_wait_status(nogpu_blit_status *status, double timeout);
@@ -394,14 +395,15 @@ int renderer_nogpu::draw(const int update)
 		return 0;
 
 	// get current field for interlaced mode
-	if (m_current_mode.interlace)
+	if (m_interlaced_fb && m_current_mode.interlace)
 		m_field = (m_blit_status.bits & VGA_FIELD? 1 : 0) ^ ((m_frame - m_blit_status.frame_gpu) % 2);
 
 	// convert RGBA buffer to RGB
+	int interlace_factor = m_interlaced_fb && m_current_mode.interlace ? 2 : 1;
 	int i = 0, j = 0, k = 0;
 	int lstart = pitch * 4 * m_field;
 	int lend = (m_height - 1) * pitch * 4;
-	int lstep = pitch * 4 * (m_current_mode.interlace? 2 : 1);
+	int lstep = pitch * 4 * interlace_factor;
 
 	for (i = lstart; i <= lend ; i += lstep)
 	{
@@ -435,7 +437,7 @@ int renderer_nogpu::draw(const int update)
 	}
 
 	// Blit now
-	nogpu_blit(m_frame, m_width, m_height / (m_current_mode.interlace? 2 : 1));
+	nogpu_blit(m_frame, m_width, m_height / interlace_factor);
 
 	time_blit = osd_ticks();
 	osd_printf_verbose("[%.3f] frame: %d emulation_time: %.3f blit_time: %.3f \n",
@@ -539,6 +541,11 @@ bool renderer_nogpu::nogpu_init()
 		m_compression = 0x01;
 		osd_printf_verbose("nogpu: compression algorithm %s\n", compression);
 	}
+	else if (!strcmp(compression, "lz4hc"))
+	{
+		m_compression = 0x02;
+		osd_printf_verbose("nogpu: compression algorithm %s\n", compression);
+	}
 	else if (strcmp(compression, "none"))
 		osd_printf_verbose("nogpu: compression algorithm %s not supported\n", compression);
 
@@ -560,7 +567,7 @@ bool renderer_nogpu::nogpu_init()
 
 	osd_printf_verbose("nogpu: Sending CMD_INIT...");
 	cmd_init command;
-	command.compression = m_compression;
+	command.compression = m_compression ? 1 : 0;
 	command.sound_rate = m_sample_rate;
 	command.sound_channels = 2;
 
@@ -581,6 +588,7 @@ bool renderer_nogpu::nogpu_init()
 	m_fd_margin = (double)options.mister_fd_margin();
 	m_sleep_allowed = options.sleep();
 	m_autofilter = options.autofilter();
+	m_interlaced_fb = options.mister_interlaced_fb();
 	m_is_internal_fe = strcmp(window().machine().system().name, "___empty") == 0;
 
 	if (nogpu_send_command(&command, sizeof(command)))
@@ -642,7 +650,7 @@ bool renderer_nogpu::nogpu_switch_video_mode()
 	m->vbegin    = mode->vbegin;
 	m->vend      = mode->vend;
 	m->vtotal    = mode->vtotal;
-	m->interlace = mode->interlace;
+	m->interlace = mode->interlace ? (m_interlaced_fb ? 1 : 2) : 0;
 
 	m_width = mode->hactive;
 	m_height = mode->vactive;
@@ -828,7 +836,7 @@ void renderer_nogpu::nogpu_send_mtu(char *buffer, int bytes_to_send, int chunk_m
 
 	} while (bytes_to_send > 0);
 }
-
+/*
 //============================================================
 //  renderer_nogpu::nogpu_send_lz4
 //============================================================
@@ -863,16 +871,14 @@ void renderer_nogpu::nogpu_send_lz4(char *buffer, int bytes_to_send, int block_s
 
 	} while (bytes_to_send > 0);
 }
-
+*/
 //============================================================
 //  renderer_nogpu::nogpu_blit
 //============================================================
 
 void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 {
-	// Compressed blocks are 16 lines long
-	int block_size = m_compression? (width << 4) * 3 : 0;
-
+	uint32_t compressed_data_size = 0;
 	int vsync_offset = 0;
 
 	// Calculate frame delay factor
@@ -893,18 +899,23 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 	// Update vsync scanline
 	m_vsync_scanline = std::min<int>((m_current_mode.vtotal) * m_frame_delay + vsync_offset + 1, m_current_mode.vtotal);
 
+	if (m_compression == 1)
+		compressed_data_size = LZ4_compress_default((char *)&m_fb[0], (char *)&m_fb_compressed[0], width * height * 3, LZ4_COMPRESSBOUND(MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3));
+	else if(m_compression == 2)
+		compressed_data_size = LZ4_compress_HC((char *)&m_fb[0], (char *)&m_fb_compressed[0], width * height * 3, LZ4_COMPRESSBOUND(MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3), LZ4HC_CLEVEL_DEFAULT);
+
 	// Send CMD_BLIT
 	cmd_blit_vsync command;
 	command.frame = frame;
 	command.vsync = video_config.syncrefresh? m_vsync_scanline : 0;
-	command.block_size = block_size;
+	command.compressed_data_size = compressed_data_size;
 	nogpu_send_command(&command, sizeof(command));
 
 	if (m_compression == 0)
-		nogpu_send_mtu(&m_fb[0], width * height * 3, 1470);
+		nogpu_send_mtu(&m_fb[0], width * height * 3, 1472);
 
 	else
-		nogpu_send_lz4(&m_fb[0], width * height * 3, block_size);
+		nogpu_send_mtu(&m_fb_compressed[0], (int)compressed_data_size, 1472);
 }
 
 //============================================================
