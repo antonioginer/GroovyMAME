@@ -87,6 +87,7 @@ function osdmodulesbuild()
 		MAME_DIR .. "src/osd/modules/input/input_dinput.cpp",
 		MAME_DIR .. "src/osd/modules/input/input_dinput.h",
 		MAME_DIR .. "src/osd/modules/input/input_mac.cpp",
+		MAME_DIR .. "src/osd/modules/input/input_mister.cpp",
 		MAME_DIR .. "src/osd/modules/input/input_module.h",
 		MAME_DIR .. "src/osd/modules/input/input_none.cpp",
 		MAME_DIR .. "src/osd/modules/input/input_rawinput.cpp",
