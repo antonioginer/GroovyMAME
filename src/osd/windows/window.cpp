@@ -118,7 +118,7 @@ static HANDLE ui_pause_event;
 
 static bool s_aggressive_focus;
 
-
+static bool is_mister_renderer = false;
 
 //============================================================
 //  PROTOTYPES
@@ -734,6 +734,8 @@ std::unique_ptr<win_window_info> win_window_info::create(
 		if (window->m_display_manager) WINOSD(machine)->switchres()->init_display(index, monitor.get(), &window->m_win_config, window->target(), nullptr);
 	}
 
+	is_mister_renderer = (strcmp(downcast<windows_options &>(machine.options()).video(), "mister") == 0);
+
 	// set the initial maximized state
 	window->m_startmaximized = downcast<windows_options &>(machine.options()).maximize();
 
@@ -816,9 +818,9 @@ void win_window_info::update()
 	// check if geometry has changed
 	if (fullscreen() && options.switch_res() && WINOSD(machine())->switchres()->check_geometry_change(index()))
 	{
-		winwindow_toggle_full_screen();
+		if (!is_mister_renderer) winwindow_toggle_full_screen();
 		WINOSD(machine())->switchres()->adjust_mode(index());
-		winwindow_toggle_full_screen();
+		if (!is_mister_renderer) winwindow_toggle_full_screen();
 	}
 
 	if (reset_required)
