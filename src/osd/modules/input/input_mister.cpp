@@ -217,11 +217,15 @@ public:
 		joystick1("MiSTer", "joy1", *this, 1),
 		joystick2("MiSTer", "joy2", *this, 2) {};
 
+	~joystick_input_mister() { close(); };
 	virtual int init(osd_interface &osd, const osd_options &options) override;
 	virtual void input_init(running_machine &machine) override;
 	virtual void poll_if_necessary(bool relative_reset) override;
 
 private:
+	void close();
+
+	bool m_initialized = false;
 	int m_sockfd = -1; //INVALID_SOCKET;
 	sockaddr_in m_server_addr;
 	nogpu_inputs inputs {0};
@@ -238,8 +242,15 @@ int joystick_input_mister::init(osd_interface &osd, const osd_options &options)
 {
 	int result;
 
+	if (m_initialized)
+	{
+		close();
+		inputs = {0};
+		m_initialized = false;
+	}
+
 	#ifdef _WIN32
-		osd_printf_verbose("nogpu: Initializing Winsock...");
+		osd_printf_verbose("nogpu_input: Initializing Winsock...");
 		WSADATA wsa;
 		result = WSAStartup(MAKEWORD(2, 2), &wsa);
 		if (result != NO_ERROR)
@@ -250,7 +261,7 @@ int joystick_input_mister::init(osd_interface &osd, const osd_options &options)
 		osd_printf_verbose("done.\n");
 	#endif
 
-	osd_printf_verbose("nogpu: Initializing socket... ");
+	osd_printf_verbose("nogpu_input: Initializing socket... ");
 	m_sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
 	if (m_sockfd < 0)
@@ -269,7 +280,7 @@ int joystick_input_mister::init(osd_interface &osd, const osd_options &options)
 	m_server_addr.sin_port = htons(port);
 	m_server_addr.sin_addr.s_addr = inet_addr(local_host);
 
-	osd_printf_verbose("nogpu: Setting socket async...\n");
+	osd_printf_verbose("nogpu_input: Setting socket async... ");
 
 	#ifdef _WIN32
 		u_long opt = 1;
@@ -287,12 +298,29 @@ int joystick_input_mister::init(osd_interface &osd, const osd_options &options)
 				osd_printf_verbose("Could not set nonblocking.\n");
 		}
 	#endif
+	osd_printf_verbose(" done.\n");
 
 	// Signal server for input
 	char buffer[1];
 	sendto(m_sockfd, buffer, 1, 0, (sockaddr *)&m_server_addr, sizeof(m_server_addr));
 
+	m_initialized = true;
 	return 0;
+}
+
+//============================================================
+//  joystick_input_mister::close
+//============================================================
+
+void joystick_input_mister::close()
+{
+	osd_printf_verbose("nogpu_input: closing input socket.\n");
+#ifdef WIN32
+	closesocket(m_sockfd);
+	WSACleanup();
+#else
+	close(m_sockfd);
+#endif
 }
 
 //============================================================
@@ -303,9 +331,11 @@ void joystick_input_mister::input_init(running_machine &machine)
 {
 	osd::input_device &osddev1 = machine.input().add_device(DEVICE_CLASS_JOYSTICK, "MiSTer", "joy1", (void *)&joystick1);
 	joystick1.configure(osddev1);
+	joystick1.reset();
 
 	osd::input_device &osddev2 = machine.input().add_device(DEVICE_CLASS_JOYSTICK, "MiSTer", "joy2", (void *)&joystick2);
 	joystick2.configure(osddev2);
+	joystick2.reset();
 }
 
 //============================================================
