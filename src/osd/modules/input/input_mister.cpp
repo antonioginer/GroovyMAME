@@ -7,7 +7,7 @@
 //============================================================
 
 #include "assignmenthelper.h"
-#include "input_wincommon.h"
+#include "input_common.h"
 #include "modules/lib/osdlib.h"
 #include "modules/lib/osdobj_common.h"
 
