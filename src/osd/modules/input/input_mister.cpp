@@ -2,7 +2,7 @@
 // copyright-holders:Brad Hughes, Antonio Giner, Sergi Clara
 //============================================================
 //
-//  input_mister.cpp - Default unimplemented input modules
+//  input_mister.cpp - nogpu input module
 //
 //============================================================
 
@@ -217,13 +217,13 @@ public:
 		joystick1("MiSTer", "joy1", *this, 1),
 		joystick2("MiSTer", "joy2", *this, 2) {};
 
-	~joystick_input_mister() { close(); };
+	~joystick_input_mister() { deinit(); };
 	virtual int init(osd_interface &osd, const osd_options &options) override;
 	virtual void input_init(running_machine &machine) override;
 	virtual void poll_if_necessary(bool relative_reset) override;
 
 private:
-	void close();
+	void deinit();
 
 	bool m_initialized = false;
 	int m_sockfd = -1; //INVALID_SOCKET;
@@ -240,11 +240,9 @@ private:
 
 int joystick_input_mister::init(osd_interface &osd, const osd_options &options)
 {
-	int result;
-
 	if (m_initialized)
 	{
-		close();
+		deinit();
 		inputs = {0};
 		m_initialized = false;
 	}
@@ -252,7 +250,7 @@ int joystick_input_mister::init(osd_interface &osd, const osd_options &options)
 	#ifdef _WIN32
 		osd_printf_verbose("nogpu_input: Initializing Winsock...");
 		WSADATA wsa;
-		result = WSAStartup(MAKEWORD(2, 2), &wsa);
+		int result = WSAStartup(MAKEWORD(2, 2), &wsa);
 		if (result != NO_ERROR)
 		{
 			osd_printf_verbose("Failed. Error code : %d", WSAGetLastError());
@@ -309,10 +307,10 @@ int joystick_input_mister::init(osd_interface &osd, const osd_options &options)
 }
 
 //============================================================
-//  joystick_input_mister::close
+//  joystick_input_mister::deinit
 //============================================================
 
-void joystick_input_mister::close()
+void joystick_input_mister::deinit()
 {
 	osd_printf_verbose("nogpu_input: closing input socket.\n");
 #ifdef WIN32
