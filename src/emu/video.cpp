@@ -233,7 +233,7 @@ void video_manager::frame_update(bool from_debugger)
 	// if none of the screens changed and we haven't skipped too many frames in a row,
 	// mark this frame as skipped to prevent throttling; this helps for games that
 	// don't update their screen at the monitor refresh rate
-	if (!anything_changed && !m_auto_frameskip && (m_frameskip_level == 0) && (m_empty_skip_count++ < 3))
+	if (!m_syncrefresh && !anything_changed && !m_auto_frameskip && (m_frameskip_level == 0) && (m_empty_skip_count++ < 3))
 		skipped_it = true;
 	else
 		m_empty_skip_count = 0;
