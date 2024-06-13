@@ -29,6 +29,7 @@
 #include <queue>
 #include <span>
 
+#define MISTER_INPUT 1
 
 //============================================================
 //  PARAMETERS
@@ -201,7 +202,7 @@ struct key_trans_entry
 {
 	input_item_id   mame_key;
 
-#if defined(OSD_SDL) || defined(SDLMAME_WIN32)
+#if defined(OSD_SDL) || defined(SDLMAME_WIN32) || defined(MISTER_INPUT)
 	int             sdl_scancode;
 #endif
 #if defined(OSD_WINDOWS) || defined(SDLMAME_WIN32)
