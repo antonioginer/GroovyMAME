@@ -89,7 +89,7 @@ switchres_manager::switchres_manager()
 	display()->set_monitor("generic_15");
 	display()->set_modeline("auto");
 	display()->set_lcd_range("auto");
-	for (int i = 0; i++ < MAX_RANGES;) display()->set_crt_range(i, "auto");
+	for (int i = 0; i < MAX_RANGES; i++) display()->set_crt_range(i, "auto");
 	display()->set_screen("auto");
 	display()->set_modeline_generation(true);
 	display()->set_lock_unsupported_modes(true);
