@@ -375,7 +375,7 @@ int main(int argc, char **argv)
 				monitor_range *range = &switchres.display()->range[mode->range];
 				edid_from_modeline(mode, range, switchres.display()->monitor(), &edid);
 
-				char file_name[strlen(switchres.display()->monitor()) + 4];
+				char file_name[strlen(switchres.display()->monitor()) + 5];
 				sprintf(file_name, "%s.bin", switchres.display()->monitor());
 
 				FILE *file = fopen(file_name, "wb");
