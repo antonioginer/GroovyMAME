@@ -54,7 +54,7 @@ jobs:
       with:
         update: true
         install: |
-              git make make mingw-w64-x86_64-gcc mingw-w64-x86_64-python mingw-w64-x86_64-lld mingw-w64-x86_64-llvm mingw-w64-x86_64-libc++ p7zip
+              git make mingw-w64-x86_64-gcc mingw-w64-x86_64-python mingw-w64-x86_64-lld mingw-w64-x86_64-llvm mingw-w64-x86_64-libc++ p7zip mingw-w64-x86_64-SDL2 mingw-w64-x86_64-SDL2_ttf
     - uses: actions/checkout@v2
     - name: Build GroovyMAME
       run: |
