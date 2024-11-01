@@ -143,9 +143,9 @@ jobs:
           srv="${tag: -3}"
           echo "GroovyMAME: 0.$mamev"
           echo "Switchres : 2.$srv"
-          echo "::set-output name=mame_version::${mamev}"
-          echo "::set-output name=switchres_version::${srv}"
-          echo "::set-output name=current_tag::${tag}"
+          echo "mame_version=${mamev}" >> $GITHUB_OUTPUT
+          echo "switchres_version=${srv}" >> $GITHUB_OUTPUT
+          echo "current_tag=${tag}" >> $GITHUB_OUTPUT
       - name: Download Artifacts
         uses: actions/download-artifact@v4
       - name: Create Release
