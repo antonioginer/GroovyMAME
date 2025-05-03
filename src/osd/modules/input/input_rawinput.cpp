@@ -439,7 +439,7 @@ public:
 
 	virtual void reset() override
 	{
-		memset(&m_joystick, 0, sizeof(m_joystick));
+		m_joystick = {};
 	}
 
 	virtual void process_event(RAWINPUT const &rawinput) override
