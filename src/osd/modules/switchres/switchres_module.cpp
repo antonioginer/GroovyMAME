@@ -178,7 +178,7 @@ display_manager* switchres_module::add_display(int index, osd_monitor_info *moni
 
 	// Always override SR's display option with MAME's -screen option (except for -video mister)
 	if (strcmp(options.video(), "mister") != 0)
-		display->set_screen(monitor->devicename().c_str());
+		display->set_screen(std::string(monitor->devicename()).c_str());
 
 	// Finally, override SR's settings with MAME's options of higher priority
 	if (options.get_entry(OSDOPTION_MONITOR)->priority() > m_priority) display->set_monitor(options.monitor());
