@@ -198,6 +198,7 @@ private:
 	double m_fd_margin = 1.5;
 	float m_aspect = 4.0 / 3.0;
 	float m_pixel_aspect = 1.0;
+	int m_channels = 2;
 	int m_sample_rate = MAX_SAMPLE_RATE;
 	nogpu_status m_status;
 	nogpu_blit_status m_blit_status;
@@ -218,7 +219,7 @@ private:
 	char m_fb[MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3];
 	char m_fb_compressed[LZ4_COMPRESSBOUND(MAX_BUFFER_HEIGHT * MAX_BUFFER_WIDTH * 3)];
 	char inp_buf[2][MAX_LZ4_BLOCK + 1];
-	char m_ab[MAX_SAMPLE_RATE / STREAMS_UPDATE_FREQUENCY * 2 * 2];
+	uint16_t m_ab[MAX_SAMPLE_RATE / STREAMS_UPDATE_FREQUENCY * 2];
 
 	bool nogpu_init();
 	bool nogpu_send_command(void *command, int command_size);
@@ -569,7 +570,7 @@ bool renderer_nogpu::nogpu_init()
 	cmd_init command;
 	command.compression = m_compression ? 1 : 0;
 	command.sound_rate = m_sample_rate;
-	command.sound_channels = 2;
+	command.sound_channels = m_channels;
 
 	// Reset current mode
 	m_current_mode = {};
@@ -928,11 +929,29 @@ void renderer_nogpu::add_audio_to_recording(const int16_t *buffer, int samples_t
 	{
 		osd_printf_verbose("audio samples sent: %d\n", samples_this_frame);
 
+		char *buff = (char*)buffer;
+
+		// FIXME: If audio is mono, copy the samples to both channels
+		// We could send mono audio to the MiSTer and save some bandwidth
+		// but unfortunately the channel number isn't known at initialization
+		// time, and we can't reset it later either, yet.
+		uint32_t channels = window().machine().sound().outputs_count();
+		if (channels == 1)
+		{
+			for (int i = samples_this_frame - 1; i >= 0; i--)
+			{
+				uint16_t sample = buffer[i];
+				m_ab[i * 2] = sample;
+				m_ab[i * 2 + 1] = sample;
+				buff = (char *)m_ab;
+			}
+		}
+
 		// Send CMD_AUDIO
 		cmd_audio command;
-		command.sample_bytes = samples_this_frame << 2;
+		command.sample_bytes = samples_this_frame * m_channels * 2;
 		nogpu_send_command(&command, sizeof(command));
-		nogpu_send_mtu((char*)buffer, command.sample_bytes, 1472);
+		nogpu_send_mtu(buff, command.sample_bytes, 1472);
 	}
 }
 
