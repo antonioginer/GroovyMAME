@@ -96,6 +96,7 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_REFRESHSPEED ";rs",                         "0",         core_options::option_type::BOOLEAN,    "automatically adjust emulation speed to keep the emulated refresh rate slower than the host screen" },
 	{ OPTION_SYNCREFRESH ";srf",                         "0",         core_options::option_type::BOOLEAN,    "enable using the start of VBLANK for throttling instead of the game time" },
 	{ OPTION_SYNCAUDIO ";sau",                           "1",         core_options::option_type::BOOLEAN,    "enable audio resampling to stay synchronized with video" },
+	{ OPTION_VBLANKAUDIO ";vba",                         "1",         core_options::option_type::BOOLEAN,    "update audio after vblank, can reduce audio latency up to 20 ms" },
 	{ OPTION_LOWLATENCY ";lolat",                        "1",         core_options::option_type::BOOLEAN,    "draws new frame before throttling to reduce input latency" },
 	{ OPTION_FRAMEDELAY ";fd",                           "0",         core_options::option_type::INTEGER,    "delays the start of each frame to minimize input lag (0-9)"},
 	{ OPTION_VSYNC_OFFSET,                               "0",         core_options::option_type::INTEGER,    "offset vsync position by this many lines to prevent tearing with frame_delay and high-resolution displays" },

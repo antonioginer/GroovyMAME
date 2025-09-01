@@ -712,9 +712,12 @@ sound_manager::sound_manager(running_machine &machine) :
 	// register global states
 	machine.save().save_item(NAME(m_last_sync_time));
 
-	// start the periodic update flushing timer
-	m_update_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(sound_manager::update), this));
-	m_update_timer->adjust(STREAMS_UPDATE_ATTOTIME, 0, STREAMS_UPDATE_ATTOTIME);
+	if (!machine.options().vblank_audio())
+	{
+		// start the periodic update flushing timer
+		m_update_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(sound_manager::update), this));
+		m_update_timer->adjust(STREAMS_UPDATE_ATTOTIME, 0, STREAMS_UPDATE_ATTOTIME);
+	}
 
 	// mark the generation as "just starting, waiting for config loading"
 	m_osd_info.m_generation = 0xffff0000;
@@ -2128,6 +2131,7 @@ void sound_manager::update_osd_streams()
 			u32 sid = m_osd_output_streams.size();
 			m_osd_output_streams.emplace_back(node->m_id, is_system_default ? std::string() : std::string(node->m_name), node->m_sinks, rate, is_system_default, dev);
 			osd_output_stream &nos = m_osd_output_streams.back();
+			osd_printf_verbose("nos.m_id rate: %d\n", rate);
 			nos.m_id = machine().osd().sound_stream_sink_open(node->m_id, dev->tag(), rate);
 			nos.m_is_channel_mapping = is_channel_mapping;
 			return sid;
@@ -2366,6 +2370,7 @@ void sound_manager::update_osd_streams()
 			u32 sid = m_osd_output_streams.size();
 			m_osd_output_streams.emplace_back(node->m_id, is_system_default ? std::string() : std::string(node->m_name), channels, rate, is_system_default, nullptr);
 			osd_output_stream &stream = m_osd_output_streams.back();
+			osd_printf_verbose("stream.m_id rate: %d\n", rate);
 			stream.m_id = machine().osd().sound_stream_sink_open(node->m_id, machine().system().name, rate);
 			output_stream_per_node[node->m_id] = sid;
 			return sid;
@@ -2713,6 +2718,7 @@ const audio_resampler *sound_manager::get_resampler(u32 fs, u32 ft)
 void sound_manager::rebuild_all_stream_resamplers()
 {
 	u32 edge_rate = machine().sample_rate();
+	osd_printf_verbose("machine().sample_rate(): %d\n", machine().sample_rate());
 	for(auto &stream : m_osd_input_streams)
 		if(stream.m_rate != edge_rate) {
 			stream.m_resampler = get_resampler(stream.m_rate, edge_rate);

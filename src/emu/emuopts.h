@@ -77,6 +77,7 @@
 #define OPTION_REFRESHSPEED         "refreshspeed"
 #define OPTION_SYNCREFRESH          "syncrefresh"
 #define OPTION_SYNCAUDIO            "syncaudio"
+#define OPTION_VBLANKAUDIO          "vblankaudio"
 #define OPTION_LOWLATENCY           "lowlatency"
 #define OPTION_FRAMEDELAY           "framedelay"
 #define OPTION_VSYNC_OFFSET         "vsync_offset"
@@ -366,6 +367,7 @@ public:
 	bool refresh_speed() const { return m_refresh_speed; }
 	bool sync_refresh() const { return bool_value(OPTION_SYNCREFRESH); }
 	bool sync_audio() const { return bool_value(OPTION_SYNCAUDIO); }
+	bool vblank_audio() const { return bool_value(OPTION_VBLANKAUDIO); }
 	bool low_latency() const { return bool_value(OPTION_LOWLATENCY); }
 	int frame_delay() const { return int_value(OPTION_FRAMEDELAY); }
 	int vsync_offset() const { return int_value(OPTION_VSYNC_OFFSET); }

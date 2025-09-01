@@ -264,6 +264,9 @@ void video_manager::frame_update(bool from_debugger)
 		}
 	}
 
+	if (phase > machine_phase::INIT && machine().options().vblank_audio())
+		machine().sound().update(0);
+
 	// we synchronize after rendering instead of before, if low latency mode is enabled
 	if (!from_debugger && phase > machine_phase::INIT && m_low_latency && effective_throttle())
 		update_throttle(current_time);
