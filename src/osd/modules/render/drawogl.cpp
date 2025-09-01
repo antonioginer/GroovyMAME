@@ -63,11 +63,7 @@ typedef uint64_t HashT;
 
 
 #ifdef SDLMAME_X11
-#include <unistd.h>
-// DRM
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#include <fcntl.h>
+#include "drm_vbl.h"
 #endif
 
 #if defined(SDLMAME_MACOSX) || defined(OSD_MAC)
@@ -284,6 +280,7 @@ public:
 		, m_last_vofs(0.0f)
 		, m_surf_w(0)
 		, m_surf_h(0)
+		, m_drmvbl(nullptr)
 	{
 		for (int i=0; i < HASH_SIZE + OVERFLOW_SIZE; i++)
 			m_texhash[i] = nullptr;
@@ -294,6 +291,8 @@ public:
 	}
 	virtual ~renderer_ogl()
 	{
+		delete m_drmvbl;
+
 		// free the memory in the window
 		destroy_all_textures();
 	}
@@ -441,6 +440,8 @@ private:
 	PFNGLFRAMEBUFFERTEXTURE2DEXTPROC   m_glFramebufferTexture2D   = nullptr;
 
 	static bool     s_shown_video_info;
+
+	drm_vblank_handler* m_drmvbl;
 };
 
 
@@ -564,10 +565,9 @@ static int glsl_shader_feature = glsl_shader_info::FEAT_PLAIN; // FIXME: why is 
 bool renderer_ogl::s_shown_video_info = false;
 
 #ifdef SDLMAME_X11
-static int drm_open(const char *dri_device);
-static void drm_waitvblank(int crtc);
-static int fd = 0;
+static bool use_vbl_thread;
 static const char* dri_device = nullptr;
+static int single_force_crtc;
 #endif
 
 //============================================================
@@ -781,9 +781,8 @@ int renderer_ogl::create()
 #ifdef SDLMAME_X11
 	if (window().index() == 0 && video_config.syncrefresh && video_config.sync_mode != 0)
 	{
-		// Try to open DRM device
-		fd = drm_open(dri_device);
-		if (fd != 0)
+		m_drmvbl = new drm_vblank_handler(dri_device, use_vbl_thread);
+		if (m_drmvbl->is_open())
 			m_gl_context->set_swap_interval((video_config.sync_mode == 2 || video_config.sync_mode == 4)? 1 : 0);
 	}
 	else
@@ -813,144 +812,6 @@ int renderer_ogl::create()
 	return 0;
 }
 
-#ifdef SDLMAME_X11
-//============================================================
-//  drm_open
-//============================================================
-
-static int drm_open(const char *dri_device)
-{
-	int fd = 0;
-	char dri_path[16];
-	char *node = dri_path;
-
-	// Dri device forced by user
-	if (strcmp(dri_device, "auto") != 0)
-	{
-		osd_printf_verbose("drm_open: %s for by user\n", dri_device);
-		snprintf(node, sizeof(dri_path), "/dev/dri/%s", dri_device);
-	}
-
-	// Automatic selection
-	else
-	{
-		// Get an array of drm devices to check
-		int num_devices = drmGetDevices2(0, NULL, 0);
-		if (num_devices <= 0)
-		{
-			osd_printf_error("drm_open: couldn't find any drm device\n");
-			return 0;
-		}
-
-		drmDevicePtr *devices = (drmDevicePtr*)calloc(num_devices, sizeof(drmDevicePtr));
-		if (drmGetDevices2(0, devices, num_devices) < 0)
-		{
-			osd_printf_error("drm_open: drmGetDevices2() failed\n");
-			return 0;
-		}
-
-		// Parse device list to find the first one with a valid connector
-		bool found = false;
-
-		for (int i = 0; i < num_devices; i++)
-		{
-			// Skip non-primary nodes
-			if (devices[i]->available_nodes & (1 << DRM_NODE_PRIMARY))
-				node = devices[i]->nodes[DRM_NODE_PRIMARY];
-
-			else continue;
-
-			fd = open(node, O_RDWR | O_CLOEXEC);
-			if (fd < 0)
-			{
-				osd_printf_error("drm_open: couldn't open %s\n", node);
-				continue;
-			}
-			drmModeRes *resources = drmModeGetResources(fd);
-			if (resources && resources->count_connectors > 0 && resources->count_encoders > 0 && resources->count_crtcs > 0)
-			{
-				for (int j = 0; j < resources->count_connectors; j++)
-				{
-					drmModeConnector *conn = drmModeGetConnector(fd, resources->connectors[j]);
-					if (!conn) continue;
-
-					// We found a valid connector, use it
-					if (conn->connection == DRM_MODE_CONNECTED && conn->count_modes > 0)
-						found = true;
-
-					drmModeFreeConnector(conn);
-					if (found) break;
-				}
-			}
-			drmModeFreeResources(resources);
-			close(fd);
-
-			if (found) break;
-		}
-
-		drmFreeDevices(devices, num_devices);
-		free(devices);
-
-		if (!found)
-		{
-			osd_printf_error("drm_open: couldn't find any device with a valid connector\n");
-			return 0;
-		}
-	}
-
-	fd = open(node, O_RDWR | O_CLOEXEC);
-	if (fd < 0)
-	{
-		osd_printf_error("drm_open: cannot open %s\n", node);
-		return 0;
-	}
-
-	osd_printf_verbose("drm_open: %s successfully opened\n", node);
-	return fd;
-}
-
-//============================================================
-//  drm_waitvblank
-//============================================================
-
-static void drm_waitvblank(int crtc)
-{
-
-	drmVBlank vbl;
-	memset(&vbl, 0, sizeof(vbl));
-	vbl.request.sequence = 1;
-
-	// handle vblank for all SR managed crtc
-	// this is a hack based on SDL reported screen index
-	// it won't work on multi-gpu
-	// TO DO: find a correct way to map screen to crtc
-
-	// single screen (default)
-	vbl.request.type = DRM_VBLANK_RELATIVE;
-
-	// two screens
-	if (crtc == 1) vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
-
-	// multi-screen
-	else if (crtc > 1)
-	{
-		static uint64_t caps;
-		static bool caps_checked = false;
-
-		if (!caps_checked)
-		{
-			caps_checked = true;
-			if (drmGetCap(fd, DRM_CAP_VBLANK_HIGH_CRTC, &caps))
-				osd_printf_error("A newer kernel is needed for vblank syncing on multi screen\n");
-		}
-		if (caps)
-			vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | ((crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
-	}
-
-	if (drmWaitVBlank(fd, &vbl) != 0)
-		osd_printf_verbose("drmWaitVBlank failed\n");
-}
-#endif
 
 //============================================================
 //  drawsdl_xy_to_render_target
@@ -1697,16 +1558,16 @@ int renderer_ogl::draw(const int update)
 
 #ifdef SDLMAME_X11
 	// wait for vertical retrace
-	if ((video_config.sync_mode == 3 || video_config.sync_mode == 4) && video_config.syncrefresh && fd)
-		drm_waitvblank(window().monitor()->oshandle());
+	if ((video_config.sync_mode == 3 || video_config.sync_mode == 4) && video_config.syncrefresh && m_drmvbl && m_drmvbl->is_open())
+		m_drmvbl->drm_waitvblank(window().monitor()->oshandle(), single_force_crtc);
 #endif
 
 	m_gl_context->swap_buffer();
 
 #ifdef SDLMAME_X11
 	// wait for vertical retrace
-	if ((video_config.sync_mode == 1 || video_config.sync_mode == 2) && video_config.syncrefresh && fd)
-		drm_waitvblank(window().monitor()->oshandle());
+	if ((video_config.sync_mode == 1 || video_config.sync_mode == 2) && video_config.syncrefresh && m_drmvbl && m_drmvbl->is_open())
+		m_drmvbl->drm_waitvblank(window().monitor()->oshandle(), single_force_crtc);
 #endif
 
 	// Finish GL to minimize latency
@@ -3186,6 +3047,8 @@ int video_opengl::init(osd_interface &osd, osd_options const &options)
 
 #ifdef SDLMAME_X11
 	dri_device = dynamic_cast<sdl_options const &>(options).dri_device();
+	single_force_crtc = dynamic_cast<sdl_options const &>(options).single_force_crtc();
+	use_vbl_thread = dynamic_cast<sdl_options const &>(options).vbl_thread();
 #endif
 
 	return 0;

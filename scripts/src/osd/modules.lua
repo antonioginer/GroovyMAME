@@ -129,6 +129,7 @@ function osdmodulesbuild()
 		MAME_DIR .. "src/osd/modules/render/drawgdi.cpp",
 		MAME_DIR .. "src/osd/modules/render/drawnone.cpp",
 		MAME_DIR .. "src/osd/modules/render/drawogl.cpp",
+		MAME_DIR .. "src/osd/modules/render/drm_vbl.cpp",
 		MAME_DIR .. "src/osd/modules/render/drawsdl.cpp",
 		MAME_DIR .. "src/osd/modules/render/drawnogpu.cpp",
 		MAME_DIR .. "src/osd/modules/render/render_module.h",

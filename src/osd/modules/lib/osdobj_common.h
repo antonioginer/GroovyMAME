@@ -122,6 +122,8 @@
 #define OSDOPTION_AUTOSTRETCH           "autostretch"
 #define OSDOPTION_SCALE_PROPORTIONAL    "scale_proportional"
 #define OSDOPTION_DRI_DEVICE            "dri_device"
+#define OSDOPTION_SINGLE_FORCE_CRTC     "single_force_crtc"
+#define OSDOPTION_VBL_THREAD            "vbl_thread"
 #define OSDOPTION_SCREEN_COMPOSITING    "screen_compositing"
 #define OSDOPTION_SCREEN_REORDERING     "screen_reordering"
 #define OSDOPTION_ALLOW_HW_REFRESH      "allow_hw_refresh"
@@ -210,6 +212,8 @@ public:
 	bool autostretch() const { return bool_value(OSDOPTION_AUTOSTRETCH); }
 	bool scale_proportional() const { return bool_value(OSDOPTION_SCALE_PROPORTIONAL); }
 	const char *dri_device() const { return value(OSDOPTION_DRI_DEVICE); }
+	int single_force_crtc() const { return int_value(OSDOPTION_SINGLE_FORCE_CRTC); }
+	bool vbl_thread() const { return bool_value(OSDOPTION_VBL_THREAD); }
 	bool screen_compositing() const { return bool_value(OSDOPTION_SCREEN_COMPOSITING); }
 	bool screen_reordering() const { return bool_value(OSDOPTION_SCREEN_REORDERING); }
 	bool allow_hw_refresh() const { return bool_value(OSDOPTION_ALLOW_HW_REFRESH); }

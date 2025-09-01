@@ -132,6 +132,8 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_AUTOSTRETCH,                     "1",              core_options::option_type::BOOLEAN,   "automatically set scaling mode (integer or fractional) based on the selected video mode " },
 	{ OSDOPTION_SCALE_PROPORTIONAL,              "1",              core_options::option_type::BOOLEAN,   "Scale both axes by the same factor, when integer scaling is applied" },
 	{ OSDOPTION_DRI_DEVICE,                      OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "Force drm video card for vsync (card0, card1, etc.) or auto for automatic." },
+	{ OSDOPTION_SINGLE_FORCE_CRTC "(0-31)",      "0",              core_options::option_type::INTEGER,   "Force specific CRTC for single screen drm_waitvblank"},
+	{ OSDOPTION_VBL_THREAD,                      "0",              core_options::option_type::BOOLEAN,   "Use vblank thread to enable non-blocking call when vblank is missed"},
 	{ OSDOPTION_SCREEN_COMPOSITING,              "0",              core_options::option_type::BOOLEAN,   "Readjust relative screen positions of a multi-display setup after mode switching (Linux)" },
 	{ OSDOPTION_SCREEN_REORDERING,               "0",              core_options::option_type::BOOLEAN,   "Reallocates desktop multiple screens stacked vertically, so super-resolutions fit (Linux)" },
 	{ OSDOPTION_ALLOW_HW_REFRESH,                "0",              core_options::option_type::BOOLEAN,   "Allow on-the-fly mode addition (Windows)" },

@@ -250,9 +250,10 @@ static inline bool is_transparent(const float &a)
 
 #ifdef SDLMAME_X11
 static int drm_open(const char *dri_device);
-static void drm_waitvblank(int crtc);
+static void drm_waitvblank(int crtc, int single_force_crtc);
 static int fd = 0;
 static const char* dri_device = nullptr;
+static int single_force_crtc;
 #endif
 
 //============================================================
@@ -616,7 +617,7 @@ static int drm_open(const char *dri_device)
 //  drm_waitvblank
 //============================================================
 
-static void drm_waitvblank(int crtc)
+static void drm_waitvblank(int crtc, int single_force_crtc)
 {
 
 	drmVBlank vbl;
@@ -629,7 +630,7 @@ static void drm_waitvblank(int crtc)
 	// TO DO: find a correct way to map screen to crtc
 
 	// single screen (default)
-	vbl.request.type = DRM_VBLANK_RELATIVE;
+	vbl.request.type = (drmVBlankSeqType)(DRM_VBLANK_RELATIVE | ((single_force_crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
 
 	// two screens
 	if (crtc == 1) vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
@@ -782,7 +783,7 @@ int renderer_sdl2::draw(int update)
 #ifdef SDLMAME_X11
 	// wait for vertical retrace
 	if ((video_config.sync_mode == 3 || video_config.sync_mode == 4) && video_config.syncrefresh && fd)
-		drm_waitvblank(window().monitor()->oshandle());
+		drm_waitvblank(window().monitor()->oshandle(), single_force_crtc);
 #endif
 
 	m_last_blit_pixels = blit_pixels;
@@ -793,7 +794,7 @@ int renderer_sdl2::draw(int update)
 #ifdef SDLMAME_X11
 	// wait for vertical retrace
 	if ((video_config.sync_mode == 1 || video_config.sync_mode == 2) && video_config.syncrefresh && fd)
-		drm_waitvblank(window().monitor()->oshandle());
+		drm_waitvblank(window().monitor()->oshandle(), single_force_crtc);
 #endif
 
 	return 0;
@@ -1205,6 +1206,7 @@ int video_sdl2::init(osd_interface &osd, osd_options const &options)
 
 #ifdef SDLMAME_X11
 	dri_device = dynamic_cast<sdl_options const &>(options).dri_device();
+	single_force_crtc = dynamic_cast<sdl_options const &>(options).single_force_crtc();
 #endif
 
 	return 0;
