@@ -144,7 +144,7 @@ static inline u8 apply_brightness_contrast_gamma(u8 src, float brightness, float
 {
 	float srcval = (float)src * (1.0f / 255.0f);
 	float result = apply_brightness_contrast_gamma_fp(srcval, brightness, contrast, gamma);
-	return u8(result * 255.0f);
+	return u8(result * 255.0f + 0.5f);
 }
 
 #endif // MAME_EMU_RENDUTIL_H
