@@ -82,6 +82,10 @@
 #define OSDOPTION_SOUND                 "sound"
 #define OSDOPTION_AUDIO_LATENCY         "audio_latency"
 
+#define OSDOPTION_PA_LATENCY            "pa_latency"
+#define OSDOPTION_PA_SAMPLE_RATE        "pa_samplerate"
+#define OSDOPTION_PA_CHANNEL_LIMIT      "pa_chlimit"
+
 #define OSDOPTION_AUDIO_OUTPUT          "audio_output"
 #define OSDOPTION_AUDIO_EFFECT          "audio_effect"
 
@@ -244,6 +248,9 @@ public:
 	// sound options
 	const char *sound() const { return value(OSDOPTION_SOUND); }
 	float audio_latency() const { return float_value(OSDOPTION_AUDIO_LATENCY); }
+	float pa_latency() const { return float_value(OSDOPTION_PA_LATENCY); }
+	int pa_sample_rate() const { return int_value(OSDOPTION_PA_SAMPLE_RATE); }
+	int pa_channel_limit() const { return int_value(OSDOPTION_PA_CHANNEL_LIMIT); }
 
 	// CoreAudio specific options
 	const char *audio_output() const { return value(OSDOPTION_AUDIO_OUTPUT); }

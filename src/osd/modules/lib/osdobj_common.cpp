@@ -194,6 +194,10 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_SOUND,                           OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "sound output method: " },
 	{ OSDOPTION_AUDIO_LATENCY ";alat(0.0-50.0)", "0.0",            core_options::option_type::FLOAT,     "audio latency, 0 for default (increase to reduce glitches, decrease for responsiveness)" },
 
+	{ OSDOPTION_PA_LATENCY "(0.001-1.0)",        "0.020",          core_options::option_type::FLOAT,     "suggest output latency for portaudio" },
+	{ OSDOPTION_PA_SAMPLE_RATE "(11025-384000)", "48000",          core_options::option_type::INTEGER,   "force specified sample rate for portaudio devices" },
+	{ OSDOPTION_PA_CHANNEL_LIMIT "(0-256)",      "0",              core_options::option_type::INTEGER,   "limit supported output channels for portaudio, 0 for default (max)" },
+
 #ifdef SDLMAME_MACOSX
 	{ nullptr,                                   nullptr,          core_options::option_type::HEADER,    "CoreAudio-SPECIFIC OPTIONS" },
 	{ OSDOPTION_AUDIO_OUTPUT,                    OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "audio output device" },

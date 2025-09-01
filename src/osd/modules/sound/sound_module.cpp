@@ -1,19 +1,19 @@
 // license:BSD-3-Clause
 // copyright-holders:O. Galibert
 
-
 #include "sound_module.h"
+#include "rate_filter.h"
 
 #include <algorithm>
 #include <cassert>
 #include <utility>
-
 
 sound_module::~sound_module()
 {
 	// implementing this here forces the vtable and inline virtual member functions to be instantiated
 }
 
+#if !USE_AB
 sound_module::abuffer::abuffer(uint32_t channels) noexcept : m_channels(channels), m_used_buffers(0), m_last_sample(channels, 0)
 {
 	m_delta = 0;
@@ -116,3 +116,137 @@ inline sound_module::abuffer::buffer &sound_module::abuffer::push_buffer()
 		return m_buffers.emplace_back();
 	}
 }
+#else
+
+sound_module::abuffer::abuffer(uint32_t channels) noexcept : m_channels(channels), m_used_buffers(0), m_last_sample(channels, 0)
+{
+}
+
+sound_module::abuffer::abuffer(uint32_t channels, int rate, float audio_latency) noexcept : m_channels(channels), m_used_buffers(0), m_last_sample(channels, 0)
+{
+	ab = new audio_buffer<int16_t>(rate * channels, channels);
+	callback_ct = 0;
+	samples_in = 0;
+	samples_out = 0;
+	buffer_min_ct = 0;
+	skip_threshold = ((1.5 + audio_latency * 3.0) / 1000.0) * rate * 2 + 0.5f;
+	underflow = false;
+	overflow = false;
+	skip_threshold_ticks = 0;
+	m_osd_ticks = 0;
+}
+
+void sound_module::abuffer::get(int16_t *data, uint32_t samples) noexcept
+{
+	int buf_ct = ab->count() / m_channels;
+
+	// osd_printf_verbose("pull %d\n", samples);
+
+	if (buf_ct >= samples)
+	{
+		ab->read(data, samples * m_channels);
+
+		// keep track of the minimum buffer count, skip samples adaptively to respect the audio_latency setting
+		buf_ct -= samples;
+
+		if (buf_ct < buffer_min_ct)
+			buffer_min_ct = buf_ct;
+
+		// if we are below the threshold, reset the counter
+		if (buf_ct < skip_threshold)
+			skip_threshold_ticks = m_osd_ticks;
+
+		// if we have been above the set threshold for ~1 second, skip forward
+		if (m_osd_ticks - skip_threshold_ticks > osd_ticks_per_second())
+		{
+			int adjust = buffer_min_ct - skip_threshold / 2;
+
+			// if adjustment is less than two milliseconds, don't bother
+			if (adjust > 48000 / 500) {
+				ab->increment_playpos(adjust * m_channels);
+				overflow = true;
+			}
+
+			skip_threshold_ticks = m_osd_ticks;
+			buffer_min_ct = 1e8;
+		}
+	}
+	else
+	{
+		ab->read(data, buf_ct * m_channels);
+		std::memset(data + (buf_ct * m_channels), 0, (samples - buf_ct) * m_channels);
+
+		// if update_audio_stream has been called, note the underflow
+		if (m_osd_ticks)
+			underflow = true;
+
+		skip_threshold_ticks = m_osd_ticks;
+	}
+
+	samples_out += samples;
+	callback_ct = samples;
+}
+
+double lolrate = 1.0;
+extern u64 sm_samples_in;
+
+void sound_module::abuffer::push(const int16_t *data, uint32_t samples)
+{
+	static struct rate_filter rf(30,
+	                             48000,
+	                             0.002,
+	                             0.003,
+	                             0.98,
+	                             1.02);
+
+	samples_in = sm_samples_in;
+
+#if 0 && DEBUG_AB
+	osd_printf_verbose("count: %f, callback_ct: %d\n", ab->count() / m_channels, callback_ct);
+	osd_printf_verbose("m_channels: %d\n", m_channels);
+#endif
+
+	if (overflow)
+	{
+		osd_printf_verbose("overflow\n");
+		overflow = false;
+	}
+
+	if (underflow)
+	{
+		osd_printf_verbose("underflow\n");
+		// add some silence to prevent immediate underflows
+		ab->clear(skip_threshold * m_channels / 2);
+		underflow = false;
+	}
+
+	ab->write(data, samples * m_channels);
+
+	// for determining buffer overflows, take the sample here instead of in the callback
+	m_osd_ticks = osd_ticks();
+
+	rf.update(samples_out, samples_in, callback_ct);
+
+	lolrate = rf.filtered_rate();
+
+#if DEBUG_AB
+	osd_printf_verbose("rate: %f, count: %d\n", rf.filtered_rate(), ab->count() / m_channels);
+#endif
+}
+
+uint32_t sound_module::abuffer::available() const noexcept
+{
+	return ab->count();
+}
+
+inline void sound_module::abuffer::pop_buffer() noexcept
+{
+}
+
+inline sound_module::abuffer::buffer &sound_module::abuffer::push_buffer()
+{
+	++m_used_buffers;
+	return m_buffers.emplace_back();
+}
+
+#endif

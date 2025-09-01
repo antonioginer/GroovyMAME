@@ -969,6 +969,9 @@ void sound_manager::output_push(int id, sound_stream &stream)
 	}
 }
 
+extern double lolrate;
+u64 sm_samples_in = 0;
+
 void sound_manager::run_effects()
 {
 #ifndef SOUND_DISABLE_THREADING
@@ -982,10 +985,11 @@ void sound_manager::run_effects()
 #endif
 		// Copy the data to the effects threads, expanding as needed
 		// when -speed is in use
-		double sf = machine().video().speed_factor();
+		double sf = 1000 * (lolrate);
 		if(sf == 1000) {
 			for(auto &si : m_speakers) {
 				int samples = si.m_buffer.available_samples();
+				sm_samples_in += samples;
 				int channels = si.m_buffer.channels();
 				auto &eb = si.m_effects_buffer;
 				eb.prepare_space(samples);
@@ -1001,6 +1005,7 @@ void sound_manager::run_effects()
 			sf /= 1000;
 			for(auto &si : m_speakers) {
 				int source_samples = si.m_buffer.available_samples();
+				sm_samples_in += source_samples;
 				int channels = si.m_buffer.channels();
 				auto &eb = si.m_effects_buffer;
 				eb.prepare_space(source_samples / sf + 1);

@@ -68,6 +68,10 @@ private:
 		stream_info(sound_pa *manager, uint32_t channels, uint32_t id, uint32_t devid) :
 			m_manager(manager), m_stream(nullptr), m_channels(channels), m_id(id), m_devid(devid), m_buffer(channels)
 		{ }
+
+		stream_info(sound_pa *manager, uint32_t channels, int rate, float latency, uint32_t id, uint32_t devid) :
+			m_manager(manager), m_stream(nullptr), m_channels(channels), m_id(id), m_devid(devid), m_buffer(channels, rate, latency)
+		{ }
 	};
 
 	osd::audio_info m_info;
@@ -85,6 +89,9 @@ private:
 
 	uint32_t m_stream_id;
 	float m_audio_latency;
+	float m_pa_latency;
+	int m_sample_rate;
+	int m_channel_limit;
 
 	int stream_callback(stream_info *stream, const void *input, void *output, unsigned long frameCount, const PaStreamCallbackTimeInfo *timeInfo, PaStreamCallbackFlags statusFlags);
 	static int s_stream_callback(const void *input, void *output, unsigned long frameCount, const PaStreamCallbackTimeInfo *timeInfo, PaStreamCallbackFlags statusFlags, void *userData);
@@ -142,14 +149,19 @@ int sound_pa::init(osd_interface &osd, osd_options const &options)
 
 	std::unordered_map<std::string, int> namecount;
 
+	m_audio_latency = options.audio_latency();
+	m_pa_latency = options.pa_latency();
+	m_sample_rate = options.pa_sample_rate();
+	m_channel_limit = options.pa_channel_limit();
+
 	for(PaDeviceIndex dev = 0; dev != Pa_GetDeviceCount(); dev++) {
 		const PaDeviceInfo *di = Pa_GetDeviceInfo(dev);
 		const PaHostApiInfo *ai = Pa_GetHostApiInfo(di->hostApi);
 		auto &node = m_info.m_nodes[dev];
 		node.m_id = dev + 1;
-		node.m_rate.m_default_rate = node.m_rate.m_min_rate = node.m_rate.m_max_rate = di->defaultSampleRate;
-		node.m_sinks = di->maxOutputChannels;
-		node.m_sources = di->maxInputChannels;
+		node.m_rate.m_default_rate = node.m_rate.m_min_rate = node.m_rate.m_max_rate = m_sample_rate;
+		node.m_sinks = m_channel_limit == 0 ? di->maxOutputChannels : m_channel_limit;
+		node.m_sources = m_channel_limit == 0 ? di->maxInputChannels : m_channel_limit;
 
 		// remove enters from possibly buggy device string
 		node.m_name = util::string_format("%s: %s", ai->name, di->name);
@@ -180,7 +192,6 @@ int sound_pa::init(osd_interface &osd, osd_options const &options)
 	}
 
 	m_stream_id = 1;
-	m_audio_latency = options.audio_latency() * 20e-3;
 
 	return 0;
 }
@@ -210,13 +221,13 @@ uint32_t sound_pa::stream_sink_open(uint32_t node, std::string name, uint32_t ra
 		return 0;
 
 	uint32_t id = m_stream_id ++;
-	auto si = m_streams.emplace(id, stream_info(this, m_info.m_nodes[node-1].m_sinks, id, node)).first;
+	auto si = m_streams.emplace(id, stream_info(this, m_info.m_nodes[node-1].m_sinks, m_sample_rate, m_audio_latency, id, node)).first;
 
 	PaStreamParameters op;
 	op.device = node - 1;
 	op.channelCount = m_info.m_nodes[node-1].m_sinks;
 	op.sampleFormat = paInt16;
-	op.suggestedLatency = (m_audio_latency > 0.0f) ? m_audio_latency : Pa_GetDeviceInfo(node - 1)->defaultLowOutputLatency;
+	op.suggestedLatency = (m_pa_latency > 0.0f) ? m_pa_latency : Pa_GetDeviceInfo(node - 1)->defaultLowOutputLatency;
 	op.hostApiSpecificStreamInfo = nullptr;
 
 	PaError err = Pa_OpenStream(&si->second.m_stream, nullptr, &op, rate, paFramesPerBufferUnspecified, 0, s_stream_callback, &si->second);
@@ -240,7 +251,7 @@ uint32_t sound_pa::stream_source_open(uint32_t node, std::string name, uint32_t 
 		return 0;
 
 	uint32_t id = m_stream_id ++;
-	auto si = m_streams.emplace(id, stream_info(this, m_info.m_nodes[node-1].m_sources, id, node)).first;
+	auto si = m_streams.emplace(id, stream_info(this, m_info.m_nodes[node-1].m_sources, m_sample_rate, m_audio_latency, id, node)).first;
 
 	PaStreamParameters ip;
 	ip.device = node - 1;
