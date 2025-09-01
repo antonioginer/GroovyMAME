@@ -56,6 +56,9 @@ public:
 	bool sync_refresh() const { return m_syncrefresh; }
 	bool sync_audio() const { return m_syncaudio; }
 	int32_t framedelay() const { return m_framedelay; }
+	float fdmargin() const { return m_fdmargin; }
+	bool afdmargin() const { return m_afdmargin; }
+	float afdmargin_sec() const { return m_afdmarginsec; }
 	int32_t vsync_offset() const { return m_vsync_offset; }
 	bool fastforward() const { return m_fastforward; }
 
@@ -69,6 +72,8 @@ public:
 	void set_sync_refresh(bool syncrefresh) { m_syncrefresh = syncrefresh; }
 	void set_sync_audio(bool syncaudio) { m_syncaudio = syncaudio; }
 	void set_framedelay(int framedelay) { m_framedelay = framedelay; }
+	void set_fdmargin(float fdmargin) { m_fdmargin = fdmargin; }
+	void set_afdmargin(bool afdmargin) { m_afdmargin = afdmargin; }
 	void set_vsync_offset(int vsync_offset) { m_vsync_offset = vsync_offset; }
 
 	// misc
@@ -97,6 +102,10 @@ public:
 	void add_sound_to_recording(const s16 *sound, int numsamples);
 	bool is_recording() const { return !m_movie_recordings.empty(); }
 
+	osd_ticks_t         m_ticks_after_framedelay;
+	osd_ticks_t         m_ticks_after_osd;
+	osd_ticks_t         m_ticks_after_audio;
+
 private:
 	// internal helpers
 	void exit();
@@ -110,7 +119,7 @@ private:
 	// speed and throttling helpers
 	int original_speed_setting() const;
 	bool finish_screen_updates();
-	void update_throttle(attotime emutime);
+	void update_throttle(attotime emutime, osd_ticks_t now);
 	osd_ticks_t throttle_until_ticks(osd_ticks_t target_ticks);
 	void update_frameskip();
 	void update_refresh_speed();
@@ -153,6 +162,9 @@ private:
 	bool                m_syncrefresh;              // flag: TRUE if we're currently refresh-synced
 	bool                m_syncaudio;                // flag: TRUE if audio resampling is enabled
 	int32_t             m_framedelay;               // tenths of frame to delay emulation start
+	float               m_fdmargin;                 // milliseconds to reserve for automatic frame delay
+	bool                m_afdmargin;                // set margin automatically
+	float               m_afdmarginsec;             // number of seconds to keep in margin history
 	int32_t             m_vsync_offset;             // offset vsync position by this many lines
 	bool                m_fastforward;              // flag: true if we're currently fast-forwarding
 	u32                 m_seconds_to_run;           // number of seconds to run before quitting

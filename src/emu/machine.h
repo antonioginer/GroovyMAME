@@ -21,6 +21,8 @@
 
 #include <ctime>
 
+#include "osdcore.h"
+
 //**************************************************************************
 //  CONSTANTS
 //**************************************************************************
@@ -216,6 +218,8 @@ public:
 
 	// used by debug_console to take ownership of the debug.log file
 	std::unique_ptr<emu_file> steal_debuglogfile();
+
+	osd_ticks_t m_ticks_before_swap;
 
 private:
 	class side_effects_disabler {

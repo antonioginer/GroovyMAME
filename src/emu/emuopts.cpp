@@ -99,6 +99,10 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_VBLANKAUDIO ";vba",                         "1",         core_options::option_type::BOOLEAN,    "update audio after vblank, can reduce audio latency up to 20 ms" },
 	{ OPTION_LOWLATENCY ";lolat",                        "1",         core_options::option_type::BOOLEAN,    "draws new frame before throttling to reduce input latency" },
 	{ OPTION_FRAMEDELAY ";fd",                           "0",         core_options::option_type::INTEGER,    "delays the start of each frame to minimize input lag (0-9)"},
+	{ OPTION_FD_MARGIN "(0.0-10.0)",                     "0",         core_options::option_type::FLOAT,      "for frame delay margin, reserve this many milliseconds for vblank etc"},
+	{ OPTION_AFD_MARGIN,                                 "0",         core_options::option_type::BOOLEAN,    "set frame delay margin automatically"},
+	{ OPTION_AFD_MARGIN_SEC  "(0.25-180.0)",             "60",        core_options::option_type::FLOAT,      "number of seconds to keep in frame delay margin history"},
+	{ OPTION_FRAMETIMES ";ft",                           "0",         core_options::option_type::BOOLEAN,    "verbose print frame times"},
 	{ OPTION_VSYNC_OFFSET,                               "0",         core_options::option_type::INTEGER,    "offset vsync position by this many lines to prevent tearing with frame_delay and high-resolution displays" },
 	{ OPTION_BLACK_FRAME_INSERTION ";bfi",               "0",         core_options::option_type::INTEGER,    "number of black frames to insert after each normal frame, intended to reduce motion blur on 120+ Hz monitors" },
 

@@ -1922,7 +1922,13 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 	}
 
 	// add frame delay
-	slider_alloc(_("Frame Delay"), 0, machine.options().frame_delay(), 9, 1, std::bind(&mame_ui_manager::slider_framedelay, this, _1, _2));
+	slider_alloc(_("Frame Delay"), 0, machine.options().frame_delay(), 95, 5, std::bind(&mame_ui_manager::slider_framedelay, this, _1, _2));
+
+	// add frame delay
+	slider_alloc(_("Frame Delay Margin"), 0, machine.options().fd_margin() * 10.f, 100, 5, std::bind(&mame_ui_manager::slider_fdmargin, this, _1, _2));
+
+	// add frame delay auto margin
+	slider_alloc(_("Auto Frame Delay Margin"), 0, machine.options().afd_margin(), 1, 1, std::bind(&mame_ui_manager::slider_afdmargin, this, _1, _2));
 
 #ifdef _WIN32
 	// add vsync offset
@@ -2157,6 +2163,36 @@ int32_t mame_ui_manager::slider_framedelay(std::string *str, int32_t newval)
 	if (str)
 		*str = string_format(_("%1$3d"), machine().video().framedelay());
 	return machine().video().framedelay();
+}
+
+
+//-------------------------------------------------
+//  slider_fdmargin - global frame delay margin
+//  callback
+//-------------------------------------------------
+
+int32_t mame_ui_manager::slider_fdmargin(std::string *str, int32_t newval)
+{
+	if (newval != SLIDER_NOCHANGE)
+		machine().video().set_fdmargin((float) newval / 10.f);
+	if (str)
+		*str = string_format(_("%1$.1f ms"), machine().video().fdmargin());
+	return machine().video().fdmargin() * 10.f;
+}
+
+
+//-------------------------------------------------
+//  slider_afdmargin - enable auto frame delay
+//  margin callback
+//-------------------------------------------------
+
+int32_t mame_ui_manager::slider_afdmargin(std::string *str, int32_t newval)
+{
+	if (newval != SLIDER_NOCHANGE)
+		machine().video().set_afdmargin(newval > 0);
+	if (str)
+		*str = string_format(_("%1$s"), machine().video().afdmargin() ? "yes" : "no");
+	return machine().video().afdmargin();
 }
 
 

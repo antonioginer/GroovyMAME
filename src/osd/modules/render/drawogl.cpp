@@ -1556,6 +1556,8 @@ int renderer_ogl::draw(const int update)
 	window().m_primlist->release_lock();
 	m_init_context = 0;
 
+	m_ticks_before_swap = osd_ticks();
+
 #ifdef SDLMAME_X11
 	// wait for vertical retrace
 	if ((video_config.sync_mode == 3 || video_config.sync_mode == 4) && video_config.syncrefresh && m_drmvbl && m_drmvbl->is_open())

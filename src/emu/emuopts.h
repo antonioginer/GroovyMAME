@@ -80,6 +80,10 @@
 #define OPTION_VBLANKAUDIO          "vblankaudio"
 #define OPTION_LOWLATENCY           "lowlatency"
 #define OPTION_FRAMEDELAY           "framedelay"
+#define OPTION_FD_MARGIN            "fdmargin"
+#define OPTION_AFD_MARGIN           "afdmargin"
+#define OPTION_AFD_MARGIN_SEC       "afdmarginsec"
+#define OPTION_FRAMETIMES           "frametimes"
 #define OPTION_VSYNC_OFFSET         "vsync_offset"
 #define OPTION_BLACK_FRAME_INSERTION "black_frame_insertion"
 
@@ -377,6 +381,10 @@ public:
 	bool vblank_audio() const { return bool_value(OPTION_VBLANKAUDIO); }
 	bool low_latency() const { return bool_value(OPTION_LOWLATENCY); }
 	int frame_delay() const { return int_value(OPTION_FRAMEDELAY); }
+	int frame_times() const { return bool_value(OPTION_FRAMETIMES); }
+	float fd_margin() const { return float_value(OPTION_FD_MARGIN); }
+	bool afd_margin() const { return bool_value(OPTION_AFD_MARGIN); }
+	float afd_margin_sec() const { return float_value(OPTION_AFD_MARGIN_SEC); }
 	int vsync_offset() const { return int_value(OPTION_VSYNC_OFFSET); }
 	int black_frame_insertion() const { return int_value(OPTION_BLACK_FRAME_INSERTION); }
 

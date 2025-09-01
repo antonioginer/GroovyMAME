@@ -817,8 +817,10 @@ void sdl_window_info::update()
 				// otherwise, render with our drawing system
 				if (video_config.perftest)
 					measure_fps(update);
-				else
+				else {
 					renderer().draw(update);
+					machine().m_ticks_before_swap = renderer().m_ticks_before_swap;
+				}
 			}
 
 			// all done, ready for next

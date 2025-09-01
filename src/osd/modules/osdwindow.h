@@ -12,6 +12,7 @@
 #pragma once
 
 #include "emucore.h"
+#include "osdcore.h"
 #include "osdhelper.h"
 #include "../frontend/mame/ui/menuitem.h"
 
@@ -376,6 +377,8 @@ public:
 	virtual void toggle_fsfx() { }
 	virtual bool sliders_dirty() { return m_sliders_dirty; }
 	virtual int restart() { return 0; }
+
+	osd_ticks_t m_ticks_before_swap;
 
 protected:
 	virtual void build_slider_list() { }

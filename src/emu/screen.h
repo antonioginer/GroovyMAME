@@ -421,6 +421,10 @@ public:
 	static constexpr int DEFAULT_FRAME_RATE = 60;
 	static const attotime DEFAULT_FRAME_PERIOD;
 
+	static constexpr int N_FD_BINS = 20;
+	static constexpr int N_MG_BINS = 20;
+	static constexpr int N_MAX_HISTORY = DEFAULT_FRAME_RATE * 180;
+
 private:
 	class svg_renderer;
 
@@ -508,6 +512,15 @@ private:
 	u32                 m_partial_updates_this_frame; // partial update counter this frame
 
 	bool                m_is_primary_screen;
+
+	int                 m_fd_speeds[N_FD_BINS];     // histogram of possible frame delay values
+	int                 m_margins[N_MG_BINS];       // histogram of positive diff frame times, 0.5 -> 10+ms	int
+	int                 m_margins_t[N_MG_BINS];     // time limited (sliding window), both positive and negative diffs
+	int                 m_n_margins;                // number of positive diff frame times
+	int                 m_dh[N_MAX_HISTORY];        // circular buffer of diff history
+	int                 m_dh_idx;                   // index for above
+	osd_ticks_t         m_prev_after_video;
+	double              m_prev_emulation_osd_time;  // we need the diff to know what margin to set
 
 	// VBLANK callbacks
 	class callback_item

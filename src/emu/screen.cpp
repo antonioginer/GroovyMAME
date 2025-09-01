@@ -20,6 +20,8 @@
 #include "nanosvg.h"
 #include "png.h"
 
+#include "ui/uimain.h"
+
 #include <set>
 
 
@@ -572,10 +574,20 @@ screen_device::screen_device(const machine_config &mconfig, const char *tag, dev
 	, m_scanline_timer(nullptr)
 	, m_frame_number(0)
 	, m_partial_updates_this_frame(0)
+	, m_n_margins(0)
+	, m_dh_idx(0)
+	, m_prev_after_video(0)
+	, m_prev_emulation_osd_time(0)
 {
 	m_unique_id = m_id_counter;
 	m_id_counter++;
 	memset(m_texture, 0, sizeof(m_texture));
+	memset(m_fd_speeds, 0, sizeof(m_fd_speeds));
+	memset(m_margins, 0, sizeof(m_margins));
+	memset(m_margins_t, 0, sizeof(m_margins_t));
+
+	for (int i = 0; i < N_MAX_HISTORY; i++)
+		m_dh[i] = -1;
 }
 
 
@@ -585,6 +597,33 @@ screen_device::screen_device(const machine_config &mconfig, const char *tag, dev
 
 screen_device::~screen_device()
 {
+	float sum = 0;
+
+	for (int i = 0; i < N_FD_BINS; i++)
+		sum += m_fd_speeds[i];
+
+	if (sum > 0) {
+		osd_printf_info("Frame period: %.2f ms\n", (double) m_frame_period / ATTOSECONDS_PER_SECOND * 1e3);
+		osd_printf_info("Frame delay/percentage:");
+
+		for (int i = 0; i < N_FD_BINS; i++)
+			if (m_fd_speeds[i])
+				osd_printf_info(" %.0f/%.2f%%", ((float)i / N_FD_BINS) * 100.f, (float) m_fd_speeds[i] / sum * 100.f);
+		osd_printf_info("\n");
+
+		osd_printf_info("Frame delay/number of frames:");
+
+		for (int i = 0; i < N_FD_BINS; i++)
+			if (m_fd_speeds[i])
+				osd_printf_info(" %.0f/%d", ((float)i / N_FD_BINS) * 100.f, m_fd_speeds[i]);
+		osd_printf_info("\n");
+
+		osd_printf_info("Required margin (not including swap time):\n");
+		for (int i = N_MG_BINS - 1; i >= 0; i--)
+			if (m_margins[i])
+				osd_printf_info("%.1f: %.0f/%.0f\n", (double)(i + 1) / 2.0, m_margins[i], m_n_margins);
+	}
+
 	destroy_scan_bitmaps();
 }
 
@@ -1664,9 +1703,119 @@ TIMER_CALLBACK_MEMBER(screen_device::vblank_begin)
 	m_vblank_start_time = machine().time();
 	m_vblank_end_time = m_vblank_start_time + attotime(0, m_vblank_period);
 
+	osd_ticks_t before_video = osd_ticks();
 	// if this is the primary screen and we need to update now
 	if (m_is_primary_screen && !(m_video_attributes & VIDEO_UPDATE_AFTER_VBLANK))
 		machine().video().frame_update();
+	osd_ticks_t after_video = osd_ticks();
+
+	if (m_is_primary_screen) {
+		static double period_correction = 0.f;
+
+		osd_ticks_t period = after_video - m_prev_after_video;
+		osd_ticks_t throttle_osd_current = after_video - before_video;
+		osd_ticks_t emulation_time = period - throttle_osd_current;
+
+		osd_ticks_t sound_update_time = machine().video().m_ticks_after_audio -
+		                                machine().video().m_ticks_after_osd;
+
+		osd_ticks_t osd_update_time = machine().video().m_ticks_after_osd - before_video;
+
+		osd_ticks_t osd_until_swap = machine().m_ticks_before_swap - before_video;
+
+		osd_ticks_t framedelay_time = machine().video().m_ticks_after_framedelay -
+		                              machine().video().m_ticks_after_audio;
+
+		osd_ticks_t remaining_time = after_video -
+		                             machine().video().m_ticks_after_framedelay;
+
+		double period_d = (double) period / osd_ticks_per_second() * 1e3;
+		double frame_period_d = (double) m_frame_period / ATTOSECONDS_PER_SECOND * 1e3;
+		double emulation_time_d = (double) emulation_time / osd_ticks_per_second() * 1e3;
+		double sound_update_time_d = (double) sound_update_time / osd_ticks_per_second() * 1e3;
+		double osd_update_time_d = (double) osd_update_time / osd_ticks_per_second() * 1e3;
+		double framedelay_time_d = (double) framedelay_time / osd_ticks_per_second() * 1e3;
+		double remaining_time_d = (double) remaining_time / osd_ticks_per_second() * 1e3;
+		double osd_until_swap_d = (double) osd_until_swap / osd_ticks_per_second() * 1e3;
+
+		double emulation_osd_time = emulation_time_d + osd_until_swap_d;
+
+		double automargin = 0.f;
+
+		if (machine().video().afdmargin()) {
+			for (int i = 0; i < N_MG_BINS; i++)
+				if (m_margins_t[i] > 1)
+					automargin = ((double) (i + 1) / 2);
+		}
+
+		// we assume we're running close to 100% with perfect dotclock
+		double fd_frac = 1.0f - ((emulation_osd_time + automargin + machine().video().fdmargin()) / frame_period_d);
+		double fd_frac_no_margin = 1.0f - (emulation_osd_time / frame_period_d);
+		int set_fd = std::clamp<int>(floorf(20.0 * fd_frac) * 5, 0, 95);
+
+		if (machine().video().fdmargin()) {
+			period_d += period_correction;
+			period_correction = (machine().video().framedelay() - set_fd) / 100.f * frame_period_d;
+		}
+
+		if (machine().options().frame_times())
+			osd_printf_verbose("7890.7890, %.6f, %.6f, %.6f, %.0f, %.6f, %.6f, %.6f, %.6f, %.6f\n",
+			                   frame_period_d,
+			                   period_d,
+			                   emulation_time_d,
+			                   set_fd,
+			                   sound_update_time_d,
+			                   osd_update_time_d,
+			                   framedelay_time_d,
+			                   remaining_time_d,
+			                   osd_until_swap_d);
+
+		if (m_prev_after_video > 0) {
+			if (!machine().ui().is_menu_active())
+				m_fd_speeds[std::clamp<int>((int)(N_FD_BINS * fd_frac_no_margin), 0, N_FD_BINS - 1)]++;
+
+			if (machine().video().fdmargin() && machine().options().low_latency() && machine().options().sync_refresh())
+				machine().video().set_framedelay(set_fd);
+		}
+
+		m_prev_after_video = after_video;
+
+		double required_margin = emulation_osd_time - m_prev_emulation_osd_time;
+
+		if (m_prev_emulation_osd_time > 0 && required_margin > 0 && !machine().ui().is_menu_active()) {
+			int bin = std::clamp<int>((int)(ceilf(required_margin * 2) - 1), 0, N_MG_BINS - 1);
+			m_margins[bin]++;
+			m_n_margins++;
+		}
+
+		if (m_prev_emulation_osd_time > 0 && fabs(required_margin) < frame_period_d && !machine().ui().is_menu_active()) {
+			int bin = std::clamp<int>((int)(ceilf(fabs(required_margin) * 2) - 1), 0, N_MG_BINS - 1);
+
+			if (m_dh[m_dh_idx] != -1 && m_margins_t[m_dh[m_dh_idx]] > 0)
+				m_margins_t[m_dh[m_dh_idx]]--;
+
+			m_dh[m_dh_idx] = bin;
+
+			if (m_margins_t[bin] == -1)
+				m_margins_t[bin] = 1;
+			else
+				m_margins_t[bin]++;
+
+			// we just assume 60 fps
+			m_dh_idx += 1;
+			m_dh_idx %= (int) (machine().video().afdmargin_sec() * DEFAULT_FRAME_RATE);
+
+			/*
+			for (int i = 0; i < N_MG_BINS; i++) {
+				if (m_margins_t[i] > 0)
+					osd_printf_verbose("%.2f/%d ", (float) (i + 1) / 2,  m_margins_t[i]);
+			}
+			osd_printf_verbose("\n");
+			*/
+		}
+
+		m_prev_emulation_osd_time = emulation_osd_time;
+	}
 
 	// call the screen specific callbacks
 	for (auto &item : m_callback_list)

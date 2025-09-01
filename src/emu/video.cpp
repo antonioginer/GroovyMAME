@@ -98,6 +98,9 @@ video_manager::video_manager(running_machine &machine)
 	, m_syncrefresh(machine.options().sync_refresh())
 	, m_syncaudio(machine.options().sync_audio())
 	, m_framedelay(machine.options().frame_delay())
+	, m_fdmargin(machine.options().fd_margin())
+	, m_afdmargin(machine.options().afd_margin())
+	, m_afdmarginsec(machine.options().afd_margin_sec())
 	, m_vsync_offset(machine.options().vsync_offset())
 	, m_fastforward(false)
 	, m_seconds_to_run(machine.options().seconds_to_run())
@@ -241,7 +244,7 @@ void video_manager::frame_update(bool from_debugger)
 	// if we're throttling, synchronize before rendering
 	attotime current_time = machine().time();
 	if (!from_debugger && phase > machine_phase::INIT && !m_low_latency && effective_throttle())
-		update_throttle(current_time);
+		update_throttle(current_time, osd_ticks());
 
 	// ask the OSD to update
 	{
@@ -258,18 +261,24 @@ void video_manager::frame_update(bool from_debugger)
 			container->add_rect(0, 0, 1, 1, 0xff000000, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 			for (int i = 0; i < machine().options().black_frame_insertion(); i++)
 			{
-				update_throttle(current_time);
+				update_throttle(current_time, osd_ticks());
 				machine().osd().update(!from_debugger && skipped_it);
 			}
 		}
 	}
 
+	m_ticks_after_osd = osd_ticks();
+
 	if (phase > machine_phase::INIT && machine().options().vblank_audio())
 		machine().sound().update(0);
 
+	m_ticks_after_audio = osd_ticks();
+
 	// we synchronize after rendering instead of before, if low latency mode is enabled
 	if (!from_debugger && phase > machine_phase::INIT && m_low_latency && effective_throttle())
-		update_throttle(current_time);
+		update_throttle(current_time, m_ticks_after_osd);
+
+	m_ticks_after_framedelay = osd_ticks();
 
 	machine().osd().input_update(false);
 	emulator_info::periodic_check();
@@ -326,6 +335,9 @@ std::string video_manager::speed_text()
 	// otherwise, just display the frameskip plus the level
 	else
 		util::stream_format(str, "skip %d/%d", effective_frameskip(), MAX_FRAMESKIP);
+
+	if (m_framedelay)
+		util::stream_format(str, " fd %d", m_framedelay);
 
 	// append the speed for all cases except paused
 	if (!paused)
@@ -701,7 +713,7 @@ bool video_manager::finish_screen_updates()
 //  natural speed
 //-------------------------------------------------
 
-void video_manager::update_throttle(attotime emutime)
+void video_manager::update_throttle(attotime emutime, osd_ticks_t now)
 {
 /*
 
@@ -740,19 +752,18 @@ void video_manager::update_throttle(attotime emutime)
 	// if we're only syncing to the refresh, bail now
 	if (m_syncrefresh)
 	{
-		if (m_framedelay == 0 || m_framedelay > 9)
+		if (m_framedelay == 0 || m_framedelay > 95)
 			return;
 
 		screen_device *const screen = screen_device_enumerator(machine().root_device()).first();
 		if (screen)
 		{
-			osd_ticks_t now = osd_ticks();
 			osd_ticks_t ticks_per_second = osd_ticks_per_second();
 			attoseconds_t attoseconds_per_tick = ATTOSECONDS_PER_SECOND / ticks_per_second * m_throttle_rate;
 
 			attoseconds_t period = screen->frame_period().attoseconds();
 			int bfi = machine().options().black_frame_insertion();
-			throttle_until_ticks(now + period / attoseconds_per_tick * m_framedelay / 10 / (bfi + 1));
+			throttle_until_ticks(now + period / attoseconds_per_tick * m_framedelay / 100 / (bfi + 1));
 			return;
 		}
 	}
