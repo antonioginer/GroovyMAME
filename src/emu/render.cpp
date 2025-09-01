@@ -592,6 +592,13 @@ render_container::render_container(render_manager &manager, screen_device *scree
 		m_user.m_brightness = manager.machine().options().brightness();
 		m_user.m_contrast = manager.machine().options().contrast();
 		m_user.m_gamma = manager.machine().options().gamma();
+		m_user.m_hdmi_color_corr = manager.machine().options().hdmi_cc();
+		m_user.m_psc_rk = manager.machine().options().palette_scale_rk();
+		m_user.m_psc_gk = manager.machine().options().palette_scale_gk();
+		m_user.m_psc_bk = manager.machine().options().palette_scale_bk();
+		m_user.m_psc_rc = manager.machine().options().palette_scale_rc();
+		m_user.m_psc_gc = manager.machine().options().palette_scale_gc();
+		m_user.m_psc_bc = manager.machine().options().palette_scale_bc();
 		// palette client will be allocated later
 	}
 
@@ -812,6 +819,52 @@ render_container::item &render_container::add_generic(u8 type, float x0, float y
 
 void render_container::recompute_lookups()
 {
+	const u8 hdmi_color_lut[2][256] = {
+		// 16 -> 235
+		{ 16,  17,  18,  19,  19,  20,  21,  22,  23,  24,  25,  25,  26,
+		  27,  28,  29,  30,  31,  31,  32,  33,  34,  35,  36,  37,  37,
+		  38,  39,  40,  41,  42,  43,  43,  44,  45,  46,  47,  48,  49,
+		  49,  50,  51,  52,  53,  54,  55,  56,  56,  57,  58,  59,  60,
+		  61,  62,  62,  63,  64,  65,  66,  67,  68,  68,  69,  70,  71,
+		  72,  73,  74,  74,  75,  76,  77,  78,  79,  80,  80,  81,  82,
+		  83,  84,  85,  86,  86,  87,  88,  89,  90,  91,  92,  92,  93,
+		  94,  95,  96,  97,  98,  98,  99, 100, 101, 102, 103, 104, 104,
+		 105, 106, 107, 108, 109, 110, 110, 111, 112, 113, 114, 115, 116,
+		 116, 117, 118, 119, 120, 121, 122, 122, 123, 124, 125, 126, 127,
+		 128, 129, 129, 130, 131, 132, 133, 134, 135, 135, 136, 137, 138,
+		 139, 140, 141, 141, 142, 143, 144, 145, 146, 147, 147, 148, 149,
+		 150, 151, 152, 153, 153, 154, 155, 156, 157, 158, 159, 159, 160,
+		 161, 162, 163, 164, 165, 165, 166, 167, 168, 169, 170, 171, 171,
+		 172, 173, 174, 175, 176, 177, 177, 178, 179, 180, 181, 182, 183,
+		 183, 184, 185, 186, 187, 188, 189, 189, 190, 191, 192, 193, 194,
+		 195, 195, 196, 197, 198, 199, 200, 201, 202, 202, 203, 204, 205,
+		 206, 207, 208, 208, 209, 210, 211, 212, 213, 214, 214, 215, 216,
+		 217, 218, 219, 220, 220, 221, 222, 223, 224, 225, 226, 226, 227,
+		 228, 229, 230, 231, 232, 232, 233, 234, 235 },
+
+		// 16 -> 255
+		{ 16,  17,  18,  19,  20,  21,  22,  23,  23,  24,  25,  26,  27,
+		  28,  29,  30,  31,  32,  33,  34,  35,  36,  37,  38,  38,  39,
+		  40,  41,  42,  43,  44,  45,  46,  47,  48,  49,  50,  51,  52,
+		  53,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  64,
+		  65,  66,  67,  68,  68,  69,  70,  71,  72,  73,  74,  75,  76,
+		  77,  78,  79,  80,  81,  82,  83,  83,  84,  85,  86,  87,  88,
+		  89,  90,  91,  92,  93,  94,  95,  96,  97,  98,  98,  99, 100,
+		 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113,
+		 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125,
+		 126, 127, 128, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137,
+		 138, 139, 140, 141, 142, 143, 143, 144, 145, 146, 147, 148, 149,
+		 150, 151, 152, 153, 154, 155, 156, 157, 158, 158, 159, 160, 161,
+		 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 173,
+		 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186,
+		 187, 188, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198,
+		 199, 200, 201, 202, 203, 203, 204, 205, 206, 207, 208, 209, 210,
+		 211, 212, 213, 214, 215, 216, 217, 218, 218, 219, 220, 221, 222,
+		 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 233, 234,
+		 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247,
+		 248, 248, 249, 250, 251, 252, 253, 254, 255 }
+	};
+
 	// recompute the 256 entry lookup table
 	for (int i = 0; i < 0x100; i++)
 	{
@@ -820,6 +873,34 @@ void render_container::recompute_lookups()
 		m_bcglookup256[i + 0x100] = adjustedval << 8;
 		m_bcglookup256[i + 0x200] = adjustedval << 16;
 		m_bcglookup256[i + 0x300] = adjustedval << 24;
+	}
+
+	if (m_user.m_hdmi_color_corr > 0 && m_user.m_hdmi_color_corr < 3)
+	{
+		for (int i = 0; i < 0x100; i++)
+		{
+			u8 adjustedval = hdmi_color_lut[m_user.m_hdmi_color_corr - 1][m_bcglookup256[i]];
+			m_bcglookup256[i + 0x000] = adjustedval << 0;
+			m_bcglookup256[i + 0x100] = adjustedval << 8;
+			m_bcglookup256[i + 0x200] = adjustedval << 16;
+			m_bcglookup256[i + 0x300] = adjustedval << 24;
+		}
+	}
+	else if (m_user.m_hdmi_color_corr == 3)
+	{
+		for (int i = 0; i < 0x100; i++)
+		{
+			u8 val = m_bcglookup256[i];
+
+			float r = std::clamp(((m_user.m_psc_rc - 0.5f) * 2.f) * 48.f + m_user.m_psc_rk * val, 0.0f, 255.f);
+			float g = std::clamp(((m_user.m_psc_gc - 0.5f) * 2.f) * 48.f + m_user.m_psc_gk * val, 0.0f, 255.f);
+			float b = std::clamp(((m_user.m_psc_bc - 0.5f) * 2.f) * 48.f + m_user.m_psc_bk * val, 0.0f, 255.f);
+
+			m_bcglookup256[i + 0x000] = (u8) (b + 0.5f) << 0;
+			m_bcglookup256[i + 0x100] = (u8) (g + 0.5f) << 8;
+			m_bcglookup256[i + 0x200] = (u8) (r + 0.5f) << 16;
+			m_bcglookup256[i + 0x300] = val << 24;
+		}
 	}
 
 	// recompute the palette entries
@@ -907,6 +988,13 @@ render_container::user_settings::user_settings()
 	, m_yscale(1.0f)
 	, m_xoffset(0.0f)
 	, m_yoffset(0.0f)
+	, m_hdmi_color_corr(0)
+	, m_psc_rk(1.0)
+	, m_psc_gk(1.0)
+	, m_psc_bk(1.0)
+	, m_psc_rc(0.5)
+	, m_psc_gc(0.5)
+	, m_psc_bc(0.5)
 {
 }
 
@@ -3682,6 +3770,13 @@ void render_manager::config_load(config_type cfg_type, config_level cfg_level, u
 			settings.m_brightness = screennode->get_attribute_float("brightness", settings.m_brightness);
 			settings.m_contrast = screennode->get_attribute_float("contrast", settings.m_contrast);
 			settings.m_gamma = screennode->get_attribute_float("gamma", settings.m_gamma);
+			settings.m_hdmi_color_corr = screennode->get_attribute_int("hdmi_color_corr", settings.m_hdmi_color_corr);
+			settings.m_psc_rk = screennode->get_attribute_float("palette_scale_rk", settings.m_psc_rk);
+			settings.m_psc_gk = screennode->get_attribute_float("palette_scale_gk", settings.m_psc_gk);
+			settings.m_psc_bk = screennode->get_attribute_float("palette_scale_bk", settings.m_psc_bk);
+			settings.m_psc_rc = screennode->get_attribute_float("palette_scale_rc", settings.m_psc_rc);
+			settings.m_psc_gc = screennode->get_attribute_float("palette_scale_gc", settings.m_psc_gc);
+			settings.m_psc_bc = screennode->get_attribute_float("palette_scale_bc", settings.m_psc_bc);
 
 			// fetch positioning controls
 			settings.m_xoffset = screennode->get_attribute_float("hoffset", settings.m_xoffset);

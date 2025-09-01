@@ -111,6 +111,13 @@
 #define OPTION_BRIGHTNESS           "brightness"
 #define OPTION_CONTRAST             "contrast"
 #define OPTION_GAMMA                "gamma"
+#define OPTION_HDMI_CC              "hdmi_cc"
+#define OPTION_PALETTE_SCALE_RK     "psk_r"
+#define OPTION_PALETTE_SCALE_GK     "psk_g"
+#define OPTION_PALETTE_SCALE_BK     "psk_b"
+#define OPTION_PALETTE_SCALE_RC     "psc_r"
+#define OPTION_PALETTE_SCALE_GC     "psc_g"
+#define OPTION_PALETTE_SCALE_BC     "psc_b"
 #define OPTION_PAUSE_BRIGHTNESS     "pause_brightness"
 #define OPTION_EFFECT               "effect"
 
@@ -401,6 +408,13 @@ public:
 	float brightness() const { return float_value(OPTION_BRIGHTNESS); }
 	float contrast() const { return float_value(OPTION_CONTRAST); }
 	float gamma() const { return float_value(OPTION_GAMMA); }
+	int hdmi_cc() const { return int_value(OPTION_HDMI_CC); }
+	float palette_scale_rk() const { return float_value(OPTION_PALETTE_SCALE_RK); }
+	float palette_scale_gk() const { return float_value(OPTION_PALETTE_SCALE_GK); }
+	float palette_scale_bk() const { return float_value(OPTION_PALETTE_SCALE_BK); }
+	float palette_scale_rc() const { return float_value(OPTION_PALETTE_SCALE_RC); }
+	float palette_scale_gc() const { return float_value(OPTION_PALETTE_SCALE_GC); }
+	float palette_scale_bc() const { return float_value(OPTION_PALETTE_SCALE_BC); }
 	float pause_brightness() const { return float_value(OPTION_PAUSE_BRIGHTNESS); }
 	const char *effect() const { return value(OPTION_EFFECT); }
 

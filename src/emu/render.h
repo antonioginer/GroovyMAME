@@ -396,6 +396,13 @@ public:
 		float               m_yscale;           // vertical scale factor
 		float               m_xoffset;          // horizontal offset
 		float               m_yoffset;          // vertical offset
+		int                 m_hdmi_color_corr;  // hdmi color correction
+		float               m_psc_rk;           // hdmi color correction red palette scale
+		float               m_psc_gk;           // hdmi color correction green palette scale
+		float               m_psc_bk;           // hdmi color correction blue palette scale
+		float               m_psc_rc;           // hdmi color correction red palette offset
+		float               m_psc_gc;           // hdmi color correction green palette offset
+		float               m_psc_bc;           // hdmi color correction blue palette offset
 	};
 
 	// getters
@@ -425,7 +432,7 @@ public:
 	void add_rect(float x0, float y0, float x1, float y1, rgb_t argb, u32 flags) { add_quad(x0, y0, x1, y1, argb, nullptr, flags); }
 
 	// brightness/contrast/gamma helpers
-	bool has_brightness_contrast_gamma_changes() const { return (m_user.m_brightness != 1.0f || m_user.m_contrast != 1.0f || m_user.m_gamma != 1.0f); }
+	bool has_brightness_contrast_gamma_changes() const { return (m_user.m_brightness != 1.0f || m_user.m_contrast != 1.0f || m_user.m_gamma != 1.0f || m_user.m_hdmi_color_corr != 0); }
 	u8 apply_brightness_contrast_gamma(u8 value);
 	float apply_brightness_contrast_gamma_fp(float value);
 	const rgb_t *bcg_lookup_table(int texformat, u32 &out_length, palette_t *palette = nullptr);

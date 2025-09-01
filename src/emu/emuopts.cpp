@@ -134,6 +134,13 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_BRIGHTNESS "(0.1-2.0)",                     "1.0",       core_options::option_type::FLOAT,      "default game screen brightness correction" },
 	{ OPTION_CONTRAST "(0.1-2.0)",                       "1.0",       core_options::option_type::FLOAT,      "default game screen contrast correction" },
 	{ OPTION_GAMMA "(0.1-3.0)",                          "1.0",       core_options::option_type::FLOAT,      "default game screen gamma correction" },
+	{ OPTION_HDMI_CC "(0-3)",                            "0",         core_options::option_type::INTEGER,    "hdmi color correction, 0=0-255, 1=16-235, 2=16-255, 3=custom" },
+	{ OPTION_PALETTE_SCALE_RK "(0.5-1.5)",               "1.0",       core_options::option_type::FLOAT,      "palette red scale component for custom hdmi color correction" },
+	{ OPTION_PALETTE_SCALE_GK "(0.5-1.5)",               "1.0",       core_options::option_type::FLOAT,      "palette green scale component for custom hdmi color correction" },
+	{ OPTION_PALETTE_SCALE_BK "(0.5-1.5)",               "1.0",       core_options::option_type::FLOAT,      "palette blue scale component for custom hdmi color correction" },
+	{ OPTION_PALETTE_SCALE_RC "(0.0-1.0)",               "0.5",       core_options::option_type::FLOAT,      "palette red offset for custom hdmi color correction (0.0=-48.0, 0.5=0, 1.0=48.0)" },
+	{ OPTION_PALETTE_SCALE_GC "(0.0-1.0)",               "0.5",       core_options::option_type::FLOAT,      "palette green offset for custom hdmi color correction (0.0=-48.0, 0.5=0, 1.0=48.0)" },
+	{ OPTION_PALETTE_SCALE_BC "(0.0-1.0)",               "0.5",       core_options::option_type::FLOAT,      "palette blue offset for custom hdmi color correction (0.0=-48.0, 0.5=0, 1.0=48.0)" },
 	{ OPTION_PAUSE_BRIGHTNESS "(0.0-1.0)",               "0.65",      core_options::option_type::FLOAT,      "amount to scale the screen brightness when paused" },
 	{ OPTION_EFFECT,                                     "none",      core_options::option_type::STRING,     "name of a PNG file to use for visual effects, or 'none'" },
 
