@@ -1564,13 +1564,22 @@ int renderer_ogl::draw(const int update)
 		m_drmvbl->drm_waitvblank(window().monitor()->oshandle(), single_force_crtc);
 #endif
 
+	osd_ticks_t before_swap = osd_ticks();
+
 	m_gl_context->swap_buffer();
+
+	osd_ticks_t after_swap = osd_ticks();
 
 #ifdef SDLMAME_X11
 	// wait for vertical retrace
 	if ((video_config.sync_mode == 1 || video_config.sync_mode == 2) && video_config.syncrefresh && m_drmvbl && m_drmvbl->is_open())
 		m_drmvbl->drm_waitvblank(window().monitor()->oshandle(), single_force_crtc);
 #endif
+
+	osd_ticks_t after_drm = osd_ticks();
+	double swap_time = (double) (after_swap - before_swap) / osd_ticks_per_second() * 1e3;
+	double drm_time = (double) (after_drm - after_swap) / osd_ticks_per_second() * 1e3;
+	osd_printf_verbose("swap_time: %.3f drm_time: %.3f\n", swap_time, drm_time);
 
 	// Finish GL to minimize latency
 	glFinish();
