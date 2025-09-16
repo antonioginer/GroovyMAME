@@ -162,7 +162,7 @@ int video_d3d11::init(osd_interface &osd, osd_options const &options)
 		NULL,
 		0,
 		D3D11_SDK_VERSION,
-		reinterpret_cast<ID3D11Device**>(m_d3d11_device.GetAddressOf()),
+		&m_d3d11_device,
 		NULL,
 		&p_device_context);
 
@@ -184,7 +184,7 @@ int video_d3d11::init(osd_interface &osd, osd_options const &options)
 		return -1;
 	}
 
-	(*dxgi_create_dxgi_factory)(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(m_dxgi_factory.GetAddressOf()));
+	(*dxgi_create_dxgi_factory)(__uuidof(IDXGIFactory1), &m_dxgi_factory);
 
 	osd_printf_verbose("Direct3D: Using Direct3D 11\n");
 
