@@ -42,6 +42,7 @@ function maintargetosdoptions(_target,_subtarget)
 		"psapi",
 		"shlwapi",
 		"uuid",
+		"d3dcompiler",
 	}
 end
 
