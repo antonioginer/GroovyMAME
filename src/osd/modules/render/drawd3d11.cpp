@@ -17,14 +17,19 @@
 #include "modules/lib/osdlib.h"
 //#include "modules/osdwindow.h"
 #include "window.h"
+#include "winmain.h"
 #include "render_module.h"
 
 #include <d3d11.h>
 #include <d3dcompiler.h>
 #include <wrl/client.h>
 
+#include <switchres/switchres.h>
+
 #define MAX_BUFFER_WIDTH 3840
 #define MAX_BUFFER_HEIGHT 2160
+
+inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
 
 /* renderer_d3d11 is the information about Direct3D 11 for the current screen */
 class renderer_d3d11 : public osd_renderer
@@ -62,6 +67,10 @@ private:
 	int                     m_width;                    // current width
 	int                     m_height;                   // current height
 	int                     m_refresh;                  // current refresh rate
+	int                     m_viewport_width;           // current viewport width
+	int                     m_viewport_height;          // current viewport height
+	int                     m_client_width;             // current window client width
+	int                     m_client_height;            // current window client height
 	bool                    m_interlace;                // current interlace
 	int                     m_frame_delay;              // current frame delay value
 	float m_pixel_aspect = 1.0;
@@ -87,6 +96,32 @@ private:
 		return hr;
 	}
 
+	static inline BOOL GetClientRectExceptMenu(HWND hWnd, PRECT pRect, BOOL fullscreen)
+	{
+		static HMENU last_menu;
+		static RECT last_rect;
+		static RECT cached_rect;
+		HMENU menu = GetMenu(hWnd);
+		BOOL result = GetClientRect(hWnd, pRect);
+
+		if (!fullscreen || !menu)
+			return result;
+
+		// to avoid flicker use cache if we can use
+		if (last_menu != menu || memcmp(&last_rect, pRect, sizeof *pRect) != 0)
+		{
+			last_menu = menu;
+			last_rect = *pRect;
+
+			SetMenu(hWnd, nullptr);
+			result = GetClientRect(hWnd, &cached_rect);
+			SetMenu(hWnd, menu);
+		}
+
+		*pRect = cached_rect;
+		return result;
+	}
+
 };
 
 renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, IDXGIFactory1 *dxgi_factory, ID3D11DeviceContext *device_context)
@@ -106,56 +141,86 @@ int renderer_d3d11::create()
 {
 	HWND hwnd = dynamic_cast<win_window_info &>(window()).platform_window();
 
-	m_width = 640;
-	m_height = 480;
+	int sr_width = 0;
+	int sr_height = 0;
+	int sr_refresh = 0;
+	//int sr_interlace = 0;
+
+	switchres_manager *m_switchres = &downcast<windows_osd_interface&>(window().machine().osd()).switchres()->switchres();
+	if (m_switchres->display(window().index()) != nullptr)
+	{
+		modeline *m_switchres_mode = m_switchres->display(window().index())->selected_mode();
+		if (m_switchres_mode != nullptr)
+		{
+			sr_width = m_switchres_mode->type & MODE_ROTATED? m_switchres_mode->height : m_switchres_mode->width;
+			sr_height = m_switchres_mode->type & MODE_ROTATED? m_switchres_mode->width : m_switchres_mode->height;
+			sr_refresh = (int)m_switchres_mode->refresh;
+	//		sr_interlace = m_switchres_mode->interlace;
+		}
+	}
 
 	// Create swapchain
 	DXGI_SWAP_CHAIN_DESC scd;
 
 	memset(&scd, 0, sizeof(scd));
-	scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	scd.BufferDesc.Width = sr_width;
+	scd.BufferDesc.Height = sr_height;
+	scd.BufferDesc.RefreshRate.Numerator = sr_refresh;
+	scd.BufferDesc.RefreshRate.Denominator = 1;
+	scd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	//scd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
+	//scd.BufferDesc.Scaling = DXGI_MODE_SCALING_STRETCHED;
 	scd.SampleDesc.Count = 1;
 	scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	scd.BufferCount = 1;
 	scd.OutputWindow = hwnd;
 	scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-	scd.Windowed = TRUE;
+	scd.Windowed = false;
 	scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	m_dxgi_factory->CreateSwapChain(m_d3d11_device, &scd, &m_swapchain);
+	//m_swapchain->SetMaximumFrameLatency(1)
+
+
+	RECT client;
+	GetClientRectExceptMenu(hwnd, &client, window().fullscreen());
+	m_client_width = client.right - client.left;
+	m_client_height = client.bottom - client.top;
+
+	window().target()->compute_visible_area(m_client_width, m_client_height, 1.0f, window().target()->orientation(), m_viewport_width, m_viewport_height);
+	window().target()->compute_minimum_size(m_width, m_height);
+
+	osd_printf_info("vp: %d %d, target: %d %d\n", m_viewport_width, m_viewport_height, m_width, m_height);
+
 
 	HRESULT hr;
 
     // Backbuffer RTV
     ID3D11Texture2D* backbuffer = nullptr;
     hr = m_swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backbuffer);
-    osd_printf_verbose("GetBuffer %d\n", hr);
     hr = m_d3d11_device->CreateRenderTargetView(backbuffer, nullptr, &m_backbuffer_rtv);
     osd_printf_verbose("CreateRenderTargetView %d\n", hr);
     backbuffer->Release();
 
     // Texture for CPU -> GPU
     D3D11_TEXTURE2D_DESC tex_desc = {};
-    tex_desc.Width = 640; //m_width;
-    tex_desc.Height = 480; //m_height;
+    tex_desc.Width = m_width;
+    tex_desc.Height = m_height;
     tex_desc.MipLevels = 1;
     tex_desc.ArraySize = 1;
-    tex_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    tex_desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     tex_desc.SampleDesc.Count = 1;
-    tex_desc.Usage = D3D11_USAGE_DYNAMIC;
+    //tex_desc.Usage = D3D11_USAGE_DYNAMIC;
+    tex_desc.Usage = D3D11_USAGE_DEFAULT;
     tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     tex_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-    
-
     hr = m_d3d11_device->CreateTexture2D(&tex_desc, nullptr, &m_cpu_tex);
-    osd_printf_verbose("CreateTexture2D %d\n", hr);
     hr = m_d3d11_device->CreateShaderResourceView(m_cpu_tex, nullptr, &m_cpu_srv);
-    osd_printf_verbose("CreateShaderResourceView %d\n", hr);
 
     // Sampler
     D3D11_SAMPLER_DESC samp = {};
-    samp.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    samp.Filter =  D3D11_FILTER_MIN_MAG_MIP_POINT; //D3D11_FILTER_MIN_MAG_MIP_LINEAR;
     samp.AddressU = samp.AddressV = samp.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
     m_d3d11_device->CreateSamplerState(&samp, &m_sampler);
 
@@ -171,6 +236,15 @@ int renderer_d3d11::create()
 
 	vs_blob->Release();
 	ps_blob->Release();
+
+    D3D11_VIEWPORT vp;
+    vp.TopLeftX = (m_client_width - m_viewport_width) / 2;
+    vp.TopLeftY = (m_client_height - m_viewport_height) / 2;
+    vp.Width = (float) m_viewport_width;
+    vp.Height = (float) m_viewport_height;
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    m_device_context->RSSetViewports(1, &vp);
 
 	return 0;
 }
@@ -204,6 +278,8 @@ int renderer_d3d11::draw(const int update)
 
 	int m_bilinear = 0;
 
+	osd_ticks_t before_prim = osd_ticks();
+
 	// draw the primitives to the bitmap
 	win.m_primlist->acquire_lock();
 	if (m_bilinear)
@@ -212,24 +288,32 @@ int renderer_d3d11::draw(const int update)
 		software_renderer<uint32_t, 0,0,0, 16,8,0,0, 0>::draw_primitives(*win.m_primlist, m_bmdata.get(), m_width, m_height, pitch);
 	win.m_primlist->release_lock();
 
-	for (int y = 0; y < 480; y++)
-	{
-		for (int x = 0; x < 640 * 4; x++)
-		{
-			uint8_t *pix = m_bmdata.get();
-			*pix = 0xff;
-		}
-	}
-
+	osd_ticks_t after_prim = osd_ticks();
+/*
     D3D11_MAPPED_SUBRESOURCE mapped;
     m_device_context->Map(m_cpu_tex, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    for (int y = 0; y < 480; y++)
+    for (int y = 0; y < m_height; y++)
     {
         memcpy((BYTE*)mapped.pData + y * mapped.RowPitch,
                m_bmdata.get() + y * pitch * 4,
-               640 * 4);
+               m_width * 4);
     }
     m_device_context->Unmap(m_cpu_tex, 0);
+*/
+
+	D3D11_BOX box;
+	box.front = 0;
+	box.back = 1;
+	box.left = 0;
+	box.right = m_width;
+	box.top = 0;
+	box.bottom = m_height;
+
+	m_device_context->UpdateSubresource(m_cpu_tex, 0, &box, m_bmdata.get(), m_width * 4, m_width * m_height * 4);
+
+	osd_ticks_t after_map = osd_ticks();
+
+	osd_printf_verbose("software_renderer: %.3f ms memcpy: %.3f\n", get_ms(after_prim - before_prim), get_ms(after_map - after_prim));
 
     float clear[4] = { 1, 0, 0, 1 };
     m_device_context->ClearRenderTargetView(m_backbuffer_rtv, clear);
@@ -255,6 +339,7 @@ int renderer_d3d11::draw(const int update)
 
 render_primitive_list *renderer_d3d11::get_primitives()
 {
+/*
 	if (m_width == 0 || m_height == 0)
 	{
 		osd_dim const dimensions = window().get_size();
@@ -264,6 +349,8 @@ render_primitive_list *renderer_d3d11::get_primitives()
 		m_width = std::min(dimensions.width(), MAX_BUFFER_WIDTH);
 		m_height = std::min(dimensions.height(), MAX_BUFFER_HEIGHT);
 	}
+*/
+	m_pixel_aspect = (4.0/3.0) / ((float)m_width / m_height);
 
 	osd_printf_verbose("get_primitives %d %d %f\n", m_width, m_height, m_pixel_aspect);
 
