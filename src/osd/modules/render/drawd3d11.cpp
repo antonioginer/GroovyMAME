@@ -22,6 +22,8 @@
 
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include <dxgi1_2.h>
+#include <dxgi1_3.h>
 #include <wrl/client.h>
 
 #include <switchres/switchres.h>
@@ -36,7 +38,7 @@ class renderer_d3d11 : public osd_renderer
 {
 public:
 
-	renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, IDXGIFactory1 *dxgi_factory, ID3D11DeviceContext *device_context);
+	renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, IDXGIFactory2 *dxgi_factory, ID3D11DeviceContext *device_context);
 	virtual ~renderer_d3d11() {};
 
 	virtual int create() override;
@@ -51,10 +53,10 @@ public:
 	virtual int restart() override { return 0; };
 */
 private:
+	Microsoft::WRL::ComPtr<IDXGISwapChain2> m_swapchain;
 	ID3D11Device*             m_d3d11_device;             // Direct3D 11 device
-	IDXGIFactory1*            m_dxgi_factory;             // Direct3D 11 device
+	IDXGIFactory2*            m_dxgi_factory;             // Direct3D 11 device
 	ID3D11DeviceContext*      m_device_context;
-	IDXGISwapChain*	          m_swapchain;
 	ID3D11RenderTargetView*   m_backbuffer_rtv;
 	ID3D11Texture2D*          m_cpu_tex;
 	ID3D11ShaderResourceView* m_cpu_srv;
@@ -124,7 +126,7 @@ private:
 
 };
 
-renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, IDXGIFactory1 *dxgi_factory, ID3D11DeviceContext *device_context)
+renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, IDXGIFactory2 *dxgi_factory, ID3D11DeviceContext *device_context)
 	: osd_renderer(window)
 	, m_d3d11_device(d3d11_device)
 	, m_dxgi_factory(dxgi_factory)
@@ -140,6 +142,19 @@ renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, I
 int renderer_d3d11::create()
 {
 	HWND hwnd = dynamic_cast<win_window_info &>(window()).platform_window();
+
+	IDXGIDevice2 * dxgi_device;
+	m_d3d11_device->QueryInterface(__uuidof(IDXGIDevice2), (void **)&dxgi_device);
+
+	uint32_t max_frame_latency;
+	dxgi_device->GetMaximumFrameLatency(&max_frame_latency);
+	osd_printf_info("max_frame_latency %d\n", max_frame_latency);
+
+	//dxgi_device->SetMaximumFrameLatency(1);
+
+	dxgi_device->GetMaximumFrameLatency(&max_frame_latency);
+	osd_printf_info("max_frame_latency %d\n", max_frame_latency);
+
 
 	int sr_width = 0;
 	int sr_height = 0;
@@ -160,26 +175,35 @@ int renderer_d3d11::create()
 	}
 
 	// Create swapchain
-	DXGI_SWAP_CHAIN_DESC scd;
-
+	DXGI_SWAP_CHAIN_DESC1 scd;
 	memset(&scd, 0, sizeof(scd));
-	scd.BufferDesc.Width = sr_width;
-	scd.BufferDesc.Height = sr_height;
-	scd.BufferDesc.RefreshRate.Numerator = sr_refresh;
-	scd.BufferDesc.RefreshRate.Denominator = 1;
-	scd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	//scd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
-	//scd.BufferDesc.Scaling = DXGI_MODE_SCALING_STRETCHED;
+	scd.Width = sr_width;
+	scd.Height = sr_height;
+	scd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	scd.Stereo = false;
 	scd.SampleDesc.Count = 1;
 	scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	scd.BufferCount = 1;
-	scd.OutputWindow = hwnd;
-	scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-	scd.Windowed = false;
+	scd.BufferCount = 2;
+	scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+	//scd.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
 	scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-	m_dxgi_factory->CreateSwapChain(m_d3d11_device, &scd, &m_swapchain);
-	//m_swapchain->SetMaximumFrameLatency(1)
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fsscd;
+	memset(&fsscd, 0, sizeof(fsscd));
+	fsscd.RefreshRate.Numerator = sr_refresh;
+	fsscd.RefreshRate.Denominator = 1;
+	//fsscd.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
+	//fsscd.Scaling = DXGI_MODE_SCALING_STRETCHED;
+	fsscd.Windowed = false;
+
+	HRESULT hr;
+
+	Microsoft::WRL::ComPtr<IDXGISwapChain1> swapchain1;
+	hr = m_dxgi_factory->CreateSwapChainForHwnd(m_d3d11_device, hwnd, &scd, &fsscd, NULL, &swapchain1);
+	osd_printf_error("CreateSwapChainForHwnd: %x\n", hr);
+	hr = swapchain1.As(&m_swapchain);
+	osd_printf_error("hr: %x\n", hr);
+	m_swapchain->SetMaximumFrameLatency(1);
 
 
 	RECT client;
@@ -192,15 +216,14 @@ int renderer_d3d11::create()
 
 	osd_printf_info("vp: %d %d, target: %d %d\n", m_viewport_width, m_viewport_height, m_width, m_height);
 
-
-	HRESULT hr;
-
     // Backbuffer RTV
     ID3D11Texture2D* backbuffer = nullptr;
     hr = m_swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backbuffer);
     hr = m_d3d11_device->CreateRenderTargetView(backbuffer, nullptr, &m_backbuffer_rtv);
-    osd_printf_verbose("CreateRenderTargetView %d\n", hr);
     backbuffer->Release();
+
+    osd_printf_verbose("CreateRenderTargetView %d\n", hr);
+
 
     // Texture for CPU -> GPU
     D3D11_TEXTURE2D_DESC tex_desc = {};
@@ -245,6 +268,18 @@ int renderer_d3d11::create()
     vp.MinDepth = 0.0f;
     vp.MaxDepth = 1.0f;
     m_device_context->RSSetViewports(1, &vp);
+
+    float clear[4] = { 1, 0, 0, 1 };
+    m_device_context->ClearRenderTargetView(m_backbuffer_rtv, clear);
+    m_device_context->OMSetRenderTargets(1, &m_backbuffer_rtv, nullptr);
+
+    m_device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_device_context->IASetInputLayout(nullptr);
+
+    m_device_context->VSSetShader(m_vs, nullptr, 0);
+    m_device_context->PSSetShader(m_ps, nullptr, 0);
+    m_device_context->PSSetShaderResources(0, 1, &m_cpu_srv);
+    m_device_context->PSSetSamplers(0, 1, &m_sampler);
 
 	return 0;
 }
@@ -313,8 +348,6 @@ int renderer_d3d11::draw(const int update)
 
 	osd_ticks_t after_map = osd_ticks();
 
-	osd_printf_verbose("software_renderer: %.3f ms memcpy: %.3f\n", get_ms(after_prim - before_prim), get_ms(after_map - after_prim));
-
     float clear[4] = { 1, 0, 0, 1 };
     m_device_context->ClearRenderTargetView(m_backbuffer_rtv, clear);
     m_device_context->OMSetRenderTargets(1, &m_backbuffer_rtv, nullptr);
@@ -328,7 +361,15 @@ int renderer_d3d11::draw(const int update)
     m_device_context->PSSetSamplers(0, 1, &m_sampler);
 
     m_device_context->Draw(3, 0); // fullscreen triangle
-    m_swapchain->Present(1, 0);
+
+osd_ticks_t before_present = osd_ticks();
+
+    m_swapchain->Present(0, DXGI_PRESENT_DO_NOT_WAIT);
+
+	osd_ticks_t after_present = osd_ticks();
+
+	osd_printf_verbose("software_renderer: %.3f, memcpy: %.3f, present: %.3f total: %.3f\n",
+		get_ms(after_prim - before_prim), get_ms(after_map - after_prim), get_ms(after_present - before_present), get_ms(after_present - before_prim));
 
     return 0;
 }
@@ -385,12 +426,12 @@ protected:
 	virtual unsigned flags() const override { return FLAG_INTERACTIVE; }
 
 private:
-	using dxgi_create_dxgi_factory_fn = HRESULT *(WINAPI *)(REFIID riid, void **factory);
+	using dxgi_create_dxgi_factory_fn = HRESULT (WINAPI *)(UINT Flags, REFIID riid, void **factory);
 	dynamic_module::ptr m_d3d11_dll;
 	dynamic_module::ptr m_dxgi_dll;
 	Microsoft::WRL::ComPtr<ID3D11Device> m_d3d11_device;
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_device_context;
-	Microsoft::WRL::ComPtr<IDXGIFactory1> m_dxgi_factory;
+	Microsoft::WRL::ComPtr<IDXGIFactory2> m_dxgi_factory;
 	osd_options const *m_options;
 };
 
@@ -428,7 +469,7 @@ int video_d3d11::init(osd_interface &osd, osd_options const &options)
 		NULL,
 		D3D_DRIVER_TYPE_HARDWARE,
 		NULL,
-		D3D11_CREATE_DEVICE_DEBUG,
+		D3D11_CREATE_DEVICE_SINGLETHREADED, //D3D11_CREATE_DEVICE_DEBUG,
 		NULL,
 		0,
 		D3D11_SDK_VERSION,
@@ -445,7 +486,7 @@ int video_d3d11::init(osd_interface &osd, osd_options const &options)
 	}
 
 	m_dxgi_dll = dynamic_module::open({ "dxgi.dll" });
-	auto const dxgi_create_dxgi_factory = m_dxgi_dll->bind<dxgi_create_dxgi_factory_fn>("CreateDXGIFactory1");
+	auto const dxgi_create_dxgi_factory = m_dxgi_dll->bind<dxgi_create_dxgi_factory_fn>("CreateDXGIFactory2");
 	if (!dxgi_create_dxgi_factory)
 	{
 		osd_printf_warning("Direct3D: Could not find CreateDXGIFactory1 function in dxgi.dll\n");
@@ -454,7 +495,9 @@ int video_d3d11::init(osd_interface &osd, osd_options const &options)
 		return -1;
 	}
 
-	(*dxgi_create_dxgi_factory)(__uuidof(IDXGIFactory1), &m_dxgi_factory);
+	HRESULT hr;
+	hr = (*dxgi_create_dxgi_factory)(0, __uuidof(IDXGIFactory2), &m_dxgi_factory);
+	if (!m_dxgi_factory) osd_printf_verbose("dxgi hr: %x\n", hr);
 
 	osd_printf_verbose("Direct3D: Using Direct3D 11\n");
 
