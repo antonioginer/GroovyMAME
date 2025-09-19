@@ -9,6 +9,7 @@
 // MAME headers
 #include "emu.h"
 #include "emuopts.h"
+#include "rendlay.h"
 #include "render.h"
 #include "rendutil.h"
 #include "rendersw.hxx"
@@ -53,6 +54,8 @@ public:
 	virtual int restart() override { return 0; };
 */
 private:
+	void update_viewport();
+
 	ID3D11Device*             m_d3d11_device;             // Direct3D 11 device
 	IDXGIFactory2*            m_dxgi_factory;             // Direct3D 11 device
 	ID3D11DeviceContext*      m_device_context;
@@ -161,6 +164,8 @@ int renderer_d3d11::create()
 	osd_printf_info("max_frame_latency %d\n", max_frame_latency);
 
 
+	update_viewport();
+
 	int sr_width = 0;
 	int sr_height = 0;
 	int sr_refresh = 0;
@@ -186,6 +191,13 @@ int renderer_d3d11::create()
 		}
 	}
 
+	if (!window().fullscreen())
+	{
+		sr_width = m_client_width;
+		sr_height = m_client_height;
+		sr_refresh = 1;
+	}
+
 	// Create swapchain
 	DXGI_SWAP_CHAIN_DESC1 scd;
 	memset(&scd, 0, sizeof(scd));
@@ -197,7 +209,6 @@ int renderer_d3d11::create()
 	scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	scd.BufferCount = 1;
 	scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-	//scd.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
 	scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fsscd;
@@ -205,8 +216,7 @@ int renderer_d3d11::create()
 	fsscd.RefreshRate.Numerator = sr_refresh;
 	fsscd.RefreshRate.Denominator = 1;
 	fsscd.ScanlineOrdering = sr_interlace? DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST : DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
-	//fsscd.Scaling = DXGI_MODE_SCALING_STRETCHED;
-	fsscd.Windowed = false;
+	fsscd.Windowed = !window().fullscreen();
 
 	HRESULT hr;
 
@@ -217,16 +227,6 @@ int renderer_d3d11::create()
 		return -1;
 	}
 
-
-	RECT client;
-	GetClientRectExceptMenu(hwnd, &client, window().fullscreen());
-	m_client_width = client.right - client.left;
-	m_client_height = client.bottom - client.top;
-
-	window().target()->compute_visible_area(m_client_width, m_client_height, 1.0f, window().target()->orientation(), m_viewport_width, m_viewport_height);
-	window().target()->compute_minimum_size(m_width, m_height);
-
-	osd_printf_info("vp: %d %d, target: %d %d\n", m_viewport_width, m_viewport_height, m_width, m_height);
 
     // Backbuffer RTV
     ID3D11Texture2D* backbuffer = nullptr;
@@ -245,13 +245,14 @@ int renderer_d3d11::create()
     tex_desc.ArraySize = 1;
     tex_desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     tex_desc.SampleDesc.Count = 1;
-    //tex_desc.Usage = D3D11_USAGE_DYNAMIC;
     tex_desc.Usage = D3D11_USAGE_DEFAULT;
     tex_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     tex_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
     hr = m_d3d11_device->CreateTexture2D(&tex_desc, nullptr, &m_cpu_tex);
     hr = m_d3d11_device->CreateShaderResourceView(m_cpu_tex, nullptr, &m_cpu_srv);
+
+    osd_printf_verbose("CreateTexture2D %d, width: %d height: %d\n", hr, m_width, m_height);
 
     // Sampler
     D3D11_SAMPLER_DESC samp = {};
@@ -272,14 +273,6 @@ int renderer_d3d11::create()
 	vs_blob->Release();
 	ps_blob->Release();
 
-    D3D11_VIEWPORT vp;
-    vp.TopLeftX = (m_client_width - m_viewport_width) / 2;
-    vp.TopLeftY = (m_client_height - m_viewport_height) / 2;
-    vp.Width = (float) m_viewport_width;
-    vp.Height = (float) m_viewport_height;
-    vp.MinDepth = 0.0f;
-    vp.MaxDepth = 1.0f;
-    m_device_context->RSSetViewports(1, &vp);
 
     float clear[4] = { 1, 0, 0, 1 };
     m_device_context->ClearRenderTargetView(m_backbuffer_rtv, clear);
@@ -300,17 +293,19 @@ int renderer_d3d11::create()
 
 int renderer_d3d11::draw(const int update)
 {
-	#if defined(OSD_WINDOWS)
-		auto &win = dynamic_cast<win_window_info &>(window());
-	#elif defined(OSD_SDL)
-		auto &win = dynamic_cast<sdl_window_info &>(window());
-	#endif
+	auto &win = dynamic_cast<win_window_info &>(window());
 
-	#if defined(OSD_WINDOWS)
 	// we don't have any special resize behaviors
 	if (win.m_resize_state == win_window_info::RESIZE_STATE_PENDING)
+	{
+		osd_printf_info("resize!\n");
+		update_viewport();
+		m_swapchain->ResizeBuffers(2, m_client_width, m_client_height, DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
+		update_viewport();
+
 		win.m_resize_state = win_window_info::RESIZE_STATE_NORMAL;
-	#endif
+	}
+
 
 	// compute pitch of target
 	int const pitch = (m_width + 3) & ~3;
@@ -324,31 +319,14 @@ int renderer_d3d11::draw(const int update)
 		osd_printf_verbose("resize: %d %d %d %ld\n", m_width, m_height, pitch, m_bmsize);
 	}
 
-
-	int m_bilinear = 0;
-
 	osd_ticks_t before_prim = osd_ticks();
 
 	// draw the primitives to the bitmap
 	win.m_primlist->acquire_lock();
-	if (m_bilinear)
-		software_renderer<uint32_t, 0,0,0, 16,8,0,0, 1>::draw_primitives(*win.m_primlist, m_bmdata.get(), m_width, m_height, pitch);
-	else
-		software_renderer<uint32_t, 0,0,0, 16,8,0,0, 0>::draw_primitives(*win.m_primlist, m_bmdata.get(), m_width, m_height, pitch);
+	software_renderer<uint32_t, 0,0,0, 16,8,0,0, 0>::draw_primitives(*win.m_primlist, m_bmdata.get(), m_width, m_height, pitch);
 	win.m_primlist->release_lock();
 
 	osd_ticks_t after_prim = osd_ticks();
-/*
-    D3D11_MAPPED_SUBRESOURCE mapped;
-    m_device_context->Map(m_cpu_tex, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    for (int y = 0; y < m_height; y++)
-    {
-        memcpy((BYTE*)mapped.pData + y * mapped.RowPitch,
-               m_bmdata.get() + y * pitch * 4,
-               m_width * 4);
-    }
-    m_device_context->Unmap(m_cpu_tex, 0);
-*/
 
 	D3D11_BOX box;
 	box.front = 0;
@@ -358,7 +336,7 @@ int renderer_d3d11::draw(const int update)
 	box.top = 0;
 	box.bottom = m_height;
 
-	m_device_context->UpdateSubresource(m_cpu_tex, 0, &box, m_bmdata.get(), m_width * 4, m_width * m_height * 4);
+	m_device_context->UpdateSubresource(m_cpu_tex, 0, &box, m_bmdata.get(), pitch * 4, pitch * m_height * 4);
 
 	osd_ticks_t after_map = osd_ticks();
 
@@ -394,15 +372,43 @@ int renderer_d3d11::draw(const int update)
 
 render_primitive_list *renderer_d3d11::get_primitives()
 {
-	//m_pixel_aspect = (16.0/10.0) / ((float)m_width / m_height);
+	m_pixel_aspect = window().target()->current_view().effective_aspect() / ((float)m_width / m_height);
 	//m_pixel_aspect = 1.0f;
 
-	m_pixel_aspect = window().pixel_aspect();
+	//m_pixel_aspect = window().pixel_aspect();
 
 	osd_printf_verbose("get_primitives %d %d %f\n", m_width, m_height, m_pixel_aspect);
 
 	window().target()->set_bounds(m_width, m_height, m_pixel_aspect);
 	return &window().target()->get_primitives();
+}
+
+//============================================================
+//  renderer_d3d11::update_viewport
+//============================================================
+
+void renderer_d3d11::update_viewport()
+{
+	HWND hwnd = dynamic_cast<win_window_info &>(window()).platform_window();
+
+	RECT client;
+	GetClientRectExceptMenu(hwnd, &client, window().fullscreen());
+	m_client_width = client.right - client.left;
+	m_client_height = client.bottom - client.top;
+
+	window().target()->compute_visible_area(m_client_width, m_client_height, 1.0f, window().target()->orientation(), m_viewport_width, m_viewport_height);
+	window().target()->compute_minimum_size(m_width, m_height);
+
+	osd_printf_info("update viewport vp: %d %d, client: %d %d, target: %d %d\n", m_viewport_width, m_viewport_height, m_client_width, m_client_height, m_width, m_height);
+
+	D3D11_VIEWPORT vp;
+	vp.TopLeftX = (float)(m_client_width - m_viewport_width) / 2;
+	vp.TopLeftY = (float)(m_client_height - m_viewport_height) / 2;
+	vp.Width = (float) m_viewport_width;
+	vp.Height = (float) m_viewport_height;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	m_device_context->RSSetViewports(1, &vp);
 }
 
 //============================================================
