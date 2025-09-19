@@ -53,10 +53,10 @@ public:
 	virtual int restart() override { return 0; };
 */
 private:
-	Microsoft::WRL::ComPtr<IDXGISwapChain2> m_swapchain;
 	ID3D11Device*             m_d3d11_device;             // Direct3D 11 device
 	IDXGIFactory2*            m_dxgi_factory;             // Direct3D 11 device
 	ID3D11DeviceContext*      m_device_context;
+	IDXGISwapChain1*          m_swapchain;
 	ID3D11RenderTargetView*   m_backbuffer_rtv;
 	ID3D11Texture2D*          m_cpu_tex;
 	ID3D11ShaderResourceView* m_cpu_srv;
@@ -64,18 +64,22 @@ private:
 	ID3D11PixelShader*        m_ps;
 	ID3D11SamplerState*       m_sampler;
 
-	int                     m_adapter;                  // ordinal adapter number
-	int                     m_vendor_id;                // adapter vendor id
-	int                     m_width;                    // current width
-	int                     m_height;                   // current height
-	int                     m_refresh;                  // current refresh rate
-	int                     m_viewport_width;           // current viewport width
-	int                     m_viewport_height;          // current viewport height
-	int                     m_client_width;             // current window client width
-	int                     m_client_height;            // current window client height
-	bool                    m_interlace;                // current interlace
-	int                     m_frame_delay;              // current frame delay value
+	int   m_adapter;                  // ordinal adapter number
+	int   m_vendor_id;                // adapter vendor id
+	int   m_width;                    // current width
+	int   m_height;                   // current height
+	int   m_refresh;                  // current refresh rate
+	int   m_viewport_width;           // current viewport width
+	int   m_viewport_height;          // current viewport height
+	int   m_client_width;             // current window client width
+	int   m_client_height;            // current window client height
+	bool  m_interlace;                // current interlace
+	int   m_frame_delay;              // current frame delay value
 	float m_pixel_aspect = 1.0;
+
+	bool  m_filter = false;
+	bool  m_syncrefresh = false;
+	bool  m_waitvsync = false;
 
 	std::unique_ptr<uint8_t []> m_bmdata;
 	size_t                      m_bmsize = 0;
@@ -142,6 +146,7 @@ renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, I
 int renderer_d3d11::create()
 {
 	HWND hwnd = dynamic_cast<win_window_info &>(window()).platform_window();
+	windows_options &options = downcast<windows_options &>(window().machine().options());
 
 	IDXGIDevice2 * dxgi_device;
 	m_d3d11_device->QueryInterface(__uuidof(IDXGIDevice2), (void **)&dxgi_device);
@@ -150,7 +155,7 @@ int renderer_d3d11::create()
 	dxgi_device->GetMaximumFrameLatency(&max_frame_latency);
 	osd_printf_info("max_frame_latency %d\n", max_frame_latency);
 
-	//dxgi_device->SetMaximumFrameLatency(1);
+	dxgi_device->SetMaximumFrameLatency(1);
 
 	dxgi_device->GetMaximumFrameLatency(&max_frame_latency);
 	osd_printf_info("max_frame_latency %d\n", max_frame_latency);
@@ -159,10 +164,15 @@ int renderer_d3d11::create()
 	int sr_width = 0;
 	int sr_height = 0;
 	int sr_refresh = 0;
-	//int sr_interlace = 0;
+	int sr_interlace = 0;
+
+	m_filter = options.filter();
+	m_syncrefresh = options.sync_refresh();
+	m_waitvsync = options.wait_vsync();
 
 	switchres_manager *m_switchres = &downcast<windows_osd_interface&>(window().machine().osd()).switchres()->switchres();
-	if (m_switchres->display(window().index()) != nullptr)
+	display_manager *display = m_switchres->display(window().index());
+	if (display != nullptr)
 	{
 		modeline *m_switchres_mode = m_switchres->display(window().index())->selected_mode();
 		if (m_switchres_mode != nullptr)
@@ -170,7 +180,9 @@ int renderer_d3d11::create()
 			sr_width = m_switchres_mode->type & MODE_ROTATED? m_switchres_mode->height : m_switchres_mode->width;
 			sr_height = m_switchres_mode->type & MODE_ROTATED? m_switchres_mode->width : m_switchres_mode->height;
 			sr_refresh = (int)m_switchres_mode->refresh;
-	//		sr_interlace = m_switchres_mode->interlace;
+			sr_interlace = m_switchres_mode->interlace;
+			if (options.autofilter())
+				m_filter = display->is_stretched();
 		}
 	}
 
@@ -183,8 +195,8 @@ int renderer_d3d11::create()
 	scd.Stereo = false;
 	scd.SampleDesc.Count = 1;
 	scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	scd.BufferCount = 2;
-	scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+	scd.BufferCount = 1;
+	scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	//scd.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
 	scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
@@ -192,18 +204,18 @@ int renderer_d3d11::create()
 	memset(&fsscd, 0, sizeof(fsscd));
 	fsscd.RefreshRate.Numerator = sr_refresh;
 	fsscd.RefreshRate.Denominator = 1;
-	//fsscd.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
+	fsscd.ScanlineOrdering = sr_interlace? DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST : DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
 	//fsscd.Scaling = DXGI_MODE_SCALING_STRETCHED;
 	fsscd.Windowed = false;
 
 	HRESULT hr;
 
-	Microsoft::WRL::ComPtr<IDXGISwapChain1> swapchain1;
-	hr = m_dxgi_factory->CreateSwapChainForHwnd(m_d3d11_device, hwnd, &scd, &fsscd, NULL, &swapchain1);
-	osd_printf_error("CreateSwapChainForHwnd: %x\n", hr);
-	hr = swapchain1.As(&m_swapchain);
-	osd_printf_error("hr: %x\n", hr);
-	m_swapchain->SetMaximumFrameLatency(1);
+	hr = m_dxgi_factory->CreateSwapChainForHwnd(m_d3d11_device, hwnd, &scd, &fsscd, NULL, &m_swapchain);
+	if (FAILED(hr))
+	{
+		osd_printf_error("d3d11: CreateSwapChainForHwnd failed: %x\n", hr);
+		return -1;
+	}
 
 
 	RECT client;
@@ -243,7 +255,7 @@ int renderer_d3d11::create()
 
     // Sampler
     D3D11_SAMPLER_DESC samp = {};
-    samp.Filter =  D3D11_FILTER_MIN_MAG_MIP_POINT; //D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    samp.Filter =  m_filter? D3D11_FILTER_MIN_MAG_MIP_LINEAR : D3D11_FILTER_MIN_MAG_MIP_POINT;
     samp.AddressU = samp.AddressV = samp.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
     m_d3d11_device->CreateSamplerState(&samp, &m_sampler);
 
@@ -280,6 +292,8 @@ int renderer_d3d11::create()
     m_device_context->PSSetShader(m_ps, nullptr, 0);
     m_device_context->PSSetShaderResources(0, 1, &m_cpu_srv);
     m_device_context->PSSetSamplers(0, 1, &m_sampler);
+
+
 
 	return 0;
 }
@@ -362,9 +376,9 @@ int renderer_d3d11::draw(const int update)
 
     m_device_context->Draw(3, 0); // fullscreen triangle
 
-osd_ticks_t before_present = osd_ticks();
+	osd_ticks_t before_present = osd_ticks();
 
-    m_swapchain->Present(0, DXGI_PRESENT_DO_NOT_WAIT);
+    m_swapchain->Present(m_waitvsync? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 
 	osd_ticks_t after_present = osd_ticks();
 
@@ -380,18 +394,10 @@ osd_ticks_t before_present = osd_ticks();
 
 render_primitive_list *renderer_d3d11::get_primitives()
 {
-/*
-	if (m_width == 0 || m_height == 0)
-	{
-		osd_dim const dimensions = window().get_size();
-		if ((dimensions.width() <= 0) || (dimensions.height() <= 0))
-			return nullptr;
+	//m_pixel_aspect = (16.0/10.0) / ((float)m_width / m_height);
+	//m_pixel_aspect = 1.0f;
 
-		m_width = std::min(dimensions.width(), MAX_BUFFER_WIDTH);
-		m_height = std::min(dimensions.height(), MAX_BUFFER_HEIGHT);
-	}
-*/
-	m_pixel_aspect = (4.0/3.0) / ((float)m_width / m_height);
+	m_pixel_aspect = window().pixel_aspect();
 
 	osd_printf_verbose("get_primitives %d %d %f\n", m_width, m_height, m_pixel_aspect);
 
@@ -465,13 +471,15 @@ int video_d3d11::init(osd_interface &osd, osd_options const &options)
 		return -1;
 	}
 
+	const D3D_FEATURE_LEVEL featureLevelArray[1] = { D3D_FEATURE_LEVEL_11_1 };
+
 	(*d3d11_create_device)(
 		NULL,
 		D3D_DRIVER_TYPE_HARDWARE,
 		NULL,
-		D3D11_CREATE_DEVICE_SINGLETHREADED, //D3D11_CREATE_DEVICE_DEBUG,
-		NULL,
-		0,
+		D3D11_CREATE_DEVICE_DEBUG,
+		featureLevelArray,
+		1,
 		D3D11_SDK_VERSION,
 		&m_d3d11_device,
 		NULL,
