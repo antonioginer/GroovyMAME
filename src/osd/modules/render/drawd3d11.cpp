@@ -74,6 +74,9 @@ private:
 	int   m_width;                    // current width
 	int   m_height;                   // current height
 	int   m_refresh;                  // current refresh rate
+	int   m_scale_mode;               // current target scale mode
+	int   m_keep_aspect;              // current target keep aspect mode
+	int   m_ismaximized;              // current window maximized state
 	int   m_viewport_width;           // current viewport width
 	int   m_viewport_height;          // current viewport height
 	int   m_client_width;             // current window client width
@@ -479,6 +482,9 @@ bool renderer_d3d11::create_resources()
 	if (m_cpu_srv != nullptr) m_cpu_srv->Release();
 	if (m_cpu_tex != nullptr) m_cpu_tex->Release();
 	window().target()->compute_minimum_size(m_width, m_height);
+	m_scale_mode = window().target()->scale_mode();
+	m_keep_aspect = window().target()->keepaspect();
+	m_ismaximized = dynamic_cast<win_window_info &>(window()).m_ismaximized;
 
 	D3D11_TEXTURE2D_DESC tex_desc = {};
 	tex_desc.Width = m_width;
@@ -557,25 +563,44 @@ int renderer_d3d11::draw(const int update)
 {
 	auto &win = dynamic_cast<win_window_info &>(window());
 
+	// Check that both swapchain's & window's fullscreen states match.
+	// This is required if fullscreen "optimizations" are enabled, since
+	// the fullscreen state isn't properly restored back after alt-tabbing.
+	if (window().fullscreen())
+	{
+		int is_fulscreen;
+		m_swapchain->GetFullscreenState(&is_fulscreen, NULL);
+		if (!is_fulscreen)
+			m_swapchain->SetFullscreenState(true, NULL);
+	}
+
 	// if we're in the middle of resizing, leave things alone
-	if (dynamic_cast<win_window_info &>(window()).m_resize_state == win_window_info::RESIZE_STATE_RESIZING)
+	if (win.m_resize_state == win_window_info::RESIZE_STATE_RESIZING)
 		return 0;
 
 	// check if there's a client are resize pending
 	if (win.m_resize_state == win_window_info::RESIZE_STATE_PENDING)
 	{
+		// Update size after user's border drag resize in windowed mode
 		resize_buffers();
 		win.m_resize_state = win_window_info::RESIZE_STATE_NORMAL;
 	}
 	else
 	{
-		int32_t new_width, new_height;
+		// This checks both an internal resolution change or an UI's scaling/aspect action
+		int32_t new_width, new_height, new_scale_mode, new_keepaspect, new_ismaximized;
 		window().target()->compute_minimum_size(new_width, new_height);
+		new_scale_mode = window().target()->scale_mode();
+		new_keepaspect = window().target()->keepaspect();
+		new_ismaximized = win.m_ismaximized;
 
-		if (new_width != m_width || new_height != m_height)
+		if (new_width != m_width || new_height != m_height || new_scale_mode != m_scale_mode || new_keepaspect != m_keep_aspect || new_ismaximized != m_ismaximized)
 		{
 			m_width = new_width;
 			m_height = new_height;
+			m_scale_mode = new_scale_mode;
+			m_keep_aspect = new_keepaspect;
+			m_ismaximized = new_ismaximized;
 			resize_buffers();
 			osd_printf_info("resize: %d %d\n", m_width, m_height);
 		}
@@ -639,8 +664,6 @@ render_primitive_list *renderer_d3d11::get_primitives()
 
 	float aspect = window().target()->current_view().effective_aspect() /
 					(window().target()->orientation() & ORIENTATION_SWAP_XY? (float)m_height / m_width : (float)m_width / m_height);
-
-//	osd_printf_info("aspect %f rotation: %d width %d height %d\n", window().target()->current_view().effective_aspect(), window().target()->orientation() & ORIENTATION_SWAP_XY, m_width, m_height);
 
 	window().target()->set_bounds(m_width, m_height, aspect);;
 	return &window().target()->get_primitives();
