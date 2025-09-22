@@ -457,18 +457,18 @@ int renderer_d3d11::create()
 	vs_blob->Release();
 	ps_blob->Release();
 
-    float clear[4] = { 0, 0, 0, 1 };
-    m_device_context->ClearRenderTargetView(m_backbuffer_rtv, clear);
-    m_device_context->OMSetRenderTargets(1, &m_backbuffer_rtv, nullptr);
+	float clear[4] = { 0, 0, 0, 1 };
+	m_device_context->ClearRenderTargetView(m_backbuffer_rtv, clear);
+	m_device_context->OMSetRenderTargets(1, &m_backbuffer_rtv, nullptr);
 
-    m_device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_device_context->IASetInputLayout(nullptr);
+	m_device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_device_context->IASetInputLayout(nullptr);
 
-    m_device_context->VSSetShader(m_vs, nullptr, 0);
-    m_device_context->PSSetShader(m_ps, nullptr, 0);
-    m_device_context->PSSetShaderResources(0, 1, &m_cpu_srv);
+	m_device_context->VSSetShader(m_vs, nullptr, 0);
+	m_device_context->PSSetShader(m_ps, nullptr, 0);
+	m_device_context->PSSetShaderResources(0, 1, &m_cpu_srv);
 
-    m_device_context->PSSetSamplers(0, 1, &m_sampler);
+	m_device_context->PSSetSamplers(0, 1, &m_sampler);
 
 	set_viewport();
 
@@ -534,11 +534,11 @@ bool renderer_d3d11::create_resources()
 		return false;
 	}
 
-    osd_printf_info("d3d11: texture2D created: %dx%d\n", m_width, m_height);
+	osd_printf_info("d3d11: texture2D created: %dx%d\n", m_width, m_height);
 
-    // Create sampler
-    if (m_sampler != nullptr) m_sampler->Release();
-    if (m_autofilter) m_filter = (window().target()->scale_mode() == SCALE_FRACTIONAL);
+	// Create sampler
+	if (m_sampler != nullptr) m_sampler->Release();
+	if (m_autofilter) m_filter = (window().target()->scale_mode() == SCALE_FRACTIONAL);
 	D3D11_SAMPLER_DESC samp = {};
 	samp.Filter =  m_filter? D3D11_FILTER_MIN_MAG_MIP_LINEAR : D3D11_FILTER_MIN_MAG_MIP_POINT;
 	samp.AddressU = samp.AddressV = samp.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -707,20 +707,24 @@ int renderer_d3d11::draw(const int update)
 
 	osd_ticks_t after_map = osd_ticks();
 
-    m_device_context->Draw(3, 0); // fullscreen triangle
+	m_device_context->Draw(3, 0); // fullscreen triangle
+
+	DXGI_FRAME_STATISTICS st;
+	hr = m_swapchain->GetFrameStatistics(&st);
+	osd_printf_verbose("stats: %d %d %d\n", st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount);
 
 	osd_ticks_t before_present = osd_ticks();
 
-    hr = m_swapchain->Present(m_waitvsync? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
-    if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
-    	osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
+	hr = m_swapchain->Present(m_waitvsync? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
+	if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
+		osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
 
 	osd_ticks_t after_present = osd_ticks();
 
 	osd_printf_debug("d3d11: software_renderer: %.3f, memcpy: %.3f, present: %.3f total: %.3f\n",
 		get_ms(after_prim - before_prim), get_ms(after_map - after_prim), get_ms(after_present - before_present), get_ms(after_present - before_prim));
 
-    return 0;
+	return 0;
 }
 
 
