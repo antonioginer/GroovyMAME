@@ -52,10 +52,11 @@ public:
 */
 private:
 	bool create_resources();
-	int resize_buffers();
+	bool resize_buffers();
 	void set_viewport();
 	bool get_output();
 	bool pick_best_mode(DXGI_MODE_DESC *mode);
+	bool get_updated_dimensions();
 
 	ID3D11Device*             m_d3d11_device;             // Direct3D 11 device
 	IDXGIFactory2*            m_dxgi_factory;             // Direct3D 11 device
@@ -153,7 +154,7 @@ renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, I
 	, m_vs(nullptr)
 	, m_ps(nullptr)
 	, m_sampler(nullptr)
-	, m_width(0)
+	, m_width(-1) // force get initial values
 	, m_height(0)
 	, m_refresh(0)
 	, m_frame_delay(0)
@@ -218,8 +219,6 @@ renderer_d3d11::~renderer_d3d11()
 		m_dxgi_device->Release();
 		m_dxgi_device = nullptr;
 	}
-
-	osd_printf_info("cleanup\n");
 }
 
 
@@ -268,14 +267,12 @@ bool renderer_d3d11::pick_best_mode(DXGI_MODE_DESC *mode)
 	DXGI_FORMAT format = DXGI_FORMAT_B8G8R8A8_UNORM;
 	UINT flags = DXGI_ENUM_MODES_INTERLACED;
 	UINT num = 0;
-
-	//get_output();
-
 	hr = m_output->GetDisplayModeList(format, flags, &num, 0);
-	osd_printf_info("GetDisplayModeList: %x\n", hr);
+	if (FAILED(hr)) return false;
 
 	DXGI_MODE_DESC * ml = new DXGI_MODE_DESC[num];
-	m_output->GetDisplayModeList(format, flags, &num, ml);
+	hr = m_output->GetDisplayModeList(format, flags, &num, ml);
+	if (FAILED(hr)) return false;
 
 	int sr_width = 0;
 	int sr_height = 0;
@@ -310,14 +307,12 @@ bool renderer_d3d11::pick_best_mode(DXGI_MODE_DESC *mode)
 			match = true;
 			*mode = *m;
 
-			if (m_autofilter)
-				m_filter = display->is_stretched();
-
+			// Compute pixel aspect here
 			float aspect = display->monitor_aspect();
 			m_pixel_aspect = (sr_rotated? 1.0f / aspect : aspect) / ((float)sr_width / sr_height);
-			osd_printf_info("pick_best_mode: aspect %f sr_width %d sr_height %d\n", aspect, sr_width, sr_height);
 		}
-		osd_printf_verbose("mode %d x %d @ %d / %d scan: %d\n", m->Width, m->Height, m->RefreshRate.Numerator, m->RefreshRate.Denominator, m->ScanlineOrdering);
+		float refresh = m->RefreshRate.Denominator > 1? (float)m->RefreshRate.Numerator / (float)m->RefreshRate.Denominator : (float)m->RefreshRate.Numerator;
+		osd_printf_verbose("mode %4d x%4d @ %.3f%s\n", m->Width, m->Height, refresh, is_interlaced? "i":"p");
 	}
 
 	delete [] ml;
@@ -330,6 +325,7 @@ bool renderer_d3d11::pick_best_mode(DXGI_MODE_DESC *mode)
 
 	return true;
 }
+
 
 //============================================================
 //  renderer_d3d11::create
@@ -359,7 +355,7 @@ int renderer_d3d11::create()
 	int sc_interlace = 0;
 
 	// Get required texture dimensions from game
-	window().target()->compute_minimum_size(m_width, m_height);
+	get_updated_dimensions();
 
 	if (window().fullscreen() && m_switchres)
 	{
@@ -409,14 +405,14 @@ int renderer_d3d11::create()
 	fsscd.ScanlineOrdering = sc_interlace? DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST : DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
 	fsscd.Windowed = !window().fullscreen();
 
-	osd_printf_info("m_swapchain %d %d\n", scd.Width, scd.Height);
-
 	hr = m_dxgi_factory->CreateSwapChainForHwnd(m_d3d11_device, hwnd, &scd, &fsscd, NULL, &m_swapchain);
 	if (FAILED(hr))
 	{
 		osd_printf_error("d3d11: CreateSwapChainForHwnd failed: %x\n", hr);
 		return -1;
 	}
+
+	osd_printf_verbose("d3d11: swapchain created at: %dx%d\n", scd.Width, scd.Height);
 
 	// Allow MAME to process ALT+Enter (this requires calling the parent factory)
 	IDXGIFactory2 *parent_factory;
@@ -432,11 +428,31 @@ int renderer_d3d11::create()
 	ID3DBlob* vs_blob = nullptr;
 	ID3DBlob* ps_blob = nullptr;
 
-	CompileShader(L"src\\osd\\modules\\render\\fullscreen.hlsl", "VSMain", "vs_5_0", &vs_blob);
-	CompileShader(L"src\\osd\\modules\\render\\fullscreen.hlsl", "PSMain", "ps_5_0", &ps_blob);
+	hr = CompileShader(L"src\\osd\\modules\\render\\fullscreen.hlsl", "VSMain", "vs_5_0", &vs_blob);
+	if (FAILED(hr))
+	{
+		osd_printf_error("d3d11: failed compiling vertex shader: %x\n", hr);
+		return -1;
+	}
+	hr = CompileShader(L"src\\osd\\modules\\render\\fullscreen.hlsl", "PSMain", "ps_5_0", &ps_blob);
+		if (FAILED(hr))
+	{
+		osd_printf_error("d3d11: failed compiling pixel shader: %x\n", hr);
+		return -1;
+	}
 
-	m_d3d11_device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), nullptr, &m_vs);
-	m_d3d11_device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &m_ps);
+	hr = m_d3d11_device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), nullptr, &m_vs);
+	if (FAILED(hr))
+	{
+		osd_printf_error("d3d11: failed creating vertex shader: %x\n", hr);
+		return -1;
+	}
+	hr = m_d3d11_device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &m_ps);
+	if (FAILED(hr))
+	{
+		osd_printf_error("d3d11: failed creating pixel shader: %x\n", hr);
+		return -1;
+	}
 
 	vs_blob->Release();
 	ps_blob->Release();
@@ -456,10 +472,11 @@ int renderer_d3d11::create()
 
 	set_viewport();
 
-	osd_printf_info("device created OK\n");
+	osd_printf_verbose("d3d11: device created.\n");
 
 	return 0;
 }
+
 
 //============================================================
 //  renderer_d3d11::create_resources
@@ -472,19 +489,24 @@ bool renderer_d3d11::create_resources()
 	// Backbuffer RTV
 	ID3D11Texture2D* backbuffer = nullptr;
 	hr = m_swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backbuffer);
-	if (FAILED(hr))	return false;
+	if (FAILED(hr))
+	{
+		osd_printf_error("d3d11: error getting backbuffer: %x\n", hr);
+		return false;
+	}
 
 	hr = m_d3d11_device->CreateRenderTargetView(backbuffer, nullptr, &m_backbuffer_rtv);
 	backbuffer->Release();
-	if (FAILED(hr))	return false;
+	if (FAILED(hr))
+	{
+		osd_printf_error("d3d11: error creating render target view: %x\n", hr);
+		return false;
+	}
 
 	// Texture for CPU -> GPU
 	if (m_cpu_srv != nullptr) m_cpu_srv->Release();
 	if (m_cpu_tex != nullptr) m_cpu_tex->Release();
-	window().target()->compute_minimum_size(m_width, m_height);
-	m_scale_mode = window().target()->scale_mode();
-	m_keep_aspect = window().target()->keepaspect();
-	m_ismaximized = dynamic_cast<win_window_info &>(window()).m_ismaximized;
+	get_updated_dimensions();
 
 	D3D11_TEXTURE2D_DESC tex_desc = {};
 	tex_desc.Width = m_width;
@@ -498,16 +520,37 @@ bool renderer_d3d11::create_resources()
 	tex_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 	hr = m_d3d11_device->CreateTexture2D(&tex_desc, nullptr, &m_cpu_tex);
+	if (FAILED(hr))
+	{
+		osd_printf_error("d3d11: error creating texture2D: %x\n", hr);
+		return false;
+	}
+
+	// Pass it to our shader
 	hr = m_d3d11_device->CreateShaderResourceView(m_cpu_tex, nullptr, &m_cpu_srv);
+	if (FAILED(hr))
+	{
+		osd_printf_error("d3d11: error creating shader resource view: %x\n", hr);
+		return false;
+	}
 
-    osd_printf_info("CreateTexture2D %d, width: %d height: %d\n", hr, m_width, m_height);
+    osd_printf_info("d3d11: texture2D created: %dx%d\n", m_width, m_height);
 
-    // Sampler
+    // Create sampler
     if (m_sampler != nullptr) m_sampler->Release();
+    if (m_autofilter) m_filter = (window().target()->scale_mode() == SCALE_FRACTIONAL);
 	D3D11_SAMPLER_DESC samp = {};
 	samp.Filter =  m_filter? D3D11_FILTER_MIN_MAG_MIP_LINEAR : D3D11_FILTER_MIN_MAG_MIP_POINT;
 	samp.AddressU = samp.AddressV = samp.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-	m_d3d11_device->CreateSamplerState(&samp, &m_sampler);
+	samp.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	samp.MinLOD = 0;
+	samp.MaxLOD = D3D11_FLOAT32_MAX;
+	hr = m_d3d11_device->CreateSamplerState(&samp, &m_sampler);
+	if (FAILED(hr))
+	{
+		osd_printf_error("d3d11: error creating sampler state: %x\n", hr);
+		return false;
+	}
 
 	return true;
 }
@@ -517,7 +560,7 @@ bool renderer_d3d11::create_resources()
 //  renderer_d3d11::resize_buffers
 //============================================================
 
-int renderer_d3d11::resize_buffers()
+bool renderer_d3d11::resize_buffers()
 {
 	HRESULT hr;
 
@@ -530,8 +573,11 @@ int renderer_d3d11::resize_buffers()
 		mode.Format = DXGI_FORMAT_UNKNOWN;
 		mode.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 		hr = m_swapchain->ResizeTarget(&mode);
-
-		osd_printf_info("ResizeTarget: %x\n", hr);
+		if (FAILED(hr))
+		{
+			osd_printf_error("d3d11: error resizing target.\n");
+			return false;
+		}
 	}
 
 	m_device_context->OMSetRenderTargets(0, 0, 0);
@@ -540,11 +586,12 @@ int renderer_d3d11::resize_buffers()
 	if (FAILED(hr))
 	{
 		osd_printf_error("d3d11: error resizing buffers.\n");
-		return -1;
+		return false;
 	}
 
 	// Re-create resources
-	create_resources();
+	if (!create_resources())
+		return false;
 
 	m_device_context->PSSetShaderResources(0, 1, &m_cpu_srv);
 	m_device_context->PSSetSamplers(0, 1, &m_sampler);
@@ -552,8 +599,39 @@ int renderer_d3d11::resize_buffers()
 
 	set_viewport();
 
-	return 0;
+	return true;
 }
+
+
+//============================================================
+//  renderer_d3d11::set_viewport
+//============================================================
+
+void renderer_d3d11::set_viewport()
+{
+	HWND hwnd = dynamic_cast<win_window_info &>(window()).platform_window();
+
+	RECT client;
+	GetClientRectExceptMenu(hwnd, &client, window().fullscreen());
+	m_client_width = client.right - client.left;
+	m_client_height = client.bottom - client.top;
+
+	window().target()->compute_visible_area(m_client_width, m_client_height, m_pixel_aspect, window().target()->orientation(), m_viewport_width, m_viewport_height);
+	get_updated_dimensions();
+
+	osd_printf_info("d3d11: viewport: %dx%d, client: %dx%d, source: %dx%d, pixel_aspect: %.3f\n",
+					m_viewport_width, m_viewport_height, m_client_width, m_client_height, m_width, m_height, m_pixel_aspect);
+
+	D3D11_VIEWPORT vp;
+	vp.TopLeftX = (float)(m_client_width - m_viewport_width) / 2;
+	vp.TopLeftY = (float)(m_client_height - m_viewport_height) / 2;
+	vp.Width = (float) m_viewport_width;
+	vp.Height = (float) m_viewport_height;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	m_device_context->RSSetViewports(1, &vp);
+}
+
 
 //============================================================
 //  renderer_d3d11::draw
@@ -561,6 +639,7 @@ int renderer_d3d11::resize_buffers()
 
 int renderer_d3d11::draw(const int update)
 {
+	HRESULT hr;
 	auto &win = dynamic_cast<win_window_info &>(window());
 
 	// Check that both swapchain's & window's fullscreen states match.
@@ -568,10 +647,11 @@ int renderer_d3d11::draw(const int update)
 	// the fullscreen state isn't properly restored back after alt-tabbing.
 	if (window().fullscreen())
 	{
-		int is_fulscreen;
+		int is_fulscreen = 0;
 		m_swapchain->GetFullscreenState(&is_fulscreen, NULL);
 		if (!is_fulscreen)
-			m_swapchain->SetFullscreenState(true, NULL);
+			if (FAILED(m_swapchain->SetFullscreenState(true, NULL)))
+				osd_printf_error("d3d11: swapchain failed restoring fullscreen state\n");
 	}
 
 	// if we're in the middle of resizing, leave things alone
@@ -582,28 +662,17 @@ int renderer_d3d11::draw(const int update)
 	if (win.m_resize_state == win_window_info::RESIZE_STATE_PENDING)
 	{
 		// Update size after user's border drag resize in windowed mode
-		resize_buffers();
+		if (!resize_buffers())
+			return -1;
+
 		win.m_resize_state = win_window_info::RESIZE_STATE_NORMAL;
 	}
 	else
 	{
 		// This checks both an internal resolution change or an UI's scaling/aspect action
-		int32_t new_width, new_height, new_scale_mode, new_keepaspect, new_ismaximized;
-		window().target()->compute_minimum_size(new_width, new_height);
-		new_scale_mode = window().target()->scale_mode();
-		new_keepaspect = window().target()->keepaspect();
-		new_ismaximized = win.m_ismaximized;
-
-		if (new_width != m_width || new_height != m_height || new_scale_mode != m_scale_mode || new_keepaspect != m_keep_aspect || new_ismaximized != m_ismaximized)
-		{
-			m_width = new_width;
-			m_height = new_height;
-			m_scale_mode = new_scale_mode;
-			m_keep_aspect = new_keepaspect;
-			m_ismaximized = new_ismaximized;
-			resize_buffers();
-			osd_printf_info("resize: %d %d\n", m_width, m_height);
-		}
+		if (get_updated_dimensions())
+			if (!resize_buffers())
+				return -1;
 	}
 
 	// compute pitch of target
@@ -615,7 +684,6 @@ int renderer_d3d11::draw(const int update)
 		m_bmsize = pitch * m_height * 4 * 2;
 		m_bmdata.reset();
 		m_bmdata = std::make_unique<uint8_t []>(m_bmsize);
-		osd_printf_verbose("resize: %d %d %d %ld\n", m_width, m_height, pitch, m_bmsize);
 	}
 
 	osd_ticks_t before_prim = osd_ticks();
@@ -643,15 +711,18 @@ int renderer_d3d11::draw(const int update)
 
 	osd_ticks_t before_present = osd_ticks();
 
-    m_swapchain->Present(m_waitvsync? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
+    hr = m_swapchain->Present(m_waitvsync? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
+    if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
+    	osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
 
 	osd_ticks_t after_present = osd_ticks();
 
-	osd_printf_debug("software_renderer: %.3f, memcpy: %.3f, present: %.3f total: %.3f\n",
+	osd_printf_debug("d3d11: software_renderer: %.3f, memcpy: %.3f, present: %.3f total: %.3f\n",
 		get_ms(after_prim - before_prim), get_ms(after_map - after_prim), get_ms(after_present - before_present), get_ms(after_present - before_prim));
 
     return 0;
 }
+
 
 //============================================================
 //  renderer_d3d11::get_primitives
@@ -669,33 +740,35 @@ render_primitive_list *renderer_d3d11::get_primitives()
 	return &window().target()->get_primitives();
 }
 
+
 //============================================================
-//  renderer_d3d11::set_viewport
+//  renderer_d3d11::get_updated_dimensions
 //============================================================
 
-void renderer_d3d11::set_viewport()
+bool renderer_d3d11::get_updated_dimensions()
 {
-	HWND hwnd = dynamic_cast<win_window_info &>(window()).platform_window();
+	int32_t new_width, new_height, new_scale_mode, new_keepaspect, new_ismaximized;
 
-	RECT client;
-	GetClientRectExceptMenu(hwnd, &client, window().fullscreen());
-	m_client_width = client.right - client.left;
-	m_client_height = client.bottom - client.top;
+	window().target()->compute_minimum_size(new_width, new_height);
+	new_width *= window().prescale();
+	new_height *= window().prescale();
 
-	window().target()->compute_visible_area(m_client_width, m_client_height, m_pixel_aspect, window().target()->orientation(), m_viewport_width, m_viewport_height);
-	window().target()->compute_minimum_size(m_width, m_height);
+	new_scale_mode = window().target()->scale_mode();
+	new_keepaspect = window().target()->keepaspect();
+	new_ismaximized = dynamic_cast<win_window_info &>(window()).m_ismaximized;
 
-	osd_printf_info("update viewport vp: %d %d, client: %d %d, target: %d %d, pixel_aspect %.3f\n", m_viewport_width, m_viewport_height, m_client_width, m_client_height, m_width, m_height, m_pixel_aspect);
-
-	D3D11_VIEWPORT vp;
-	vp.TopLeftX = (float)(m_client_width - m_viewport_width) / 2;
-	vp.TopLeftY = (float)(m_client_height - m_viewport_height) / 2;
-	vp.Width = (float) m_viewport_width;
-	vp.Height = (float) m_viewport_height;
-	vp.MinDepth = 0.0f;
-	vp.MaxDepth = 1.0f;
-	m_device_context->RSSetViewports(1, &vp);
+	if (new_width != m_width || new_height != m_height || new_scale_mode != m_scale_mode || new_keepaspect != m_keep_aspect || new_ismaximized != m_ismaximized)
+	{
+		m_width = new_width;
+		m_height = new_height;
+		m_scale_mode = new_scale_mode;
+		m_keep_aspect = new_keepaspect;
+		m_ismaximized = new_ismaximized;
+		return true;
+	}
+	return false;
 }
+
 
 //============================================================
 //  OSD MODULE
