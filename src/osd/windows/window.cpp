@@ -1838,7 +1838,7 @@ void win_window_info::adjust_window_position_after_major_change()
 void win_window_info::set_fullscreen(int fullscreen)
 {
 	assert(GetCurrentThreadId() == window_threadid);
-osd_printf_info("Set FULLSCREEN(%d)\n", fullscreen);
+
 	// if we're in the right state, punt
 	if (this->fullscreen() == fullscreen)
 		return;
@@ -1846,7 +1846,7 @@ osd_printf_info("Set FULLSCREEN(%d)\n", fullscreen);
 
 	// kill off the renderer
 	renderer_reset();
-osd_printf_info("Set FULLSCREEN(%d)\n", fullscreen);
+
 	// hide ourself
 	ShowWindow(platform_window(), SW_HIDE);
 
