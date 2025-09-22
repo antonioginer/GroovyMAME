@@ -810,7 +810,7 @@ void win_window_info::update()
 
 	// check if we need to change the video mode
 	auto &options = downcast<windows_options &>(machine().options());
-	if (options.switch_res() && options.changeres())
+	if (fullscreen() && options.switch_res() && options.changeres())
 		reset_required = WINOSD(machine())->switchres()->check_resolution_change(index(), monitor(), target(), &m_win_config);
 
 	// check if frame delay has changed
@@ -1838,7 +1838,7 @@ void win_window_info::adjust_window_position_after_major_change()
 void win_window_info::set_fullscreen(int fullscreen)
 {
 	assert(GetCurrentThreadId() == window_threadid);
-
+osd_printf_info("Set FULLSCREEN(%d)\n", fullscreen);
 	// if we're in the right state, punt
 	if (this->fullscreen() == fullscreen)
 		return;
@@ -1846,7 +1846,7 @@ void win_window_info::set_fullscreen(int fullscreen)
 
 	// kill off the renderer
 	renderer_reset();
-
+osd_printf_info("Set FULLSCREEN(%d)\n", fullscreen);
 	// hide ourself
 	ShowWindow(platform_window(), SW_HIDE);
 
