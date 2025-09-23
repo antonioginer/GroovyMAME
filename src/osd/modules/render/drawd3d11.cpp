@@ -711,7 +711,8 @@ int renderer_d3d11::draw(const int update)
 
 	DXGI_FRAME_STATISTICS st;
 	hr = m_swapchain->GetFrameStatistics(&st);
-	osd_printf_verbose("stats: %d %d %d\n", st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount);
+
+	osd_printf_verbose("stats: %d %d %d %ld %ld %f ms\n", st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart, after_map, get_ms(after_map-st.SyncQPCTime.QuadPart));
 
 	osd_ticks_t before_present = osd_ticks();
 
