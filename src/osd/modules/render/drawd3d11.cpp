@@ -31,6 +31,13 @@
 
 inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
 
+struct factors
+{
+	float x_factor;
+	float y_factor;
+	float padding[2];
+};
+
 /* renderer_d3d11 is the information about Direct3D 11 for the current screen */
 class renderer_d3d11 : public osd_renderer
 {
@@ -70,11 +77,9 @@ private:
 	ID3D11Texture2D*          m_cpu_tex;
 	ID3D11ShaderResourceView* m_cpu_srv;
 	ID3D11VertexShader*       m_vs;
-	ID3D11PixelShader*        m_ps_default;
-	ID3D11PixelShader*        m_ps_point;
-	ID3D11PixelShader*        m_ps_fractx;
-	ID3D11PixelShader*        m_ps_fracty;
+	ID3D11PixelShader*        m_ps;
 	ID3D11SamplerState*       m_sampler;
+	ID3D11Buffer*             m_constant_buffer;
 
 	int   m_width;                    // current width
 	int   m_height;                   // current height
@@ -95,6 +100,7 @@ private:
 	bool  m_syncrefresh = false;
 	bool  m_waitvsync = false;
 	bool  m_switchres = false;
+	factors m_factors = {};
 
 	std::unique_ptr<uint8_t []> m_bmdata;
 	size_t                      m_bmsize = 0;
@@ -156,11 +162,9 @@ renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, I
 	, m_cpu_tex(nullptr)
 	, m_cpu_srv(nullptr)
 	, m_vs(nullptr)
-	, m_ps_default(nullptr)
-	, m_ps_point(nullptr)
-	, m_ps_fractx(nullptr)
-	, m_ps_fracty(nullptr)
+	, m_ps(nullptr)
 	, m_sampler(nullptr)
+	, m_constant_buffer(nullptr)
 	, m_width(-1) // force get initial values
 	, m_height(0)
 	, m_refresh(0)
@@ -175,30 +179,20 @@ renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, I
 
 renderer_d3d11::~renderer_d3d11()
 {
+	if (m_constant_buffer != nullptr)
+	{
+		m_constant_buffer->Release();
+		m_constant_buffer = nullptr;
+	}
 	if (m_sampler != nullptr)
 	{
 		m_sampler->Release();
 		m_sampler = nullptr;
 	}
-	if (m_ps_default != nullptr)
+	if (m_ps != nullptr)
 	{
-		m_ps_default->Release();
-		m_ps_default = nullptr;
-	}
-	if (m_ps_point != nullptr)
-	{
-		m_ps_point->Release();
-		m_ps_point = nullptr;
-	}
-	if (m_ps_fractx != nullptr)
-	{
-		m_ps_fractx->Release();
-		m_ps_fractx = nullptr;
-	}
-	if (m_ps_fracty != nullptr)
-	{
-		m_ps_fracty->Release();
-		m_ps_fracty = nullptr;
+		m_ps->Release();
+		m_ps = nullptr;
 	}
 	if (m_vs != nullptr)
 	{
@@ -348,34 +342,6 @@ bool renderer_d3d11::pick_best_mode(DXGI_MODE_DESC *mode)
 	return true;
 }
 
-//============================================================
-//  renderer_d3d11::pick_shader()
-//============================================================
-
-ID3D11PixelShader* renderer_d3d11::pick_shader()
-{
-	return m_ps_default;
-	switch (m_scale_mode)
-	{
-		case SCALE_FRACTIONAL:
-			return m_ps_default;
-
-		case SCALE_INTEGER:
-			return m_ps_point;
-
-		case SCALE_FRACTIONAL_X:
-			return m_ps_fractx;
-
-		case SCALE_FRACTIONAL_Y:
-			return m_ps_fracty;
-
-		case SCALE_FRACTIONAL_AUTO:
-			return (window().machine().system().flags & ORIENTATION_SWAP_XY)
-					^(window().target()->orientation() & ORIENTATION_SWAP_XY) ?
-						m_ps_fracty : m_ps_fractx;
-	}
-	return nullptr;
-}
 
 //============================================================
 //  renderer_d3d11::create
@@ -497,46 +463,7 @@ int renderer_d3d11::create()
 		osd_printf_error("d3d11: failed compiling pixel shader: %x\n", hr);
 		return -1;
 	}
-	hr = m_d3d11_device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &m_ps_default);
-	if (FAILED(hr))
-	{
-		osd_printf_error("d3d11: failed creating pixel shader: %x\n", hr);
-		return -1;
-	}
-
-	hr = CompileShader(L"src\\osd\\modules\\render\\fullscreen.hlsl", "PS_Point", "ps_5_0", &ps_blob);
-		if (FAILED(hr))
-	{
-		osd_printf_error("d3d11: failed compiling pixel shader: %x\n", hr);
-		return -1;
-	}
-	hr = m_d3d11_device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &m_ps_point);
-	if (FAILED(hr))
-	{
-		osd_printf_error("d3d11: failed creating pixel shader: %x\n", hr);
-		return -1;
-	}
-
-	hr = CompileShader(L"src\\osd\\modules\\render\\fullscreen.hlsl", "PS_FracX", "ps_5_0", &ps_blob);
-		if (FAILED(hr))
-	{
-		osd_printf_error("d3d11: failed compiling pixel shader: %x\n", hr);
-		return -1;
-	}
-	hr = m_d3d11_device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &m_ps_fractx);
-	if (FAILED(hr))
-	{
-		osd_printf_error("d3d11: failed creating pixel shader: %x\n", hr);
-		return -1;
-	}
-
-	hr = CompileShader(L"src\\osd\\modules\\render\\fullscreen.hlsl", "PS_FracY", "ps_5_0", &ps_blob);
-		if (FAILED(hr))
-	{
-		osd_printf_error("d3d11: failed compiling pixel shader: %x\n", hr);
-		return -1;
-	}
-	hr = m_d3d11_device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &m_ps_fracty);
+	hr = m_d3d11_device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &m_ps);
 	if (FAILED(hr))
 	{
 		osd_printf_error("d3d11: failed creating pixel shader: %x\n", hr);
@@ -546,6 +473,16 @@ int renderer_d3d11::create()
 	vs_blob->Release();
 	ps_blob->Release();
 
+	// Create constant buffer
+	D3D11_BUFFER_DESC cbd = {};
+	cbd.Usage = D3D11_USAGE_DEFAULT;
+	cbd.ByteWidth = sizeof(factors);
+	cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbd.CPUAccessFlags = 0;
+	hr = m_d3d11_device->CreateBuffer(&cbd, nullptr, &m_constant_buffer);
+	if (FAILED(hr))
+		osd_printf_error("d3d11: failed creating constant_buffer: %x\n", hr);
+
 	float clear[4] = { 0, 0, 0, 1 };
 	m_device_context->ClearRenderTargetView(m_backbuffer_rtv, clear);
 	m_device_context->OMSetRenderTargets(1, &m_backbuffer_rtv, nullptr);
@@ -554,8 +491,9 @@ int renderer_d3d11::create()
 	m_device_context->IASetInputLayout(nullptr);
 
 	m_device_context->VSSetShader(m_vs, nullptr, 0);
-	m_device_context->PSSetShader(pick_shader(), nullptr, 0);
+	m_device_context->PSSetShader(m_ps, nullptr, 0);
 	m_device_context->PSSetShaderResources(0, 1, &m_cpu_srv);
+	m_device_context->PSSetConstantBuffers(0, 1, &m_constant_buffer);
 
 	m_device_context->PSSetSamplers(0, 1, &m_sampler);
 
@@ -682,7 +620,7 @@ bool renderer_d3d11::resize_buffers()
 	if (!create_resources())
 		return false;
 
-	m_device_context->PSSetShader(pick_shader(), nullptr, 0);
+	m_device_context->PSSetShader(m_ps, nullptr, 0);
 	m_device_context->PSSetShaderResources(0, 1, &m_cpu_srv);
 	m_device_context->PSSetSamplers(0, 1, &m_sampler);
 	m_device_context->OMSetRenderTargets(1, &m_backbuffer_rtv, nullptr);
@@ -720,6 +658,11 @@ void renderer_d3d11::set_viewport()
 	vp.MinDepth = 0.0f;
 	vp.MaxDepth = 1.0f;
 	m_device_context->RSSetViewports(1, &vp);
+
+	m_factors.x_factor = m_viewport_width % m_width != 0? ((float)m_width / m_viewport_width) / 2.0f : 0.0f;
+	m_factors.y_factor = m_viewport_height % m_height != 0? ((float)m_height / m_viewport_height) / 2.0f : 0.0f;
+	m_device_context->UpdateSubresource(m_constant_buffer, 0, nullptr, &m_factors, 0, 0);
+	m_device_context->PSSetConstantBuffers(0, 1, &m_constant_buffer);
 }
 
 
