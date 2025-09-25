@@ -940,3 +940,29 @@ std::unique_ptr<osd_renderer> video_d3d11::create(osd_window &window)
 } // namespace osd
 
 MODULE_DEFINITION(RENDERER_D3D11, osd::video_d3d11)
+
+
+class raster_sync
+{
+public:
+
+	raster_sync();
+	~raster_sync();
+
+	enum event
+	{
+		BEFORE_DRAW,
+		AFTER_DRAW,
+		TIMESTAMP_ITEMS
+	};
+
+	void register_timestamp(enum raster_sync::event timestamp_event, uint64_t timestamp);
+
+private:
+	uint64_t m_timestamp[static_cast<int>(TIMESTAMP_ITEMS)];
+};
+
+void raster_sync::register_timestamp(enum raster_sync::event timestamp_event, uint64_t timestamp)
+{
+	m_timestamp[timestamp_event] = timestamp;
+}
