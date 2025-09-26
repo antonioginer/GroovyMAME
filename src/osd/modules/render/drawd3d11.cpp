@@ -93,6 +93,7 @@ private:
 	int   m_client_height;            // current window client height
 	bool  m_interlace;                // current interlace
 	int   m_frame_delay;              // current frame delay value
+	uint32_t m_frame;
 	float m_pixel_aspect = 1.0;
 
 	bool  m_filter = false;
@@ -743,15 +744,39 @@ int renderer_d3d11::draw(const int update)
 	m_device_context->Draw(3, 0); // fullscreen triangle
 
 	DXGI_FRAME_STATISTICS st;
-	hr = m_swapchain->GetFrameStatistics(&st);
-
-	osd_printf_verbose("stats: %d %d %d %ld %ld %f ms\n", st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart, after_map, get_ms(after_map-st.SyncQPCTime.QuadPart));
+	if (m_frame)
+	{
+		hr = m_swapchain->GetFrameStatistics(&st);
+		osd_printf_verbose("stats: %d %d %d %lld %lld %f ms\n",
+			st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart, after_map, get_ms(after_map-st.SyncQPCTime.QuadPart));
+	}
 
 	osd_ticks_t before_present = osd_ticks();
 
 	hr = m_swapchain->Present(m_waitvsync? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
 		osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
+
+	m_swapchain->GetLastPresentCount(&m_frame);
+	osd_printf_verbose("last present: frame %d timestamp: %lld\n", m_frame, before_present);
+
+	if (m_frame == 1)
+	{
+		osd_ticks_t time1 = osd_ticks(), time2;
+		do
+		{
+			Sleep(1);
+
+			m_swapchain->GetFrameStatistics(&st);
+			osd_printf_verbose("stats: %d %d %d %lld %lld %f ms\n",
+				st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart, after_map, get_ms(after_map-st.SyncQPCTime.QuadPart));
+
+			time2 = osd_ticks();
+		}
+		while (st.PresentCount != 1 && get_ms(time2 - time1) < 20.0);
+
+		//m_sync->register_vblank(st.SyncRefreshCount, st.SyncQPCTime);
+	}
 
 	osd_ticks_t after_present = osd_ticks();
 
@@ -941,7 +966,7 @@ std::unique_ptr<osd_renderer> video_d3d11::create(osd_window &window)
 
 MODULE_DEFINITION(RENDERER_D3D11, osd::video_d3d11)
 
-
+/*
 class raster_sync
 {
 public:
@@ -949,20 +974,27 @@ public:
 	raster_sync();
 	~raster_sync();
 
-	enum event
+	enum event_tag
 	{
 		BEFORE_DRAW,
 		AFTER_DRAW,
 		TIMESTAMP_ITEMS
 	};
 
-	void register_timestamp(enum raster_sync::event timestamp_event, uint64_t timestamp);
+	void register_tag(enum raster_sync::event timestamp_event);
+	void register_vblank(enum raster_sync::event timestamp_event, uint64_t timestamp);
 
 private:
-	uint64_t m_timestamp[static_cast<int>(TIMESTAMP_ITEMS)];
+	uint64_t m_timestamp[16][static_cast<int>(TIMESTAMP_ITEMS)];
 };
 
-void raster_sync::register_timestamp(enum raster_sync::event timestamp_event, uint64_t timestamp)
+void raster_sync::register_tag(enum raster_sync::event_tag tag)
+{
+	m_timestamp[index][m_frame_count % 16] = osd_ticks();
+}
+
+void raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
 {
 	m_timestamp[timestamp_event] = timestamp;
 }
+*/
