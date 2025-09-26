@@ -29,14 +29,66 @@
 
 #include <switchres/switchres.h>
 
-inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
-
-struct factors
+class raster_sync
 {
-	float x_factor;
-	float y_factor;
-	float padding[2];
+public:
+
+	raster_sync() {};
+	~raster_sync() {};
+
+	enum event_tag
+	{
+		BEFORE_DRAW,
+		AFTER_DRAW,
+		TIMESTAMP_ITEMS
+	};
+
+	void register_tag(enum raster_sync::event_tag timestamp_event);
+	void register_vblank(uint64_t sync_count, uint64_t timestamp);
+
+private:
+	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
+
+
+	uint64_t m_timestamp[16][static_cast<int>(TIMESTAMP_ITEMS)];
+	uint64_t m_vblank_count = 0;
+	uint64_t m_last_sync_count = 0;
+	uint64_t m_last_timestamp = 0;
+
+	double m_current_period = 0;
+	double m_mean = 0;
 };
+
+void raster_sync::register_tag(enum raster_sync::event_tag tag)
+{
+	//m_timestamp[index][m_frame_count % 16] = osd_ticks();
+}
+
+void raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
+{
+	double delta;
+	int sync_delta = 0;
+
+	if (m_last_sync_count)
+	{
+		sync_delta = sync_count - m_last_sync_count;
+		osd_printf_info("sync_delta %d\n", sync_delta);
+
+		if (sync_delta > 0)
+		{
+			m_vblank_count++;
+			m_current_period = get_ms((timestamp - m_last_timestamp) / sync_delta);
+			delta = m_current_period - m_mean;
+			m_mean += delta / m_vblank_count;
+			osd_printf_info("delta %f m_current_period %f m_mean %f\n", delta, m_current_period, m_mean);
+		}
+	}
+
+	osd_printf_info("period %f delta %d period_avg: %f\n\n", m_current_period, sync_delta, m_mean);
+	m_last_sync_count = sync_count;
+	m_last_timestamp = timestamp;
+}
+
 
 /* renderer_d3d11 is the information about Direct3D 11 for the current screen */
 class renderer_d3d11 : public osd_renderer
@@ -65,6 +117,7 @@ private:
 	bool pick_best_mode(DXGI_MODE_DESC *mode);
 	ID3D11PixelShader* pick_shader();
 	bool get_updated_dimensions();
+	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
 
 	ID3D11Device*             m_d3d11_device;             // Direct3D 11 device
 	IDXGIFactory2*            m_dxgi_factory;             // Direct3D 11 device
@@ -93,14 +146,23 @@ private:
 	int   m_client_height;            // current window client height
 	bool  m_interlace;                // current interlace
 	int   m_frame_delay;              // current frame delay value
-	uint32_t m_frame;
 	float m_pixel_aspect = 1.0;
+	uint32_t m_frame;
+	raster_sync m_sync;
 
+	// Options
 	bool  m_filter = false;
 	bool  m_autofilter = false;
 	bool  m_syncrefresh = false;
 	bool  m_waitvsync = false;
 	bool  m_switchres = false;
+
+	struct factors
+	{
+		float x_factor;
+		float y_factor;
+		float padding[2];
+	};
 	factors m_factors = {};
 
 	std::unique_ptr<uint8_t []> m_bmdata;
@@ -774,9 +836,8 @@ int renderer_d3d11::draw(const int update)
 			time2 = osd_ticks();
 		}
 		while (st.PresentCount != 1 && get_ms(time2 - time1) < 20.0);
-
-		//m_sync->register_vblank(st.SyncRefreshCount, st.SyncQPCTime);
 	}
+	m_sync.register_vblank(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 	osd_ticks_t after_present = osd_ticks();
 
@@ -966,35 +1027,4 @@ std::unique_ptr<osd_renderer> video_d3d11::create(osd_window &window)
 
 MODULE_DEFINITION(RENDERER_D3D11, osd::video_d3d11)
 
-/*
-class raster_sync
-{
-public:
 
-	raster_sync();
-	~raster_sync();
-
-	enum event_tag
-	{
-		BEFORE_DRAW,
-		AFTER_DRAW,
-		TIMESTAMP_ITEMS
-	};
-
-	void register_tag(enum raster_sync::event timestamp_event);
-	void register_vblank(enum raster_sync::event timestamp_event, uint64_t timestamp);
-
-private:
-	uint64_t m_timestamp[16][static_cast<int>(TIMESTAMP_ITEMS)];
-};
-
-void raster_sync::register_tag(enum raster_sync::event_tag tag)
-{
-	m_timestamp[index][m_frame_count % 16] = osd_ticks();
-}
-
-void raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
-{
-	m_timestamp[timestamp_event] = timestamp;
-}
-*/
