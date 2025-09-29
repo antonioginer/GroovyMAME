@@ -45,7 +45,7 @@ public:
 
 	void register_tag(enum raster_sync::event_tag timestamp_event);
 	void register_vblank(uint64_t sync_count, uint64_t timestamp);
-	void wait_vblank(float framedelay);
+	void wait_vblank(uint64_t sync_frame, float framedelay);
 	bool in_time_for_vblank();
 
 private:
@@ -107,7 +107,7 @@ void raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
 	//m_predicted_next_sync = m_first_timestamp + (1 + sync_count - m_first_sync_count) * int(m_mean * osd_ticks_per_second() / 1000.0);
 }
 
-void raster_sync::wait_vblank(float framedelay)
+void raster_sync::wait_vblank(uint64_t sync_frame, float framedelay)
 {
 	//if (m_predicted_next_sync == 0)
 	//	return;
@@ -115,9 +115,10 @@ void raster_sync::wait_vblank(float framedelay)
 	bool m_sleep_allowed = false;
 	osd_ticks_t time_sleep = 1 * osd_ticks_per_second() / 1000.0; // 1 ms
 
+	//int sync_incr = 1 + (int)ceil(get_ms((osd_ticks() - m_last_timestamp)) / m_mean);
+	//m_predicted_next_sync = m_last_timestamp + sync_incr * int(m_mean * osd_ticks_per_second() / 1000.0);
 
-	int sync_incr = (int)ceil(get_ms((osd_ticks() - m_last_timestamp)) / m_mean);
-	m_predicted_next_sync = m_last_timestamp + sync_incr * int(m_mean * osd_ticks_per_second() / 1000.0);
+	m_predicted_next_sync = m_last_timestamp + (sync_frame - m_last_sync_count) * int(m_mean * osd_ticks_per_second() / 1000.0);
 
 	osd_ticks_t time_target = m_predicted_next_sync - (int)((1.0f - framedelay) * m_mean * osd_ticks_per_second() / 1000.0);
 
@@ -141,10 +142,10 @@ void raster_sync::wait_vblank(float framedelay)
 		} while (get_ms(current_time - time_entry) < m_mean);
 	}
 	else
-		osd_printf_info("delayed, exiting\n");
+		osd_printf_info("wait_vblank: delayed, exiting\n");
 
 	osd_ticks_t time_exit = osd_ticks();
-	osd_printf_info("waitvblank: %.3f fd: %f fd_delta %d\n\n",
+	osd_printf_info("wait_vblank: %.3f fd: %f fd_delta %d\n\n",
 		get_ms(time_exit - time_entry),
 		framedelay,
 		(int)((1.0f - framedelay) * m_current_period * osd_ticks_per_second() / 1000.0));
@@ -156,9 +157,9 @@ bool raster_sync::in_time_for_vblank()
 		return false;
 
 	if ((int)(m_predicted_next_sync - osd_ticks()) > 0)
-	{
 		return true;
-	}
+
+	osd_printf_info("missed retrace\n");
 
 	return false;
 }
@@ -811,6 +812,7 @@ int renderer_d3d11::draw(const int update)
 {
 	HRESULT hr;
 	auto &win = dynamic_cast<win_window_info &>(window());
+	static uint32_t first_count = 0;
 
 	// Check that both swapchain's & window's fullscreen states match.
 	// This is required if fullscreen "optimizations" are enabled, since
@@ -883,8 +885,8 @@ int renderer_d3d11::draw(const int update)
 	if (m_frame)
 	{
 		hr = m_swapchain->GetFrameStatistics(&st);
-		osd_printf_info("stats: %d %d %d %lld %lld %f ms\n",
-			st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart, after_map, get_ms(after_map-st.SyncQPCTime.QuadPart));
+		osd_printf_info("prev present: [%d] %d %lld\n",
+			st.PresentCount, st.SyncRefreshCount - first_count, st.SyncQPCTime.QuadPart);
 
 		m_sync.register_vblank(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 	}
@@ -897,7 +899,7 @@ int renderer_d3d11::draw(const int update)
 		osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
 
 	hr = m_swapchain->GetLastPresentCount(&m_frame);
-	osd_printf_info("last present: frame %d timestamp: %lld\n", m_frame, before_present);
+	osd_printf_info("last present: [%d]\n", m_frame);
 
 	if (m_frame == 1)
 	{
@@ -913,11 +915,15 @@ int renderer_d3d11::draw(const int update)
 
 		}
 		while (st.PresentCount != 1 && get_ms(time2 - time1) < 300.0);
+		first_count = st.SyncRefreshCount;
 	}
 	else
 	{
+		//uint64_t sync_frame = 1 + st.SyncRefreshCount + m_frame - st.PresentCount;
+		uint64_t sync_frame = (m_sync.in_time_for_vblank()? 1 : 0) + st.SyncRefreshCount + m_frame - st.PresentCount;
+		osd_printf_info("sync_frame: %lld\n", sync_frame);
 		m_frame_delay = (double)(video_config.framedelay) / 10.0;
-		m_sync.wait_vblank(m_frame_delay);
+		m_sync.wait_vblank(sync_frame, m_frame_delay);
 	}
 
 
