@@ -45,15 +45,20 @@ public:
 
 	void register_tag(enum raster_sync::event_tag timestamp_event);
 	void register_vblank(uint64_t sync_count, uint64_t timestamp);
+	void wait_vblank(float framedelay);
+	bool in_time_for_vblank();
 
 private:
 	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
 
-
+	bool m_initialized = false;
 	uint64_t m_timestamp[16][static_cast<int>(TIMESTAMP_ITEMS)];
 	uint64_t m_vblank_count = 0;
+	uint64_t m_first_sync_count = 0;
+	uint64_t m_first_timestamp = 0;
 	uint64_t m_last_sync_count = 0;
 	uint64_t m_last_timestamp = 0;
+	uint64_t m_predicted_next_sync = 0;
 
 	double m_current_period = 0;
 	double m_mean = 0;
@@ -69,26 +74,83 @@ void raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
 	double delta;
 	int sync_delta = 0;
 
-	if (m_last_sync_count)
+	if (m_initialized)
 	{
 		sync_delta = sync_count - m_last_sync_count;
-		osd_printf_info("sync_delta %d\n", sync_delta);
 
+		// Skip sample if it's not newer
 		if (sync_delta > 0)
 		{
 			m_vblank_count++;
 			m_current_period = get_ms((timestamp - m_last_timestamp) / sync_delta);
 			delta = m_current_period - m_mean;
 			m_mean += delta / m_vblank_count;
-			osd_printf_info("delta %f m_current_period %f m_mean %f\n", delta, m_current_period, m_mean);
+			osd_printf_info("[%.3f] sync: %d, period %f, diff %+f ms, mean %f ms\n\n",
+				get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, m_current_period, delta, m_mean);
 		}
+		else
+			osd_printf_info("sync_delta %d\n\n", sync_delta);
 	}
 
-	osd_printf_info("period %f delta %d period_avg: %f\n\n", m_current_period, sync_delta, m_mean);
+	if (!m_initialized)
+	{
+		osd_printf_info("initialize, sync_count %d\n", sync_count);
+		m_initialized = true;
+		m_first_sync_count = sync_count;
+		m_first_timestamp = timestamp;
+	}
+
 	m_last_sync_count = sync_count;
 	m_last_timestamp = timestamp;
+
+	osd_printf_info("predicted: %lld, current: %lld, diff: %+f\n", m_predicted_next_sync, timestamp, get_ms(m_predicted_next_sync) - get_ms(timestamp));
+	m_predicted_next_sync = m_first_timestamp + (1 + sync_count - m_first_sync_count) * int(m_mean * osd_ticks_per_second() / 1000.0);
 }
 
+void raster_sync::wait_vblank(float framedelay)
+{
+	if (m_predicted_next_sync == 0)
+		return;
+
+	bool m_sleep_allowed = false;
+	osd_ticks_t time_sleep = 1 * osd_ticks_per_second() / 1000.0; // 1 ms
+
+	osd_ticks_t time_target = m_predicted_next_sync - (int)((1.0f - framedelay) * m_current_period * osd_ticks_per_second() / 1000.0);
+
+	osd_ticks_t time_entry = osd_ticks();
+
+	// Wait for target time
+	if ((int)(time_target - osd_ticks()) > 0)
+	{
+		osd_ticks_t current_time;
+		do
+		{
+			current_time = osd_ticks();
+			if (current_time >= time_target)
+				break;
+
+			if (m_sleep_allowed && get_ms(time_target - current_time) > 2.0)
+				osd_sleep(time_sleep);
+
+		} while (get_ms(current_time - time_entry) < get_ms(m_current_period));
+	}
+	else
+		osd_printf_info("delayed, exiting\n");
+
+	osd_ticks_t time_exit = osd_ticks();
+	osd_printf_info("waitvblank: %.3f fd: %f fd_delta %d\n", get_ms(time_exit - time_entry), framedelay, (int)((1.0f - framedelay) * m_current_period * osd_ticks_per_second() / 1000.0));
+}
+
+bool raster_sync::in_time_for_vblank()
+{
+	if (m_predicted_next_sync == 0)
+		return false;
+
+	if ((int)(m_predicted_next_sync - osd_ticks()) > 0)
+		return true;
+
+	return false;
+}
 
 /* renderer_d3d11 is the information about Direct3D 11 for the current screen */
 class renderer_d3d11 : public osd_renderer
@@ -145,7 +207,7 @@ private:
 	int   m_client_width;             // current window client width
 	int   m_client_height;            // current window client height
 	bool  m_interlace;                // current interlace
-	int   m_frame_delay;              // current frame delay value
+	double m_frame_delay;             // current frame delay value
 	float m_pixel_aspect = 1.0;
 	uint32_t m_frame;
 	raster_sync m_sync;
@@ -231,7 +293,7 @@ renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, I
 	, m_width(-1) // force get initial values
 	, m_height(0)
 	, m_refresh(0)
-	, m_frame_delay(0)
+	, m_frame_delay(0.0)
 {
 }
 
@@ -809,18 +871,21 @@ int renderer_d3d11::draw(const int update)
 	if (m_frame)
 	{
 		hr = m_swapchain->GetFrameStatistics(&st);
-		osd_printf_verbose("stats: %d %d %d %lld %lld %f ms\n",
+		osd_printf_info("stats: %d %d %d %lld %lld %f ms\n",
 			st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart, after_map, get_ms(after_map-st.SyncQPCTime.QuadPart));
+
+		m_sync.register_vblank(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 	}
 
 	osd_ticks_t before_present = osd_ticks();
 
+	//hr = m_swapchain->Present(m_waitvsync && m_sync.in_time_for_vblank()? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	hr = m_swapchain->Present(m_waitvsync? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
 		osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
 
-	m_swapchain->GetLastPresentCount(&m_frame);
-	osd_printf_verbose("last present: frame %d timestamp: %lld\n", m_frame, before_present);
+	hr = m_swapchain->GetLastPresentCount(&m_frame);
+	//osd_printf_info("last present: frame %d timestamp: %lld\n", m_frame, before_present);
 
 	if (m_frame == 1)
 	{
@@ -828,16 +893,22 @@ int renderer_d3d11::draw(const int update)
 		do
 		{
 			Sleep(1);
+			time2 = osd_ticks();
 
 			m_swapchain->GetFrameStatistics(&st);
-			osd_printf_verbose("stats: %d %d %d %lld %lld %f ms\n",
-				st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart, after_map, get_ms(after_map-st.SyncQPCTime.QuadPart));
+			osd_printf_info("[%.3f] stats: %d %d %d %lld %f ms\n",
+				get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart, get_ms(st.SyncQPCTime.QuadPart - after_map));
 
-			time2 = osd_ticks();
 		}
-		while (st.PresentCount != 1 && get_ms(time2 - time1) < 20.0);
+		while (st.PresentCount != 1 && get_ms(time2 - time1) < 50.0);
 	}
-	m_sync.register_vblank(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
+	else
+	{
+		m_frame_delay = (double)(video_config.framedelay) / 10.0;
+		m_sync.wait_vblank(m_frame_delay);
+	}
+
+
 
 	osd_ticks_t after_present = osd_ticks();
 
