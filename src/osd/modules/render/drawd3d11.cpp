@@ -116,6 +116,7 @@ void raster_sync::wait_vblank(uint64_t sync_frame, float framedelay)
 	osd_ticks_t time_sleep = 1 * osd_ticks_per_second() / 1000.0; // 1 ms
 
 	//int sync_incr = 1 + (int)ceil(get_ms((osd_ticks() - m_last_timestamp)) / m_mean);
+	//osd_printf_info("sync_frame: %lld\n", m_last_sync_count + sync_incr);
 	//m_predicted_next_sync = m_last_timestamp + sync_incr * int(m_mean * osd_ticks_per_second() / 1000.0);
 
 	m_predicted_next_sync = m_last_timestamp + (sync_frame - m_last_sync_count) * int(m_mean * osd_ticks_per_second() / 1000.0);
@@ -156,10 +157,15 @@ bool raster_sync::in_time_for_vblank()
 	if (m_predicted_next_sync == 0)
 		return false;
 
-	if ((int)(m_predicted_next_sync - osd_ticks()) > 0)
-		return true;
+	int ticks_till_next_sync = (int)(m_predicted_next_sync - osd_ticks());
 
-	osd_printf_info("missed retrace\n");
+	if (ticks_till_next_sync > 0)
+	{
+		osd_printf_info("in_time_for_vblank: ticks left %d\n", ticks_till_next_sync);
+		return true;
+	}
+
+	osd_printf_info("in_time_for_vblank: missed retrace\n");
 
 	return false;
 }
@@ -813,6 +819,7 @@ int renderer_d3d11::draw(const int update)
 	HRESULT hr;
 	auto &win = dynamic_cast<win_window_info &>(window());
 	static uint32_t first_count = 0;
+	static osd_ticks_t last_after_present = 0;
 
 	// Check that both swapchain's & window's fullscreen states match.
 	// This is required if fullscreen "optimizations" are enabled, since
@@ -893,7 +900,9 @@ int renderer_d3d11::draw(const int update)
 
 	osd_ticks_t before_present = osd_ticks();
 
-	hr = m_swapchain->Present(m_waitvsync && m_sync.in_time_for_vblank()? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
+	bool entered_retrace = m_sync.in_time_for_vblank() || st.PresentCount != m_frame;
+
+	hr = m_swapchain->Present(m_waitvsync && entered_retrace? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	//hr = m_swapchain->Present(m_waitvsync? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
 		osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
@@ -920,8 +929,8 @@ int renderer_d3d11::draw(const int update)
 	else
 	{
 		//uint64_t sync_frame = 1 + st.SyncRefreshCount + m_frame - st.PresentCount;
-		uint64_t sync_frame = (m_sync.in_time_for_vblank()? 1 : 0) + st.SyncRefreshCount + m_frame - st.PresentCount;
-		osd_printf_info("sync_frame: %lld\n", sync_frame);
+		uint64_t sync_frame = (entered_retrace? 1 : 0) + st.SyncRefreshCount + m_frame - st.PresentCount;
+		osd_printf_info("sync_frame: %lld\n", sync_frame - first_count);
 		m_frame_delay = (double)(video_config.framedelay) / 10.0;
 		m_sync.wait_vblank(sync_frame, m_frame_delay);
 	}
@@ -929,6 +938,8 @@ int renderer_d3d11::draw(const int update)
 
 
 	osd_ticks_t after_present = osd_ticks();
+	osd_printf_info("period %.3f\n", get_ms(after_present) - get_ms(last_after_present));
+	last_after_present = after_present;
 
 	osd_printf_debug("d3d11: software_renderer: %.3f, memcpy: %.3f, present: %.3f total: %.3f\n",
 		get_ms(after_prim - before_prim), get_ms(after_map - after_prim), get_ms(after_present - before_present), get_ms(after_present - before_prim));
