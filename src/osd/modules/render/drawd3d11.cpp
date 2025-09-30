@@ -29,6 +29,12 @@
 
 #include <switchres/switchres.h>
 
+struct raster_status
+{
+	int count;
+	float scan;
+};
+
 class raster_sync
 {
 public:
@@ -44,9 +50,10 @@ public:
 	};
 
 	void register_tag(enum raster_sync::event_tag timestamp_event);
-	void register_vblank(uint64_t sync_count, uint64_t timestamp);
+	bool register_vblank(uint64_t sync_count, uint64_t timestamp);
 	void wait_vblank(uint64_t sync_frame, float framedelay);
 	bool in_time_for_vblank();
+	void get_raster(raster_status *status);
 
 private:
 	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
@@ -69,7 +76,7 @@ void raster_sync::register_tag(enum raster_sync::event_tag tag)
 	//m_timestamp[index][m_frame_count % 16] = osd_ticks();
 }
 
-void raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
+bool raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
 {
 	double delta;
 	int sync_delta = 0;
@@ -103,8 +110,7 @@ void raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
 	m_last_sync_count = sync_count;
 	m_last_timestamp = timestamp;
 
-	//osd_printf_info("predicted: %lld, current: %lld, diff: %+f\n", m_predicted_next_sync, timestamp, get_ms(m_predicted_next_sync) - get_ms(timestamp));
-	//m_predicted_next_sync = m_first_timestamp + (1 + sync_count - m_first_sync_count) * int(m_mean * osd_ticks_per_second() / 1000.0);
+	return sync_delta > 0;
 }
 
 void raster_sync::wait_vblank(uint64_t sync_frame, float framedelay)
@@ -119,9 +125,11 @@ void raster_sync::wait_vblank(uint64_t sync_frame, float framedelay)
 	//osd_printf_info("sync_frame: %lld\n", m_last_sync_count + sync_incr);
 	//m_predicted_next_sync = m_last_timestamp + sync_incr * int(m_mean * osd_ticks_per_second() / 1000.0);
 
-	m_predicted_next_sync = m_last_timestamp + (sync_frame - m_last_sync_count) * int(m_mean * osd_ticks_per_second() / 1000.0);
+	//m_predicted_next_sync = m_last_timestamp + (sync_frame - m_last_sync_count) * int(m_mean * osd_ticks_per_second() / 1000.0);
 
-	osd_ticks_t time_target = m_predicted_next_sync - (int)((1.0f - framedelay) * m_mean * osd_ticks_per_second() / 1000.0);
+	m_predicted_next_sync = m_first_timestamp + sync_frame * int(m_mean * osd_ticks_per_second() / 1000.0);
+
+	osd_ticks_t time_target = m_predicted_next_sync + (int)(framedelay * m_mean * osd_ticks_per_second() / 1000.0);
 
 	osd_ticks_t time_entry = osd_ticks();
 
@@ -140,7 +148,7 @@ void raster_sync::wait_vblank(uint64_t sync_frame, float framedelay)
 			if (m_sleep_allowed && get_ms(time_target - current_time) > 2.0)
 				osd_sleep(time_sleep);
 
-		} while (get_ms(current_time - time_entry) < m_mean);
+		} while (get_ms(current_time - time_entry) < m_mean * 2.0);
 	}
 	else
 		osd_printf_info("wait_vblank: delayed, exiting\n");
@@ -168,6 +176,15 @@ bool raster_sync::in_time_for_vblank()
 	osd_printf_info("in_time_for_vblank: missed retrace\n");
 
 	return false;
+}
+
+void raster_sync::get_raster(raster_status *status)
+{
+	if (status == nullptr)
+		return;
+
+	status->count = (int)floor(get_ms(osd_ticks() - m_first_timestamp) / m_mean);
+	status->scan = get_ms(osd_ticks() - (m_first_timestamp + status->count * int(m_mean * osd_ticks_per_second() / 1000.0))) / m_mean;
 }
 
 /* renderer_d3d11 is the information about Direct3D 11 for the current screen */
@@ -820,6 +837,7 @@ int renderer_d3d11::draw(const int update)
 	auto &win = dynamic_cast<win_window_info &>(window());
 	static uint32_t first_count = 0;
 	static osd_ticks_t last_after_present = 0;
+	static uint64_t sync_frame = 0;
 
 	// Check that both swapchain's & window's fullscreen states match.
 	// This is required if fullscreen "optimizations" are enabled, since
@@ -888,6 +906,10 @@ int renderer_d3d11::draw(const int update)
 
 	m_device_context->Draw(3, 0); // fullscreen triangle
 
+	bool in_time_for_next_retrace = false;
+	bool missed_previous_retrace = false;
+
+	raster_status raster = {};
 	DXGI_FRAME_STATISTICS st;
 	if (m_frame)
 	{
@@ -895,14 +917,22 @@ int renderer_d3d11::draw(const int update)
 		osd_printf_info("prev present: [%d] %d %lld\n",
 			st.PresentCount, st.SyncRefreshCount - first_count, st.SyncQPCTime.QuadPart);
 
-		m_sync.register_vblank(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
+		bool have_new_timestamp = m_sync.register_vblank(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
+
+		m_sync.get_raster(&raster);
+
+		in_time_for_next_retrace = raster.scan <= 0.95 && have_new_timestamp;
+		missed_previous_retrace = raster.count > sync_frame;
+
+		osd_printf_info("raster_status: %d %f\n", raster.count, raster.scan);
 	}
 
 	osd_ticks_t before_present = osd_ticks();
 
-	bool entered_retrace = m_sync.in_time_for_vblank() || st.PresentCount != m_frame;
+//	bool entered_retrace = m_sync.in_time_for_vblank() || st.PresentCount != m_frame;
 
-	hr = m_swapchain->Present(m_waitvsync && entered_retrace? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
+
+	hr = m_swapchain->Present(m_waitvsync && in_time_for_next_retrace? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	//hr = m_swapchain->Present(m_waitvsync? 1 : 0, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
 		osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
@@ -929,8 +959,9 @@ int renderer_d3d11::draw(const int update)
 	else
 	{
 		//uint64_t sync_frame = 1 + st.SyncRefreshCount + m_frame - st.PresentCount;
-		uint64_t sync_frame = (entered_retrace? 1 : 0) + st.SyncRefreshCount + m_frame - st.PresentCount;
-		osd_printf_info("sync_frame: %lld\n", sync_frame - first_count);
+		//uint64_t sync_frame = (entered_retrace? 1 : 0) + st.SyncRefreshCount + m_frame - st.PresentCount;
+		sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
+		osd_printf_info("sync_frame: %lld\n", sync_frame);
 		m_frame_delay = (double)(video_config.framedelay) / 10.0;
 		m_sync.wait_vblank(sync_frame, m_frame_delay);
 	}
