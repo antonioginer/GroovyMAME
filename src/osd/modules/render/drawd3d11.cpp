@@ -134,7 +134,7 @@ void raster_sync::wait_raster(int count, float scan)
 	bool m_sleep_allowed = false;
 	osd_ticks_t time_sleep = 1 * osd_ticks_per_second() / 1000.0; // 1 ms
 
-	osd_ticks_t sync_target = m_first_timestamp + count * int(m_mean * osd_ticks_per_second() / 1000.0);
+	osd_ticks_t sync_target = m_first_timestamp + (uint64_t)count * int(m_mean * osd_ticks_per_second() / 1000.0);
 	osd_ticks_t time_target = sync_target + (int)(scan * m_mean * osd_ticks_per_second() / 1000.0);
 
 	osd_ticks_t time_entry = osd_ticks();
@@ -178,7 +178,7 @@ void raster_sync::get_raster(raster_status *status)
 	float period = m_mean > 0.0f? m_mean : 1000.0 / 60.0;
 
 	status->count = (int)floor(get_ms(osd_ticks() - m_first_timestamp) / period);
-	status->scan = get_ms(osd_ticks() - (m_first_timestamp + status->count * int(period * osd_ticks_per_second() / 1000.0))) / period;
+	status->scan = get_ms(osd_ticks() - (m_first_timestamp + (uint64_t)status->count * int(period * osd_ticks_per_second() / 1000.0))) / period;
 }
 
 
