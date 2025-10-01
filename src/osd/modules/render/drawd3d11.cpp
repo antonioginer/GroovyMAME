@@ -89,7 +89,7 @@ bool raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
 	double delta;
 	int sync_delta = 0;
 
-	osd_printf_info("register_vblank: ");
+	osd_printf_info("register vblank: ");
 
 	if (m_initialized)
 	{
@@ -139,7 +139,7 @@ void raster_sync::wait_raster(int count, float scan)
 
 	osd_ticks_t time_entry = osd_ticks();
 
-	osd_printf_info("wait raster[%d][%.3f]: ", count, scan);
+	osd_printf_info("wait raster [%d][%.3f]: ", count, scan);
 
 	// Wait for target time
 	if ((int)(time_target - time_entry) > 0)
@@ -914,12 +914,12 @@ int renderer_d3d11::draw(const int update)
 	if (m_frame)
 	{
 		hr = m_swapchain->GetFrameStatistics(&st);
-		osd_printf_info("prev present: [%d] %d %d\n", st.PresentCount, st.PresentRefreshCount - first_count, st.SyncRefreshCount - first_count);
+		osd_printf_info("prev present: #%d [%d] ", st.PresentCount, st.SyncRefreshCount - first_count);
 
 		bool have_new_timestamp = m_sync.register_vblank(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 		m_sync.get_raster(&raster);
-		osd_printf_info("get raster: [%d] %.3f\n", raster.count, raster.scan);
+		osd_printf_info("get raster->[%d][%.3f]\n", raster.count, raster.scan);
 
 		in_time_for_next_retrace = raster.scan <= 0.95 && have_new_timestamp;
 		missed_previous_retrace = raster.count > sync_frame;
@@ -937,7 +937,7 @@ int renderer_d3d11::draw(const int update)
 		osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
 
 	hr = m_swapchain->GetLastPresentCount(&m_frame);
-	osd_printf_info("this present: [%d]\n", m_frame);
+	osd_printf_info("this present: #%d\n", m_frame);
 
 	if (m_frame == 1)
 	{
