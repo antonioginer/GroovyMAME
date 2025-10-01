@@ -96,7 +96,8 @@ bool raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
 		sync_delta = sync_count - m_last_sync_count;
 
 		// Skip sample if it's not newer
-		if (sync_delta > 0)
+		//if (sync_delta > 0)
+		if (sync_delta == 1)
 		{
 			m_vblank_count++;
 			m_current_period = get_ms((timestamp - m_last_timestamp) / sync_delta);
@@ -913,7 +914,7 @@ int renderer_d3d11::draw(const int update)
 	if (m_frame)
 	{
 		hr = m_swapchain->GetFrameStatistics(&st);
-		osd_printf_info("prev present: [%d] %d\n", st.PresentCount, st.SyncRefreshCount - first_count);
+		osd_printf_info("prev present: [%d] %d %d\n", st.PresentCount, st.PresentRefreshCount - first_count, st.SyncRefreshCount - first_count);
 
 		bool have_new_timestamp = m_sync.register_vblank(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
