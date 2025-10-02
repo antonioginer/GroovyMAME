@@ -31,15 +31,18 @@
 
 struct raster_status
 {
-	int count;
-	float scan;
+	uint64_t count;
+	double scan;
 };
 
 class raster_sync
 {
 public:
 
-	raster_sync() {};
+	raster_sync()
+		: ticks_to_ns(1e9 / osd_ticks_per_second())
+		, sleep_time (1 * osd_ticks_per_second() / 1000.0) // 1 ms
+	{};
 	~raster_sync() {};
 
 	enum event_tag
@@ -50,19 +53,21 @@ public:
 	};
 
 	void register_tag(enum raster_sync::event_tag timestamp_event);
-	bool register_vblank(uint64_t sync_count, uint64_t timestamp);
+	bool register_vblank_in_ticks(uint64_t sync_count, uint64_t timestamp);
+	bool register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp);
 	void register_emutime(uint64_t emutime);
-	void wait_raster(int count, float scan);
+	void wait_raster(uint64_t count, double scan);
 	void get_raster(raster_status *status);
-	double period() { return m_mean > 0.0f? m_mean : 1000.0 / 60.0; };
+	uint64_t period() { return m_mean > 0? (uint64_t)m_mean : 1e9 / 60; };
 	double auto_framedelay();
 
 private:
-	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
+	inline double get_ms(int64_t time) { return (double)time / 1e6; };
+	inline uint64_t time_in_ns() { return osd_ticks() * ticks_to_ns; };
 
 	bool m_initialized = false;
+	bool m_sleep_allowed = false;
 	uint64_t m_timestamp[static_cast<int>(TIMESTAMP_ITEMS)] {};
-	uint64_t m_vblank_count = 0;
 	uint64_t m_first_sync_count = 0;
 	uint64_t m_first_timestamp = 0;
 	uint64_t m_last_sync_count = 0;
@@ -73,10 +78,15 @@ private:
 	uint64_t emulation_time_avg = 0;
 	uint64_t emulation_time_dm = 0;
 
-	double m_current_period = 0;
-	double m_mean = 0;
+	int64_t m_vblank_count = 0;
+	int64_t m_current_period = 0;
+	int64_t m_mean = 0;
 	double m_fd_margin = 1.0;
+
+	int ticks_to_ns = 0;
+	uint64_t sleep_time = 0;
 };
+
 
 //============================================================
 //  raster_sync::register_tag
@@ -85,7 +95,7 @@ private:
 void raster_sync::register_tag(enum raster_sync::event_tag tag)
 {
 	// Register tag
-	m_timestamp[tag] = osd_ticks();
+	m_timestamp[tag] = time_in_ns();
 
 	switch ((int)tag)
 	{
@@ -116,7 +126,7 @@ void raster_sync::register_emutime(uint64_t emutime)
 	int diff = 0;
 
 	// Discard invalid values
-	if (emutime <= 0 || get_ms(emutime) > m_mean)
+	if (emutime <= 0 || emutime > period())
 		return;
 
 	// Register value and compute current average
@@ -150,33 +160,43 @@ void raster_sync::register_emutime(uint64_t emutime)
 
 
 //============================================================
-//  raster_sync::register_vblank
+//  raster_sync::register_vblank_in_ticks
 //============================================================
 
-bool raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
+bool raster_sync::register_vblank_in_ticks(uint64_t sync_count, uint64_t timestamp)
 {
-	double delta;
-	int sync_delta = 0;
+	return register_vblank_in_ns(sync_count, timestamp * ticks_to_ns);
+}
+
+
+//============================================================
+//  raster_sync::register_vblank_in_ns
+//============================================================
+
+bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
+{
+	int64_t delta;
+	int count_delta = 0;
 
 	osd_printf_info("register vblank: ");
 
 	if (m_initialized)
 	{
-		sync_delta = sync_count - m_last_sync_count;
+		count_delta = sync_count - m_last_sync_count;
 
 		// Skip sample if it's not newer
-		//if (sync_delta > 0)
-		if (sync_delta == 1)
+		//if (count_delta > 0)
+		if (count_delta == 1)
 		{
 			m_vblank_count++;
-			m_current_period = get_ms((timestamp - m_last_timestamp) / sync_delta);
+			m_current_period = (timestamp - m_last_timestamp) / count_delta;
 			delta = m_current_period - m_mean;
 			m_mean += delta / m_vblank_count;
-			osd_printf_info("[%.3f] sync: %d, period %f, diff %+f ms, mean %f ms\n",
-				get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, m_current_period, delta, m_mean);
+			osd_printf_info("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
+				get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
 		}
 		else
-			osd_printf_info("sync_delta %d\n", sync_delta);
+			osd_printf_info("count delta: %d\n", count_delta);
 	}
 
 	if (!m_initialized)
@@ -190,7 +210,7 @@ bool raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
 	m_last_sync_count = sync_count;
 	m_last_timestamp = timestamp;
 
-	return sync_delta > 0;
+	return count_delta > 0;
 }
 
 
@@ -198,15 +218,12 @@ bool raster_sync::register_vblank(uint64_t sync_count, uint64_t timestamp)
 //  raster_sync::wait_raster
 //============================================================
 
-void raster_sync::wait_raster(int count, float scan)
+void raster_sync::wait_raster(uint64_t count, double scan)
 {
-	bool m_sleep_allowed = false;
-	osd_ticks_t time_sleep = 1 * osd_ticks_per_second() / 1000.0; // 1 ms
+	uint64_t sync_target = m_first_timestamp + count * period();
+	uint64_t time_target = sync_target + (uint64_t)(scan * period());
 
-	osd_ticks_t sync_target = m_first_timestamp + (uint64_t)count * int(period() * osd_ticks_per_second() / 1000.0);
-	osd_ticks_t time_target = sync_target + (int)(scan * period() * osd_ticks_per_second() / 1000.0);
-
-	osd_ticks_t time_entry = osd_ticks();
+	osd_ticks_t time_entry = time_in_ns();
 
 	osd_printf_info("wait raster [%d][%.3f]: ", count, scan);
 
@@ -218,19 +235,19 @@ void raster_sync::wait_raster(int count, float scan)
 		osd_ticks_t current_time;
 		do
 		{
-			current_time = osd_ticks();
+			current_time = time_in_ns();
 			if (current_time >= time_target)
 				break;
 
-			if (m_sleep_allowed && get_ms(time_target - current_time) > 2.0)
-				osd_sleep(time_sleep);
+			if (m_sleep_allowed && (time_target - current_time) > 2e6) // 2 ms
+				osd_sleep(sleep_time);
 
-		} while (get_ms(current_time - time_entry) < period() * 2.0);
+		} while ((current_time - time_entry) < period() * 2);
 	}
 	else
 		osd_printf_info("delayed, exiting. ");
 
-	osd_ticks_t time_exit = osd_ticks();
+	osd_ticks_t time_exit = time_in_ns();
 	osd_printf_info("elapsed: %.3f\n", get_ms(time_exit - time_entry));
 }
 
@@ -244,8 +261,8 @@ void raster_sync::get_raster(raster_status *status)
 	if (status == nullptr)
 		return;
 
-	status->count = (int)floor(get_ms(osd_ticks() - m_first_timestamp) / period());
-	status->scan = get_ms(osd_ticks() - (m_first_timestamp + (uint64_t)status->count * int(period() * osd_ticks_per_second() / 1000.0))) / period();
+	status->count = (time_in_ns() - m_first_timestamp) / period();
+	status->scan = (double)(time_in_ns() - (m_first_timestamp + status->count * period())) / period();
 }
 
 
@@ -258,7 +275,7 @@ double raster_sync::auto_framedelay()
 	//return std::max((double)(period() - std::max(m_fd_margin, get_ms(emulation_time_dm))) / period(), 0.0);
 	osd_printf_info("emulation_time_avg: %.3f\n", get_ms(emulation_time_avg));
 	//return std::max((double)(period() - std::max(m_fd_margin, get_ms(emulation_time_avg))) / period(), 0.0);
-	return std::max((double)(period() - (m_fd_margin + get_ms(emulation_time_avg))) / period(), 0.0);
+	return std::max((double)(get_ms(period()) - (m_fd_margin + get_ms(emulation_time_avg))) / get_ms(period()), 0.0);
 }
 
 
@@ -997,7 +1014,7 @@ int renderer_d3d11::draw(const int update)
 		hr = m_swapchain->GetFrameStatistics(&st);
 		osd_printf_info("prev present: #%d [%d] ", st.PresentCount, st.SyncRefreshCount - first_count);
 
-		bool have_new_timestamp = m_sync.register_vblank(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
+		bool have_new_timestamp = m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 		m_sync.get_raster(&raster);
 		osd_printf_info("get raster->[%d][%.3f]\n", raster.count, raster.scan);
