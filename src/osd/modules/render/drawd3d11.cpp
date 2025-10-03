@@ -185,12 +185,27 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		count_delta = sync_count - m_last_sync_count;
 
 		// Skip sample if it's not newer
-		//if (count_delta > 0)
-		if (count_delta == 1)
+		if (count_delta > 0)
 		{
-			m_vblank_count++;
 			m_current_period = (timestamp - m_last_timestamp) / count_delta;
 			delta = m_current_period - m_mean;
+
+			// Sometimes the received counter is not properly incremented so it's smaller by one unit.
+			// This breaks period computation. Try to detect and fix it.
+			if (delta > 1e6 && m_vblank_count > 0) // 1 ms
+			{
+				// Retry once with delta + 1
+				count_delta++;
+				m_current_period = (timestamp - m_last_timestamp) / count_delta;
+				delta = m_current_period - m_mean;
+				if (delta > 1e6)
+				{
+					osd_printf_info("bad timestamp, discard.\n");
+					return false;
+				}
+			}
+
+			m_vblank_count++;
 			m_mean += delta / m_vblank_count;
 			osd_printf_info("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
 				get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
