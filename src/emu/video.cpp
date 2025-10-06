@@ -324,6 +324,11 @@ std::string video_manager::speed_text()
 	else
 		util::stream_format(str, "skip %d/%d", effective_frameskip(), MAX_FRAMESKIP);
 
+	if (m_framedelay)
+		util::stream_format(str, " fd %d", m_framedelay);
+	else
+		util::stream_format(str, " fd %.3f", m_auto_framedelay);
+
 	// append the speed for all cases except paused
 	if (!paused)
 		util::stream_format(str, " %3d%%", int(100 * m_speed_percent + 0.5));
@@ -735,6 +740,7 @@ void video_manager::update_throttle(attotime emutime)
 */
 
 	// if we're only syncing to the refresh, bail now
+	//return;
 	if (m_syncrefresh)
 	{
 		if (m_framedelay == 0 || m_framedelay > 9)
