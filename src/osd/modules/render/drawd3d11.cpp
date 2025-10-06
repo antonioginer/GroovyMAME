@@ -49,9 +49,12 @@ public:
 	{
 		BEFORE_DRAW,
 		AFTER_DRAW,
+		BEFORE_PRESENT,
+		AFTER_PRESENT,
 		TIMESTAMP_ITEMS
 	};
 
+	void reset();
 	void register_tag(enum raster_sync::event_tag timestamp_event);
 	bool register_vblank_in_ticks(uint64_t sync_count, uint64_t timestamp);
 	bool register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp);
@@ -59,34 +62,53 @@ public:
 	void wait_raster(uint64_t count, double scan);
 	void get_raster(raster_status *status);
 	uint64_t period() { return m_mean > 0? (uint64_t)m_mean : 1e9 / 60; };
+	double period_in_ms() { return get_ms(period()); };
+	double frame_time_in_ms() { return get_ms(m_frame_time); };
 	double auto_framedelay();
 
 private:
+
 	inline double get_ms(int64_t time) { return (double)time / 1e6; };
 	inline uint64_t time_in_ns() { return osd_ticks() * ticks_to_ns; };
 
 	bool m_initialized = false;
 	bool m_sleep_allowed = false;
+
+	// All timestamps in nanoseconds
 	uint64_t m_timestamp[static_cast<int>(TIMESTAMP_ITEMS)] {};
 	uint64_t m_first_sync_count = 0;
 	uint64_t m_first_timestamp = 0;
 	uint64_t m_last_sync_count = 0;
 	uint64_t m_last_timestamp = 0;
-	uint64_t m_predicted_next_sync = 0;
 
-	uint64_t emulation_time[16];
-	uint64_t emulation_time_avg = 0;
-	uint64_t emulation_time_dm = 0;
+	uint64_t m_current_emulation_time;
+	uint64_t m_emulation_time[16] = {};
+	uint64_t m_emulation_time_avg = 0;
+	uint64_t m_emulation_time_dm = 0;
+	uint64_t m_frame_time = 0;
 
 	int64_t m_vblank_count = 0;
 	int64_t m_current_period = 0;
 	int64_t m_mean = 0;
-	double m_fd_margin = 1.0;
+	uint64_t m_fd_margin = 1e6; // 1 ms
 
 	int ticks_to_ns = 0;
-	uint64_t sleep_time = 0;
+	uint64_t sleep_time = 1e6; // 1 ms
 };
 
+
+void raster_sync::reset()
+{
+	m_initialized = false;
+	m_first_sync_count = 0;
+	m_first_timestamp = 0;
+	m_last_sync_count = 0;
+	m_last_timestamp = 0;
+
+	m_vblank_count = 0;
+	m_current_period = 0;
+	m_mean = 0;
+}
 
 //============================================================
 //  raster_sync::register_tag
@@ -95,6 +117,7 @@ private:
 void raster_sync::register_tag(enum raster_sync::event_tag tag)
 {
 	// Register tag
+	uint64_t prev_timestamp = m_timestamp[tag];
 	m_timestamp[tag] = time_in_ns();
 
 	switch ((int)tag)
@@ -102,13 +125,22 @@ void raster_sync::register_tag(enum raster_sync::event_tag tag)
 		case BEFORE_DRAW:
 		{
 			if (m_timestamp[AFTER_DRAW] != 0)
-			register_emutime(m_timestamp[BEFORE_DRAW] - m_timestamp[AFTER_DRAW]);
+				register_emutime(m_timestamp[BEFORE_DRAW] - m_timestamp[AFTER_DRAW]);
 			break;
 		}
 
 		case AFTER_DRAW:
+		{
 			//update_stats();
+			if (prev_timestamp != 0)
+			{
+				m_frame_time = m_timestamp[tag] - prev_timestamp;
+				uint64_t present_time = m_timestamp[AFTER_PRESENT] - m_timestamp[BEFORE_PRESENT];
+				osd_printf_info("period: %.3f present: %.3f emu_t: %.3f emu_t_avg: %.3f Dm: %.3f\n\n",
+					frame_time_in_ms(), get_ms(present_time), get_ms(m_current_emulation_time), get_ms(m_emulation_time_avg), get_ms(m_emulation_time_dm));
+			}
 			break;
+		}
 	}
 }
 
@@ -121,7 +153,7 @@ void raster_sync::register_emutime(uint64_t emutime)
 {
 	static int i = 0;
 	static int regs = 0;
-	const int max_regs = sizeof(emulation_time) / sizeof(emulation_time[0]);
+	const int max_regs = sizeof(m_emulation_time) / sizeof(m_emulation_time[0]);
 	osd_ticks_t acum = 0;
 	int diff = 0;
 
@@ -130,7 +162,8 @@ void raster_sync::register_emutime(uint64_t emutime)
 		return;
 
 	// Register value and compute current average
-	emulation_time[i] = emutime;
+	m_current_emulation_time = emutime;
+	m_emulation_time[i] = emutime;
 	i++;
 
 	if (i > max_regs)
@@ -140,22 +173,22 @@ void raster_sync::register_emutime(uint64_t emutime)
 		regs++;
 
 	for (int k = 0; k < regs; k++)
-		acum += emulation_time[k];
+		acum += m_emulation_time[k];
 
-	emulation_time_avg = acum / regs;
+	m_emulation_time_avg = acum / regs;
 
 	// Compute current max deviation
 	osd_ticks_t max_diff = 0;
 
 	for (int k = 1; k <= regs; k++)
 	{
-		diff = emulation_time[k] - emulation_time[k-1];
+		diff = m_emulation_time[k] - m_emulation_time[k-1];
 
 		if (diff > 0 && diff > max_diff)
 			max_diff = diff;
 	}
 
-	emulation_time_dm = max_diff;
+	m_emulation_time_dm = max_diff;
 }
 
 
@@ -187,23 +220,14 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		// Skip sample if it's not newer
 		if (count_delta > 0)
 		{
+			// Sometimes the received counter is not properly incremented.
+			// This breaks period computation. So we recalculate it based on the timestamp.
+
+			if (m_mean > 0)
+				count_delta = round(double(timestamp - m_last_timestamp) / (double)m_mean);
+
 			m_current_period = (timestamp - m_last_timestamp) / count_delta;
 			delta = m_current_period - m_mean;
-
-			// Sometimes the received counter is not properly incremented so it's smaller by one unit.
-			// This breaks period computation. Try to detect and fix it.
-			if (delta > 1e6 && m_vblank_count > 0) // 1 ms
-			{
-				// Retry once with delta + 1
-				count_delta++;
-				m_current_period = (timestamp - m_last_timestamp) / count_delta;
-				delta = m_current_period - m_mean;
-				if (delta > 1e6)
-				{
-					osd_printf_info("bad timestamp, discard.\n");
-					return false;
-				}
-			}
 
 			m_vblank_count++;
 			m_mean += delta / m_vblank_count;
@@ -287,10 +311,8 @@ void raster_sync::get_raster(raster_status *status)
 
 double raster_sync::auto_framedelay()
 {
-	//return std::max((double)(period() - std::max(m_fd_margin, get_ms(emulation_time_dm))) / period(), 0.0);
-	osd_printf_info("emulation_time_avg: %.3f\n", get_ms(emulation_time_avg));
-	//return std::max((double)(period() - std::max(m_fd_margin, get_ms(emulation_time_avg))) / period(), 0.0);
-	return std::max((double)(get_ms(period()) - (m_fd_margin + get_ms(emulation_time_avg))) / get_ms(period()), 0.0);
+	//return std::max((double)(get_ms(period()) - (m_fd_margin + get_ms(m_emulation_time_avg))) / get_ms(period()), 0.0);
+	return std::max((double)(period() - (std::max(m_emulation_time_dm, m_fd_margin) + m_emulation_time_avg)) / period(), 0.0);
 }
 
 
@@ -864,6 +886,9 @@ bool renderer_d3d11::resize_buffers()
 
 	if (window().fullscreen() && m_switchres)
 	{
+		m_frame = 0;
+		m_sync.reset();
+
 		DXGI_MODE_DESC mode {};
 		pick_best_mode(&mode);
 
@@ -946,7 +971,6 @@ int renderer_d3d11::draw(const int update)
 	HRESULT hr;
 	auto &win = dynamic_cast<win_window_info &>(window());
 	static uint32_t first_count = 0;
-	static osd_ticks_t last_after_present = 0;
 	static int sync_frame = 0;
 
 	// Check that both swapchain's & window's fullscreen states match.
@@ -993,14 +1017,14 @@ int renderer_d3d11::draw(const int update)
 		m_bmdata = std::make_unique<uint8_t []>(m_bmsize);
 	}
 
-	osd_ticks_t before_prim = osd_ticks();
+	//osd_ticks_t before_prim = osd_ticks();
 
 	// draw the primitives to the bitmap
 	win.m_primlist->acquire_lock();
 	software_renderer<uint32_t, 0,0,0, 16,8,0,0, 0>::draw_primitives(*win.m_primlist, m_bmdata.get(), m_width, m_height, pitch);
 	win.m_primlist->release_lock();
 
-	osd_ticks_t after_prim = osd_ticks();
+	//osd_ticks_t after_prim = osd_ticks();
 
 	D3D11_BOX box;
 	box.front = 0;
@@ -1012,7 +1036,7 @@ int renderer_d3d11::draw(const int update)
 
 	m_device_context->UpdateSubresource(m_cpu_tex, 0, &box, m_bmdata.get(), pitch * 4, pitch * m_height * 4);
 
-	osd_ticks_t after_map = osd_ticks();
+	//osd_ticks_t after_map = osd_ticks();
 
 	m_device_context->Draw(3, 0); // fullscreen triangle
 
@@ -1041,13 +1065,15 @@ int renderer_d3d11::draw(const int update)
 			m_sync.wait_raster(raster.count, 0.90);
 	}
 
-	osd_ticks_t before_present = osd_ticks();
+	m_sync.register_tag(raster_sync::BEFORE_PRESENT);
 
 	uint32_t interval = !handle_vsync && m_waitvsync && in_time_for_next_retrace? 1 : 0;
 
 	hr = m_swapchain->Present(interval, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
 		osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
+
+	m_sync.register_tag(raster_sync::AFTER_PRESENT);
 
 	hr = m_swapchain->GetLastPresentCount(&m_frame);
 	osd_printf_info("this present: #%d\n", m_frame);
@@ -1063,8 +1089,8 @@ int renderer_d3d11::draw(const int update)
 			m_swapchain->GetFrameStatistics(&st);
 		}
 		while (st.PresentCount != 1 && get_ms(time2 - time1) < 300.0);
-		osd_printf_info("Sychronizing with first timestamp: [%.3f] stats: %d %d %d %lld %f ms\n\n",
-			get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart, get_ms(st.SyncQPCTime.QuadPart - after_map));
+		osd_printf_info("Synchronizing with first timestamp: [%.3f] stats: %d %d %d %lld\n\n",
+			get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 		first_count = st.SyncRefreshCount;
 	}
@@ -1081,15 +1107,11 @@ int renderer_d3d11::draw(const int update)
 		m_sync.wait_raster(sync_frame, m_frame_delay);
 	}
 
-	osd_ticks_t after_present = osd_ticks();
-	if (last_after_present) osd_printf_info("period: %.3f\n\n", get_ms(after_present) - get_ms(last_after_present));
-	last_after_present = after_present;
-
 	m_sync.register_tag(raster_sync::AFTER_DRAW);
-
+/*
 	osd_printf_debug("d3d11: software_renderer: %.3f, memcpy: %.3f, present: %.3f total: %.3f\n",
 		get_ms(after_prim - before_prim), get_ms(after_map - after_prim), get_ms(after_present - before_present), get_ms(after_present - before_prim));
-
+*/
 	return 0;
 }
 
