@@ -239,6 +239,10 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 			m_mean += delta / m_vblank_count;
 			osd_printf_info("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
 				get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
+
+			// Fix me
+			if (m_vblank_count % 600 == 0)
+				m_initialized = false;
 		}
 		else
 			osd_printf_info("count delta: %d\n", count_delta);
