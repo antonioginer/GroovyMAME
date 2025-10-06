@@ -188,7 +188,13 @@ void raster_sync::register_emutime(uint64_t emutime)
 			max_diff = diff;
 	}
 
-	m_emulation_time_dm = max_diff;
+	if (max_diff < m_emulation_time_dm)
+	{
+		int diff_decr = (m_emulation_time_dm - max_diff) / 4;
+		m_emulation_time_dm -= diff_decr;
+	}
+	else
+		m_emulation_time_dm = max_diff;
 }
 
 
@@ -311,8 +317,9 @@ void raster_sync::get_raster(raster_status *status)
 
 double raster_sync::auto_framedelay()
 {
-	//return std::max((double)(get_ms(period()) - (m_fd_margin + get_ms(m_emulation_time_avg))) / get_ms(period()), 0.0);
-	return std::max((double)(period() - (std::max(m_emulation_time_dm, m_fd_margin) + m_emulation_time_avg)) / period(), 0.0);
+	uint64_t effective_margin = std::max(m_emulation_time_dm, m_fd_margin);
+	uint64_t adjusted_emulation_time = std::min(m_emulation_time_avg + effective_margin, period());
+	return std::max((double)(period() - adjusted_emulation_time) / period(), 0.0);
 }
 
 
