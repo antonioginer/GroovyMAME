@@ -80,7 +80,7 @@ void raster_sync::register_emutime(uint64_t emutime)
 	int diff = 0;
 
 	// Discard invalid values
-	if (emutime <= 0 || emutime > period())
+	if (emutime <= 0)
 		return;
 
 	// Register value and compute current average
@@ -110,13 +110,8 @@ void raster_sync::register_emutime(uint64_t emutime)
 			max_diff = diff;
 	}
 
-	if (max_diff < m_emulation_time_dm)
-	{
-		int diff_decr = (m_emulation_time_dm - max_diff) / 4;
-		m_emulation_time_dm -= diff_decr;
-	}
-	else
-		m_emulation_time_dm = max_diff;
+	int diff_delta = (max_diff - m_emulation_time_dm) / 16;
+	m_emulation_time_dm += diff_delta;
 }
 
 
