@@ -568,7 +568,7 @@ bool renderer_d3d11::create_resources()
 		return false;
 	}
 
-	osd_printf_info("d3d11: texture2D created: %dx%d\n", m_width, m_height);
+	osd_printf_verbose("d3d11: texture2D created: %dx%d\n", m_width, m_height);
 
 	// Create sampler
 	if (m_sampler != nullptr) m_sampler->Release();
@@ -619,7 +619,7 @@ bool renderer_d3d11::resize_buffers()
 
 	m_device_context->OMSetRenderTargets(0, 0, 0);
 	m_backbuffer_rtv->Release();
-	hr = m_swapchain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
+	hr = m_swapchain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
 	if (FAILED(hr))
 	{
 		osd_printf_error("d3d11: error resizing buffers.\n");
@@ -657,7 +657,7 @@ void renderer_d3d11::set_viewport()
 	window().target()->compute_visible_area(m_client_width, m_client_height, m_pixel_aspect, window().target()->orientation(), m_viewport_width, m_viewport_height);
 	get_updated_dimensions();
 
-	osd_printf_info("d3d11: viewport: %dx%d, client: %dx%d, source: %dx%d, pixel_aspect: %.3f\n",
+	osd_printf_verbose("d3d11: viewport: %dx%d, client: %dx%d, source: %dx%d, pixel_aspect: %.3f\n",
 					m_viewport_width, m_viewport_height, m_client_width, m_client_height, m_width, m_height, m_pixel_aspect);
 
 	D3D11_VIEWPORT vp;
@@ -756,6 +756,8 @@ int renderer_d3d11::draw(const int update)
 
 	m_sync.register_tag(raster_sync::BEFORE_DRAW);
 
+	uint64_t wait_before = 0;
+	uint64_t wait_after = 0;
 	bool in_time_for_next_retrace = false;
 	bool missed_previous_retrace = false;
 	bool handle_vsync = true;
@@ -765,20 +767,20 @@ int renderer_d3d11::draw(const int update)
 	if (m_frame)
 	{
 		hr = m_swapchain->GetFrameStatistics(&st);
-		osd_printf_info("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
+		osd_printf_verbose("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
 
 		bool have_new_timestamp = m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 		m_sync.get_raster(&raster);
-		osd_printf_info("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
+		osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
 
 		in_time_for_next_retrace = raster.scan <= 0.95 && have_new_timestamp;
 		missed_previous_retrace = raster.count > sync_frame;
 
 		if (handle_vsync && !missed_previous_retrace)
-			m_sync.wait_raster(raster.count, 0.90);
+			wait_before = m_sync.wait_raster(raster.count, 0.90);
 		else
-			osd_printf_info("missed retrace\n");
+			osd_printf_verbose("missed retrace\n");
 	}
 
 	m_sync.register_tag(raster_sync::BEFORE_PRESENT);
@@ -792,7 +794,7 @@ int renderer_d3d11::draw(const int update)
 	m_sync.register_tag(raster_sync::AFTER_PRESENT);
 
 	hr = m_swapchain->GetLastPresentCount(&m_frame);
-	osd_printf_info("[%.3f] this present: #%d\n", get_ms(m_sync.get_tag(raster_sync::BEFORE_DRAW) - m_time_start), m_frame);
+	osd_printf_verbose("[%.3f] this present: #%d\n", get_ms(m_sync.get_tag(raster_sync::BEFORE_DRAW) - m_time_start), m_frame);
 
 	if (m_frame == 1)
 	{
@@ -805,7 +807,7 @@ int renderer_d3d11::draw(const int update)
 			m_swapchain->GetFrameStatistics(&st);
 		}
 		while (st.PresentCount != 1 && get_ms(time2 - time1) < 300.0);
-		osd_printf_info("Synchronizing with first timestamp: [%.3f] stats: %d %d %d %lld\n\n",
+		osd_printf_verbose("Synchronizing with first timestamp: [%.3f] stats: %d %d %d %lld\n\n",
 			get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 		first_count = st.SyncRefreshCount;
@@ -822,12 +824,14 @@ int renderer_d3d11::draw(const int update)
 			// user defined
 			m_frame_delay = (double)(video_config.framedelay) / 10.0;
 
-		osd_printf_info("[%.3f] ", get_ms(osd_ticks() - m_time_start));
+		osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
 		sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
-		m_sync.wait_raster(sync_frame, m_frame_delay);
+		wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
 	}
 
+	osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
 	m_sync.register_tag(raster_sync::AFTER_DRAW);
+
 /*
 	osd_printf_debug("d3d11: software_renderer: %.3f, memcpy: %.3f, present: %.3f total: %.3f\n",
 		get_ms(after_prim - before_prim), get_ms(after_map - after_prim), get_ms(after_present - before_present), get_ms(after_present - before_prim));
