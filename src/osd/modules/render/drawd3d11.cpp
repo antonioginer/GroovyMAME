@@ -58,6 +58,7 @@ private:
 	ID3D11PixelShader* pick_shader();
 	bool get_updated_dimensions();
 	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
+	inline double time_now() { return get_ms(osd_ticks() - m_time_start); };
 
 	ID3D11Device*             m_d3d11_device;             // Direct3D 11 device
 	IDXGIFactory2*            m_dxgi_factory;             // Direct3D 11 device
@@ -88,6 +89,7 @@ private:
 	double m_frame_delay;             // current frame delay value
 	float m_pixel_aspect = 1.0;
 	uint32_t m_frame;
+	uint64_t m_time_start = 0;
 	raster_sync m_sync;
 
 	// Options
@@ -173,6 +175,7 @@ renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, I
 	, m_refresh(0)
 	, m_frame_delay(0.0)
 	, m_frame(0)
+	, m_time_start(osd_ticks())
 {
 }
 
@@ -762,18 +765,20 @@ int renderer_d3d11::draw(const int update)
 	if (m_frame)
 	{
 		hr = m_swapchain->GetFrameStatistics(&st);
-		osd_printf_info("prev present: #%d [%d] ", st.PresentCount, st.SyncRefreshCount - first_count);
+		osd_printf_info("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
 
 		bool have_new_timestamp = m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 		m_sync.get_raster(&raster);
-		osd_printf_info("get raster->[%d][%.3f]\n", raster.count, raster.scan);
+		osd_printf_info("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
 
 		in_time_for_next_retrace = raster.scan <= 0.95 && have_new_timestamp;
 		missed_previous_retrace = raster.count > sync_frame;
 
 		if (handle_vsync && !missed_previous_retrace)
 			m_sync.wait_raster(raster.count, 0.90);
+		else
+			osd_printf_info("missed retrace\n");
 	}
 
 	m_sync.register_tag(raster_sync::BEFORE_PRESENT);
@@ -787,7 +792,7 @@ int renderer_d3d11::draw(const int update)
 	m_sync.register_tag(raster_sync::AFTER_PRESENT);
 
 	hr = m_swapchain->GetLastPresentCount(&m_frame);
-	osd_printf_info("this present: #%d\n", m_frame);
+	osd_printf_info("[%.3f] this present: #%d\n", get_ms(m_sync.get_tag(raster_sync::BEFORE_DRAW) - m_time_start), m_frame);
 
 	if (m_frame == 1)
 	{
@@ -817,6 +822,7 @@ int renderer_d3d11::draw(const int update)
 			// user defined
 			m_frame_delay = (double)(video_config.framedelay) / 10.0;
 
+		osd_printf_info("[%.3f] ", get_ms(osd_ticks() - m_time_start));
 		sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
 		m_sync.wait_raster(sync_frame, m_frame_delay);
 	}
