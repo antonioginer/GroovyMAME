@@ -36,6 +36,15 @@ void raster_sync::reset()
 //  raster_sync::register_tag
 //============================================================
 
+uint64_t raster_sync::get_tag(enum raster_sync::event_tag tag)
+{
+	return m_timestamp[tag] / ticks_to_ns;
+}
+
+//============================================================
+//  raster_sync::register_tag
+//============================================================
+
 void raster_sync::register_tag(enum raster_sync::event_tag tag)
 {
 	// Register tag
