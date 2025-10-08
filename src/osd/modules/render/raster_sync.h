@@ -21,11 +21,12 @@ public:
 	};
 
 	void reset();
+	uint64_t get_tag(enum raster_sync::event_tag tag);
 	void register_tag(enum raster_sync::event_tag timestamp_event);
 	bool register_vblank_in_ticks(uint64_t sync_count, uint64_t timestamp);
 	bool register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp);
 	void register_emutime(uint64_t emutime);
-	void wait_raster(uint64_t count, double scan);
+	uint64_t wait_raster(uint64_t count, double scan);
 	void get_raster(raster_status *status);
 	uint64_t period() { return m_mean > 0? (uint64_t)m_mean : 1e9 / 60; };
 	double period_in_ms() { return get_ms(period()); };
