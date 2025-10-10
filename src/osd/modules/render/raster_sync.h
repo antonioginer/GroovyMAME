@@ -25,7 +25,6 @@ public:
 	void register_tag(enum raster_sync::event_tag timestamp_event);
 	bool register_vblank_in_ticks(uint64_t sync_count, uint64_t timestamp);
 	bool register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp);
-	void register_vblank_in_ns_rls(uint64_t sync_count, uint64_t timestamp);
 	void register_emutime(uint64_t emutime);
 	uint64_t wait_raster(uint64_t count, double scan);
 	void get_raster(raster_status *status);
@@ -62,19 +61,4 @@ private:
 
 	int ticks_to_ns = 0;
 	uint64_t sleep_time = 1e6; // 1 ms
-
-	// RLS
-	double t0 = 0.0;
-	double P = 1000.0 / 60; // 0.0;
-
-	// Matriz de covarianza (2x2) para RLS
-	double P11 = 1e6, P12 = 0.0, P21 = 0.0, P22 = 1e6;
-
-	bool initialized = false;
-	int k = 0;
-
-	uint64_t first_sync_count = 0;
-	uint64_t first_timestamp = 0;
-	uint64_t last_sync_count = 0;
-	uint64_t last_timestamp = 0;
 };
