@@ -69,6 +69,8 @@ void raster_sync::register_tag(enum raster_sync::event_tag tag)
 				uint64_t present_time = m_timestamp[AFTER_PRESENT] - m_timestamp[BEFORE_PRESENT];
 				osd_printf_verbose("present: %.3f emu_t: %.3f emu_t_avg: %.3f Dm: %.3f period: %.3f\n\n",
 					get_ms(present_time), get_ms(m_current_emulation_time), get_ms(m_emulation_time_avg), get_ms(m_emulation_time_dm), frame_time_in_ms());
+				if (fabs(frame_time_in_ms() - period_in_ms()) > 1.0)
+					osd_printf_info("glitch!\n");
 			}
 			break;
 		}
@@ -130,6 +132,7 @@ void raster_sync::register_emutime(uint64_t emutime)
 
 bool raster_sync::register_vblank_in_ticks(uint64_t sync_count, uint64_t timestamp)
 {
+	register_vblank_in_ns_rls(sync_count, timestamp * ticks_to_ns);
 	return register_vblank_in_ns(sync_count, timestamp * ticks_to_ns);
 }
 
@@ -152,6 +155,7 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		// Skip sample if it's not newer
 		if (count_delta > 0)
 		{
+			//register_vblank_in_ns_rls(sync_count, timestamp);
 			// Sometimes the received counter is not properly incremented.
 			// This breaks period computation. So we recalculate it based on the timestamp.
 
@@ -165,10 +169,11 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 			m_mean += delta / m_vblank_count;
 			osd_printf_verbose("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
 				get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
-
+/*
 			// Fix me
 			if (m_vblank_count % 600 == 0)
 				m_initialized = false;
+*/
 		}
 		else
 			osd_printf_verbose("count delta: %d\n", count_delta);
@@ -190,6 +195,58 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 
 
 //============================================================
+//  raster_sync::register_vblank_in_ns
+//============================================================
+
+void raster_sync::register_vblank_in_ns_rls(uint64_t sync_count, uint64_t timestamp)
+{
+	if (!initialized)
+	{
+		first_sync_count = sync_count;
+		first_timestamp = timestamp;
+	}
+
+	last_sync_count = sync_count;
+	last_timestamp = timestamp;
+
+	int n = sync_count - first_sync_count;
+	double y = double(timestamp - first_timestamp);
+
+	// Vector de regresores: [1, n]^T
+	double x1 = 1.0;
+	double x2 = (double)n;
+
+	// Predicción actual
+	double y_hat = t0 * x1 + P * x2;
+
+	// Error de predicción
+	double error = y - y_hat;
+
+	// Ganancia de Kalman (2x1)
+	double denom = (P11 * x1 + P12 * x2) * x1 + (P21 * x1 + P22 * x2) * x2 + 1.0;
+	double k1 = (P11 * x1 + P12 * x2) / denom;
+	double k2 = (P21 * x1 + P22 * x2) / denom;
+
+	// Actualización de parámetros
+	t0 += k1 * error;
+	P  += k2 * error;
+
+	// Actualización de covarianza
+	double P11_new = P11 - k1 * (P11 * x1 + P12 * x2);
+	double P12_new = P12 - k1 * (P12 * x1 + P22 * x2);
+	double P21_new = P21 - k2 * (P11 * x1 + P12 * x2);
+	double P22_new = P22 - k2 * (P21 * x1 + P22 * x2);
+
+	P11 = P11_new;
+	P12 = P12_new;
+	P21 = P21_new;
+	P22 = P22_new;
+
+	initialized = true;
+	k = n;
+}
+
+//============================================================
 //  raster_sync::wait_raster
 //============================================================
 
@@ -198,7 +255,15 @@ uint64_t raster_sync::wait_raster(uint64_t count, double scan)
 	uint64_t sync_target = m_first_timestamp + count * period();
 	uint64_t time_target = sync_target + (uint64_t)(scan * period());
 
+	if (initialized)
+	{
+		sync_target = first_timestamp + (int)t0 + (uint64_t)(count * P);
+		time_target = sync_target + (uint64_t)(scan * P);
+	}
+
 	uint64_t time_entry = time_in_ns();
+
+    osd_printf_verbose("t0: %.3f P: %.3f target: %.3f entry: %.4f\n", t0, P, time_target, time_entry);
 
 	osd_printf_verbose("wait raster [%d][%.3f]: ", count, scan);
 
@@ -238,8 +303,13 @@ void raster_sync::get_raster(raster_status *status)
 	if (status == nullptr)
 		return;
 
-	status->count = (time_in_ns() - m_first_timestamp) / period();
-	status->scan = (double)(time_in_ns() - (m_first_timestamp + status->count * period())) / period();
+//	status->count = (time_in_ns() - m_first_timestamp) / period();
+//	status->scan = (double)(time_in_ns() - (m_first_timestamp + status->count * period())) / period();
+
+osd_printf_verbose("time_in_ns: %lld first_timestamp: %lld\n", time_in_ns(), first_timestamp);
+	status->count = (uint64_t)(time_in_ns() - (first_timestamp + (int)t0)) / P;
+	status->scan = (double)(time_in_ns() - (first_timestamp + t0 + status->count * P)) / P;
+
 }
 
 
