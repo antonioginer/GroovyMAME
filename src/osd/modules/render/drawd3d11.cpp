@@ -29,6 +29,9 @@
 
 #include <switchres/switchres.h>
 #include "raster_sync.h"
+#include "scanline.h"
+
+#define LOG_SCANLINES 0
 
 /* renderer_d3d11 is the information about Direct3D 11 for the current screen */
 class renderer_d3d11 : public osd_renderer
@@ -508,6 +511,10 @@ int renderer_d3d11::create()
 
 	osd_printf_verbose("d3d11: device created.\n");
 
+#if LOG_SCANLINES
+	scanline_init(options.screen());
+#endif
+
 	return 0;
 }
 
@@ -827,6 +834,13 @@ int renderer_d3d11::draw(const int update)
 		osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
 		sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
 		wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
+
+#if LOG_SCANLINES
+		uint32_t scanline;
+		bool in_vblank;
+		scanline_poll(&scanline, &in_vblank);
+		osd_printf_verbose("scanline: %d in_vblank %d\n", scanline, in_vblank);
+#endif
 	}
 
 	osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
@@ -1018,5 +1032,3 @@ std::unique_ptr<osd_renderer> video_d3d11::create(osd_window &window)
 } // namespace osd
 
 MODULE_DEFINITION(RENDERER_D3D11, osd::video_d3d11)
-
-
