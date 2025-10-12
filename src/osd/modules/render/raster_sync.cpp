@@ -150,7 +150,7 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 	{
 		count_delta = sync_count - m_last_sync_count;
 
-		// Skip sample if it's not newer. Big deltas may be unaccurate, discard.
+		// Skip sample if it's not newer. Big deltas may be inaccurate, discard.
 		if (count_delta > 0 && count_delta < 5)
 		{
 			// Sometimes the received counter is not properly incremented.
