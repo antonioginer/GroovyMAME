@@ -25,6 +25,7 @@ void raster_sync::reset()
 	m_first_timestamp = 0;
 	m_last_sync_count = 0;
 	m_last_timestamp = 0;
+	m_last_count = 0;
 
 	m_vblank_count = 0;
 	m_current_period = 0;
@@ -149,12 +150,11 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 	{
 		count_delta = sync_count - m_last_sync_count;
 
-		// Skip sample if it's not newer
-		if (count_delta > 0)
+		// Skip sample if it's not newer. Big deltas may be unaccurate, discard.
+		if (count_delta > 0 && count_delta < 5)
 		{
 			// Sometimes the received counter is not properly incremented.
 			// This breaks period computation. So we recalculate it based on the timestamp.
-
 			if (m_mean > 0)
 				count_delta = round(double(timestamp - m_last_timestamp) / (double)m_mean);
 
@@ -165,10 +165,6 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 			m_mean += delta / m_vblank_count;
 			osd_printf_verbose("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
 				get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
-
-			// Fix me
-			if (m_vblank_count % 600 == 0)
-				m_initialized = false;
 		}
 		else
 			osd_printf_verbose("count delta: %d\n", count_delta);
@@ -182,6 +178,7 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		m_first_timestamp = timestamp;
 	}
 
+	m_last_count = sync_count - m_first_sync_count;
 	m_last_sync_count = sync_count;
 	m_last_timestamp = timestamp;
 
@@ -195,7 +192,7 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 
 uint64_t raster_sync::wait_raster(uint64_t count, double scan)
 {
-	uint64_t sync_target = m_first_timestamp + count * period();
+	uint64_t sync_target = m_last_timestamp + (count - m_last_count) * period();
 	uint64_t time_target = sync_target + (uint64_t)(scan * period());
 
 	uint64_t time_entry = time_in_ns();
@@ -238,8 +235,8 @@ void raster_sync::get_raster(raster_status *status)
 	if (status == nullptr)
 		return;
 
-	status->count = (time_in_ns() - m_first_timestamp) / period();
-	status->scan = (double)(time_in_ns() - (m_first_timestamp + status->count * period())) / period();
+	status->count = m_last_count + (time_in_ns() - m_last_timestamp) / period();
+	status->scan = (double)(time_in_ns() - (m_last_timestamp + (status->count - m_last_count) * period())) / period();
 }
 
 
