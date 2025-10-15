@@ -72,6 +72,7 @@ typedef uint64_t HashT;
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <fcntl.h>
+#include "raster_sync.h"
 #endif
 
 #if defined(SDLMAME_MACOSX) || defined(OSD_MAC)
@@ -445,6 +446,8 @@ private:
 	PFNGLFRAMEBUFFERTEXTURE2DEXTPROC   m_glFramebufferTexture2D   = nullptr;
 
 	static bool     s_shown_video_info;
+
+	raster_sync     m_sync;
 };
 
 
@@ -569,8 +572,10 @@ bool renderer_ogl::s_shown_video_info = false;
 
 #ifdef SDLMAME_X11
 static int drm_open(const char *dri_device);
-static void drm_waitvblank(int crtc);
+static int drm_get_crtc(int fd, int crtc);
+//static void drm_waitvblank(int crtc);
 static int fd = 0;
+static int crtc_id = 0;
 static const char* dri_device = nullptr;
 #endif
 
@@ -783,14 +788,17 @@ int renderer_ogl::create()
 		return 1;
 	}
 #ifdef SDLMAME_X11
-	if (window().index() == 0 && video_config.syncrefresh && video_config.sync_mode != 0)
+	//if (window().index() == 0 && video_config.syncrefresh && video_config.sync_mode != 0)
 	{
 		// Try to open DRM device
 		fd = drm_open(dri_device);
 		if (fd != 0)
-			m_gl_context->set_swap_interval((video_config.sync_mode == 2 || video_config.sync_mode == 4)? 1 : 0);
+			//m_gl_context->set_swap_interval((video_config.sync_mode == 2 || video_config.sync_mode == 4)? 1 : 0);
+			m_gl_context->set_swap_interval(0);
+
+		crtc_id = drm_get_crtc(fd, window().monitor()->oshandle());
 	}
-	else
+
 #endif
 	m_gl_context->set_swap_interval((video_config.waitvsync) ? 1 : 0);
 
@@ -913,6 +921,43 @@ static int drm_open(const char *dri_device)
 	return fd;
 }
 
+
+//============================================================
+//  drm_get_crtc
+//============================================================
+
+int drm_get_crtc(int fd, int crtc)
+{
+	drmModeRes *resources = drmModeGetResources(fd);
+	int crtc_id = 0;
+
+	if (!resources)
+	{
+		printf("drm_get_crtc_id: couldn't find resources.\n");
+		return 0;
+	}
+
+	if (resources->count_crtcs < 1)
+	{
+		printf("drm_get_crtc_id: couldn't find crtcs.\n");
+		drmModeFreeResources(resources);
+		return 0;
+	}
+
+	if (crtc > resources->count_crtcs)
+	{
+		printf("drm_get_crtc_id: crtc %d not found.\n", crtc);
+		drmModeFreeResources(resources);
+		return 0;
+	}
+
+	crtc_id = resources->crtcs[crtc];
+	drmModeFreeResources(resources);
+
+	return crtc_id;
+}
+
+/*
 //============================================================
 //  drm_waitvblank
 //============================================================
@@ -954,6 +999,7 @@ static void drm_waitvblank(int crtc)
 	if (drmWaitVBlank(fd, &vbl) != 0)
 		osd_printf_verbose("drmWaitVBlank failed\n");
 }
+*/
 #endif
 
 //============================================================
@@ -1477,6 +1523,8 @@ int renderer_ogl::draw(const int update)
 	m_last_hofs = hofs;
 	m_last_vofs = vofs;
 
+	m_sync.register_tag(raster_sync::BEFORE_DRAW);
+
 	window().m_primlist->acquire_lock();
 
 	// now draw
@@ -1692,22 +1740,45 @@ int renderer_ogl::draw(const int update)
 	window().m_primlist->release_lock();
 	m_init_context = 0;
 
+	m_sync.register_tag(raster_sync::BEFORE_PRESENT);
+
+	uint64_t sequence = 0;
+	uint64_t ns = 0;
+
+	int ret = drmCrtcGetSequence(fd, crtc_id, &sequence, &ns);
+	if (ret == 0)
+		osd_printf_verbose("sequence: %d frames; timestamp: %ld ns\n", sequence, ns);
+	else
+		osd_printf_verbose("drmCrtcGetSequence: %d\n", ret);
+
+	m_sync.register_vblank_in_ns(sequence, ns);
+
+	raster_status raster = {};
+	m_sync.get_raster(&raster);
+
+/*
 #ifdef SDLMAME_X11
 	// wait for vertical retrace
 	if ((video_config.sync_mode == 3 || video_config.sync_mode == 4) && video_config.syncrefresh && fd)
 		drm_waitvblank(window().monitor()->oshandle());
 #endif
-
+*/
 	m_gl_context->swap_buffer();
 
+	m_sync.register_tag(raster_sync::AFTER_PRESENT);
+
+/*
 #ifdef SDLMAME_X11
 	// wait for vertical retrace
 	if ((video_config.sync_mode == 1 || video_config.sync_mode == 2) && video_config.syncrefresh && fd)
 		drm_waitvblank(window().monitor()->oshandle());
 #endif
+*/
 
 	// Finish GL to minimize latency
 	glFinish();
+
+	m_sync.register_tag(raster_sync::AFTER_DRAW);
 
 	return 0;
 }
