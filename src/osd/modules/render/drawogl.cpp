@@ -41,6 +41,7 @@ typedef uint64_t HashT;
 #endif
 
 // emu
+#include "emu.h"
 #include "emucore.h"
 #include "emuopts.h"
 #include "render.h"
@@ -285,6 +286,7 @@ public:
 		, m_last_vofs(0.0f)
 		, m_surf_w(0)
 		, m_surf_h(0)
+		, m_time_start(osd_ticks())
 	{
 		for (int i=0; i < HASH_SIZE + OVERFLOW_SIZE; i++)
 			m_texhash[i] = nullptr;
@@ -366,6 +368,9 @@ private:
 		return (GL_NO_ERROR != glerr) ? glerr : 0;
 	}
 
+	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
+	inline double time_now() { return get_ms(osd_ticks() - m_time_start); };
+
 #define GL_CHECK_ERROR_QUIET() gl_check_error(false, __FILE__, __LINE__)
 #define GL_CHECK_ERROR_NORMAL() gl_check_error(true, __FILE__, __LINE__)
 
@@ -444,6 +449,8 @@ private:
 	static bool     s_shown_video_info;
 
 	raster_sync     m_sync;
+	double          m_frame_delay;             // current frame delay value
+	uint64_t        m_time_start = 0;
 };
 
 
@@ -1743,7 +1750,12 @@ int renderer_ogl::draw(const int update)
 	window().m_primlist->release_lock();
 	m_init_context = 0;
 
-	m_sync.register_tag(raster_sync::BEFORE_PRESENT);
+//===========================
+
+	uint64_t wait_before = 0;
+	uint64_t wait_after = 0;
+	bool missed_previous_retrace = false;
+	static uint64_t sync_frame = 0;
 
 	uint64_t sequence = 0;
 	uint64_t ns = 0;
@@ -1758,6 +1770,14 @@ int renderer_ogl::draw(const int update)
 
 	raster_status raster = {};
 	m_sync.get_raster(&raster);
+	osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
+
+	missed_previous_retrace = raster.count > sync_frame;
+
+	if (!missed_previous_retrace)
+		wait_before = m_sync.wait_raster(raster.count, 0.70);
+	else
+		osd_printf_verbose("missed retrace\n");
 
 /*
 #ifdef SDLMAME_X11
@@ -1766,9 +1786,9 @@ int renderer_ogl::draw(const int update)
 		drm_waitvblank(window().monitor()->oshandle());
 #endif
 */
-	m_gl_context->swap_buffer();
+	m_sync.register_tag(raster_sync::BEFORE_PRESENT);
 
-	m_sync.register_tag(raster_sync::AFTER_PRESENT);
+	m_gl_context->swap_buffer();
 
 /*
 #ifdef SDLMAME_X11
@@ -1779,7 +1799,26 @@ int renderer_ogl::draw(const int update)
 */
 
 	// Finish GL to minimize latency
-	glFinish();
+	//glFinish();
+
+
+	if (video_config.framedelay == 0)
+	{
+		// automatic
+		m_frame_delay = m_sync.auto_framedelay();
+		window().machine().video().set_auto_framedelay((float)m_frame_delay);
+	}
+	else
+		// user defined
+		m_frame_delay = (double)(video_config.framedelay) / 10.0;
+
+	osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
+	sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
+	wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
+
+	osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
+	m_sync.register_tag(raster_sync::AFTER_DRAW);
+
 
 	m_sync.register_tag(raster_sync::AFTER_DRAW);
 
