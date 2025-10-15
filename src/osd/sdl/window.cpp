@@ -780,6 +780,11 @@ void sdl_window_info::update()
 			}
 		}
 
+		// check if frame delay has changed
+		int new_frame_delay = machine().video().framedelay();
+		if (new_frame_delay != video_config.framedelay)
+			video_config.framedelay = new_frame_delay;
+
 		osd_ticks_t event_wait_ticks;
 		if (video_config.syncrefresh)
 			event_wait_ticks = osd_ticks_per_second(); // block at most a second
