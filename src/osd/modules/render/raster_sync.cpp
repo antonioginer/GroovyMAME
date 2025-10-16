@@ -68,7 +68,7 @@ void raster_sync::register_tag(enum raster_sync::event_tag tag)
 			{
 				m_frame_time = m_timestamp[tag] - prev_timestamp;
 				uint64_t present_time = m_timestamp[AFTER_PRESENT] - m_timestamp[BEFORE_PRESENT];
-				osd_printf_verbose("present: %.3f emu_t: %.3f emu_t_avg: %.3f Dm: %.3f period: %.3f\n\n",
+				osd_printf_info("present: %.3f emu_t: %.3f emu_t_avg: %.3f Dm: %.3f period: %.3f\n\n",
 					get_ms(present_time), get_ms(m_current_emulation_time), get_ms(m_emulation_time_avg), get_ms(m_emulation_time_dm), frame_time_in_ms());
 			}
 			break;
@@ -144,7 +144,7 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 	int64_t delta;
 	int count_delta = 0;
 
-	osd_printf_verbose("register vblank: ");
+	osd_printf_info("register vblank: ");
 
 	if (m_initialized)
 	{
@@ -163,16 +163,16 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 
 			m_vblank_count++;
 			m_mean += delta / m_vblank_count;
-			osd_printf_verbose("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
+			osd_printf_info("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
 				get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
 		}
 		else
-			osd_printf_verbose("count delta: %d\n", count_delta);
+			osd_printf_info("count delta: %d\n", count_delta);
 	}
 
 	if (!m_initialized)
 	{
-		osd_printf_verbose("initialize, sync_count %d\n", sync_count);
+		osd_printf_info("initialize, sync_count %d\n", sync_count);
 		m_initialized = true;
 		m_first_sync_count = sync_count;
 		m_first_timestamp = timestamp;
@@ -197,12 +197,12 @@ uint64_t raster_sync::wait_raster(uint64_t count, double scan)
 
 	uint64_t time_entry = time_in_ns();
 
-	osd_printf_verbose("wait raster [%d][%.3f]: ", count, scan);
+	osd_printf_info("wait raster [%d][%.3f]: ", count, scan);
 
 	// Wait for target time
 	if ((int)(time_target - time_entry) > 0)
 	{
-		osd_printf_verbose("must wait: %+.3f ", get_ms(time_target) - get_ms(time_entry));
+		osd_printf_info("must wait: %+.3f ", get_ms(time_target) - get_ms(time_entry));
 
 		uint64_t current_time;
 		do
@@ -217,10 +217,10 @@ uint64_t raster_sync::wait_raster(uint64_t count, double scan)
 		} while ((current_time - time_entry) < period() * 2);
 	}
 	else
-		osd_printf_verbose("delayed, exiting. ");
+		osd_printf_info("delayed, exiting. ");
 
 	uint64_t time_exit = time_in_ns();
-	osd_printf_verbose("elapsed: %.3f\n", get_ms(time_exit - time_entry));
+	osd_printf_info("elapsed: %.3f\n", get_ms(time_exit - time_entry));
 
 	return time_exit - time_entry;
 }
@@ -235,7 +235,7 @@ void raster_sync::get_raster(raster_status *status)
 	if (status == nullptr)
 		return;
 
-	status->count = m_last_count + (time_in_ns() - m_last_timestamp) / period();
+	status->count = (double)m_last_count + (double)(time_in_ns() - m_last_timestamp) / period();
 	status->scan = (double)(time_in_ns() - (m_last_timestamp + (status->count - m_last_count) * period())) / period();
 }
 
