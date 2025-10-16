@@ -1530,8 +1530,6 @@ int renderer_ogl::draw(const int update)
 	m_last_hofs = hofs;
 	m_last_vofs = vofs;
 
-	m_sync.register_tag(raster_sync::BEFORE_DRAW);
-
 	window().m_primlist->acquire_lock();
 
 	// now draw
@@ -1746,6 +1744,8 @@ int renderer_ogl::draw(const int update)
 
 	window().m_primlist->release_lock();
 	m_init_context = 0;
+
+	m_sync.register_tag(raster_sync::BEFORE_DRAW);
 
 //===========================
 
