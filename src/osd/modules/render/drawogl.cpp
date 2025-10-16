@@ -69,8 +69,8 @@ typedef uint64_t HashT;
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <fcntl.h>
-#include "raster_sync.h"
 #endif
+#include "raster_sync.h"
 
 #if defined(SDLMAME_MACOSX) || defined(OSD_MAC)
 
@@ -1752,6 +1752,7 @@ int renderer_ogl::draw(const int update)
 
 //===========================
 
+#ifdef SDLMAME_X11
 	uint64_t wait_before = 0;
 	uint64_t wait_after = 0;
 	bool missed_previous_retrace = false;
@@ -1776,6 +1777,7 @@ int renderer_ogl::draw(const int update)
 		wait_before = m_sync.wait_raster(raster.count, 0.90);
 	else
 		osd_printf_info("missed retrace\n");
+#endif
 
 /*
 #ifdef SDLMAME_X11
@@ -1802,6 +1804,7 @@ int renderer_ogl::draw(const int update)
 	glFinish();
 */
 
+#ifdef SDLMAME_X11
 	if (video_config.framedelay == 0)
 	{
 		// automatic
@@ -1817,6 +1820,7 @@ int renderer_ogl::draw(const int update)
 	wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
 
 	osd_printf_info("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms(wait_before + wait_after));
+#endif
 	m_sync.register_tag(raster_sync::AFTER_DRAW);
 
 	return 0;
