@@ -303,7 +303,8 @@ void sdl_window_info::update_cursor_state()
 			capture_pointer();
 		}
 
-		SDL_SetCursor(nullptr); // Force an update in case the underlying driver has changed visibility
+		// Disable this. This call may take up to one frame period to complete on kms
+		//SDL_SetCursor(nullptr); // Force an update in case the underlying driver has changed visibility
 	}
 #endif
 }
