@@ -63,7 +63,6 @@ void raster_sync::register_tag(enum raster_sync::event_tag tag)
 
 		case AFTER_DRAW:
 		{
-			//update_stats();
 			if (prev_timestamp != 0)
 			{
 				m_frame_time = m_timestamp[tag] - prev_timestamp;
@@ -71,6 +70,8 @@ void raster_sync::register_tag(enum raster_sync::event_tag tag)
 				osd_printf_info("present: %.3f emu_t: %.3f emu_t_avg: %.3f Dm: %.3f period: %.3f\n\n",
 					get_ms(present_time), get_ms(m_current_emulation_time), get_ms(m_emulation_time_avg), get_ms(m_emulation_time_dm), frame_time_in_ms());
 			}
+			else
+				osd_printf_info("\n");
 			break;
 		}
 	}
@@ -151,23 +152,38 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		count_delta = sync_count - m_last_sync_count;
 
 		// Skip sample if it's not newer. Big deltas may be inaccurate, discard.
-		if (count_delta > 0 && count_delta < 5)
+		if (count_delta == 0 || count_delta > 4)
 		{
-			// Sometimes the received counter is not properly incremented.
-			// This breaks period computation. So we recalculate it based on the timestamp.
-			if (m_mean > 0)
-				count_delta = round(double(timestamp - m_last_timestamp) / (double)m_mean);
-
-			m_current_period = (timestamp - m_last_timestamp) / count_delta;
-			delta = m_current_period - m_mean;
-
-			m_vblank_count++;
-			m_mean += delta / m_vblank_count;
-			osd_printf_info("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
-				get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
-		}
-		else
 			osd_printf_info("count delta: %d\n", count_delta);
+			goto register_and_exit;
+		}
+
+		// Sometimes the received counter is not properly incremented.
+		// This breaks period computation. So we recalculate it based on the timestamp.
+		if (m_mean > 0)
+			count_delta = round(double(timestamp - m_last_timestamp) / (double)m_mean);
+
+		// Double check we have a valid delta now
+		if (count_delta == 0)
+		{
+			osd_printf_info("count delta: %d\n", count_delta);
+			goto register_and_exit;
+		}
+
+		m_current_period = (timestamp - m_last_timestamp) / count_delta;
+
+		if (m_current_period > 20 * 1e6) // 20 ms
+		{
+			osd_printf_info("invalid period: %.3f ms\n", get_ms(m_current_period));
+			goto register_and_exit;
+		}
+
+		delta = m_current_period - m_mean;
+
+		m_vblank_count++;
+		m_mean += delta / m_vblank_count;
+		osd_printf_info("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
+			get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
 	}
 
 	if (!m_initialized)
@@ -178,6 +194,7 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		m_first_timestamp = timestamp;
 	}
 
+register_and_exit:
 	m_last_count = sync_count - m_first_sync_count;
 	m_last_sync_count = sync_count;
 	m_last_timestamp = timestamp;
@@ -192,7 +209,7 @@ bool raster_sync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 
 uint64_t raster_sync::wait_raster(uint64_t count, double scan)
 {
-	uint64_t sync_target = m_last_timestamp + (count - m_last_count) * period();
+	uint64_t sync_target = m_last_timestamp - 3e6 + (count - m_last_count) * period();
 	uint64_t time_target = sync_target + (uint64_t)(scan * period());
 
 	uint64_t time_entry = time_in_ns();
@@ -235,8 +252,12 @@ void raster_sync::get_raster(raster_status *status)
 	if (status == nullptr)
 		return;
 
-	status->count = (double)m_last_count + (double)(time_in_ns() - m_last_timestamp) / period();
-	status->scan = (double)(time_in_ns() - (m_last_timestamp + (status->count - m_last_count) * period())) / period();
+	uint64_t adjusted_prev_timestamp = m_last_timestamp - 3e6;
+
+	int64_t delta_time = time_in_ns() - adjusted_prev_timestamp;
+
+	status->count = (double)m_last_count + (double)delta_time / period();
+	status->scan = (double)(time_in_ns() - (adjusted_prev_timestamp + (status->count - m_last_count) * period())) / period();
 }
 
 
