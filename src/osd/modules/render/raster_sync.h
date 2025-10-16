@@ -36,7 +36,13 @@ public:
 private:
 
 	inline double get_ms(int64_t time) { return (double)time / 1e6; };
-	inline uint64_t time_in_ns() { return osd_ticks() * ticks_to_ns; };
+	//inline uint64_t time_in_ns() { return osd_ticks() * ticks_to_ns; };
+	inline uint64_t time_in_ns()
+	{
+		struct timespec monotime;
+		clock_gettime(CLOCK_MONOTONIC, &monotime);
+		return (uint64_t)(monotime.tv_sec) * (uint64_t)1000000000 + (uint64_t)(monotime.tv_nsec);
+	}
 
 	bool m_initialized = false;
 	bool m_sleep_allowed = false;
