@@ -1924,10 +1924,9 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 	// add frame delay
 	slider_alloc(_("Frame Delay"), 0, machine.options().frame_delay(), 9, 1, std::bind(&mame_ui_manager::slider_framedelay, this, _1, _2));
 
-#ifdef _WIN32
 	// add vsync offset
 	slider_alloc(_("V-Sync Offset"), 0, machine.options().vsync_offset(), 1024, 1, std::bind(&mame_ui_manager::slider_vsync_offset, this, _1, _2));
-#endif
+
 
 	// add analog adjusters
 	for (auto &port : machine.ioport().ports())
