@@ -4,6 +4,12 @@
 
 #include "raster_sync.h"
 
+#define GPU_IS_DCN 0
+#if defined(SDLMAME_X11) && GPU_IS_DCN
+	#define VBLANK_OFFSET 2e6 // hack
+#else
+	#define VBLANK_OFFSET 0
+#endif
 
 //============================================================
 //  raster_sync::raster_sync
@@ -209,7 +215,7 @@ register_and_exit:
 
 uint64_t raster_sync::wait_raster(uint64_t count, double scan)
 {
-	uint64_t sync_target = m_last_timestamp - 3e6 + (count - m_last_count) * period();
+	uint64_t sync_target = m_last_timestamp - VBLANK_OFFSET + (count - m_last_count) * period();
 	uint64_t time_target = sync_target + (uint64_t)(scan * period());
 
 	uint64_t time_entry = time_in_ns();
@@ -252,7 +258,7 @@ void raster_sync::get_raster(raster_status *status)
 	if (status == nullptr)
 		return;
 
-	uint64_t adjusted_prev_timestamp = m_last_timestamp - 3e6;
+	uint64_t adjusted_prev_timestamp = m_last_timestamp - VBLANK_OFFSET;
 
 	int64_t delta_time = time_in_ns() - adjusted_prev_timestamp;
 
