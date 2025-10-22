@@ -17,6 +17,7 @@
 #include "debugger.h"
 #include "dirtc.h"
 #include "emuopts.h"
+#include "emusync.h"
 #include "fileio.h"
 #include "http.h"
 #include "image.h"
@@ -149,6 +150,9 @@ void running_machine::start()
 
 	// initialize UI input
 	m_ui_input = std::make_unique<ui_input_manager>(*this);
+
+	// raster sync manager
+	m_sync = std::make_unique<emusync>(*this);
 
 	// init the OSD layer
 	m_manager.osd().init(*this);
