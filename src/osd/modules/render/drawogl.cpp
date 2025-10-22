@@ -70,7 +70,7 @@ typedef uint64_t HashT;
 #include <xf86drmMode.h>
 #include <fcntl.h>
 #endif
-#include "raster_sync.h"
+#include "emusync.h"
 
 #if defined(SDLMAME_MACOSX) || defined(OSD_MAC)
 
@@ -286,6 +286,7 @@ public:
 		, m_last_vofs(0.0f)
 		, m_surf_w(0)
 		, m_surf_h(0)
+		, m_sync(window.machine().sync())
 		, m_time_start(osd_ticks())
 	{
 		for (int i=0; i < HASH_SIZE + OVERFLOW_SIZE; i++)
@@ -448,7 +449,7 @@ private:
 
 	static bool     s_shown_video_info;
 
-	raster_sync     m_sync;
+	emusync         &m_sync;
 	double          m_frame_delay;             // current frame delay value
 	uint64_t        m_time_start = 0;
 };
@@ -1748,7 +1749,7 @@ int renderer_ogl::draw(const int update)
 	window().m_primlist->release_lock();
 	m_init_context = 0;
 
-	m_sync.register_tag(raster_sync::BEFORE_DRAW);
+	m_sync.register_tag(emusync::BEFORE_DRAW);
 
 //===========================
 
@@ -1767,7 +1768,7 @@ int renderer_ogl::draw(const int update)
 
 	m_sync.register_vblank_in_ns(sequence, ns);
 
-	raster_status raster = {};
+	emusync::raster_status raster = {};
 	m_sync.get_raster(&raster);
 	osd_printf_info("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
 
@@ -1786,11 +1787,11 @@ int renderer_ogl::draw(const int update)
 		drm_waitvblank(window().monitor()->oshandle());
 #endif
 */
-	m_sync.register_tag(raster_sync::BEFORE_PRESENT);
+	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
 	m_gl_context->swap_buffer();
 
-	m_sync.register_tag(raster_sync::AFTER_PRESENT);
+	m_sync.register_tag(emusync::AFTER_PRESENT);
 
 /*
 #ifdef SDLMAME_X11
@@ -1821,7 +1822,7 @@ int renderer_ogl::draw(const int update)
 
 	osd_printf_info("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms(wait_before + wait_after));
 #endif
-	m_sync.register_tag(raster_sync::AFTER_DRAW);
+	m_sync.register_tag(emusync::AFTER_DRAW);
 
 	return 0;
 }

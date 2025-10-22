@@ -28,7 +28,7 @@
 #include <wrl/client.h>
 
 #include <switchres/switchres.h>
-#include "raster_sync.h"
+#include "emusync.h"
 #include "scanline.h"
 
 #define LOG_SCANLINES 0
@@ -93,7 +93,7 @@ private:
 	float m_pixel_aspect = 1.0;
 	uint32_t m_frame;
 	uint64_t m_time_start = 0;
-	raster_sync m_sync;
+	emusync &m_sync;
 
 	// Options
 	bool  m_filter = false;
@@ -179,6 +179,7 @@ renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, I
 	, m_frame_delay(0.0)
 	, m_frame(0)
 	, m_time_start(osd_ticks())
+	, m_sync(window.machine().sync())
 {
 }
 
@@ -761,7 +762,7 @@ int renderer_d3d11::draw(const int update)
 
 	m_device_context->Draw(3, 0); // fullscreen triangle
 
-	m_sync.register_tag(raster_sync::BEFORE_DRAW);
+	m_sync.register_tag(emusync::BEFORE_DRAW);
 
 	uint64_t wait_before = 0;
 	uint64_t wait_after = 0;
@@ -769,7 +770,7 @@ int renderer_d3d11::draw(const int update)
 	bool missed_previous_retrace = false;
 	bool handle_vsync = true;
 
-	raster_status raster = {};
+	emusync::raster_status raster = {};
 	DXGI_FRAME_STATISTICS st;
 	if (m_frame)
 	{
@@ -790,7 +791,7 @@ int renderer_d3d11::draw(const int update)
 			osd_printf_verbose("missed retrace\n");
 	}
 
-	m_sync.register_tag(raster_sync::BEFORE_PRESENT);
+	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
 	uint32_t interval = !handle_vsync && m_waitvsync && in_time_for_next_retrace? 1 : 0;
 
@@ -798,10 +799,10 @@ int renderer_d3d11::draw(const int update)
 	if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
 		osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
 
-	m_sync.register_tag(raster_sync::AFTER_PRESENT);
+	m_sync.register_tag(emusync::AFTER_PRESENT);
 
 	hr = m_swapchain->GetLastPresentCount(&m_frame);
-	osd_printf_verbose("[%.3f] this present: #%d\n", get_ms(m_sync.get_tag(raster_sync::BEFORE_DRAW) - m_time_start), m_frame);
+	osd_printf_verbose("[%.3f] this present: #%d\n", get_ms(m_sync.get_tag(emusync::BEFORE_DRAW) - m_time_start), m_frame);
 
 	if (m_frame == 1)
 	{
@@ -844,7 +845,7 @@ int renderer_d3d11::draw(const int update)
 	}
 
 	osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
-	m_sync.register_tag(raster_sync::AFTER_DRAW);
+	m_sync.register_tag(emusync::AFTER_DRAW);
 
 /*
 	osd_printf_debug("d3d11: software_renderer: %.3f, memcpy: %.3f, present: %.3f total: %.3f\n",
