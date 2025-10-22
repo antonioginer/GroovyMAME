@@ -152,6 +152,8 @@ files {
 	MAME_DIR .. "src/emu/emuopts.h",
 	MAME_DIR .. "src/emu/emupal.cpp",
 	MAME_DIR .. "src/emu/emupal.h",
+	MAME_DIR .. "src/emu/emusync.cpp",
+	MAME_DIR .. "src/emu/emusync.h",
 	MAME_DIR .. "src/emu/fileio.cpp",
 	MAME_DIR .. "src/emu/fileio.h",
 	MAME_DIR .. "src/emu/http.h",
