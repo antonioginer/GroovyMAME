@@ -224,7 +224,7 @@ void video_manager::frame_update(bool from_debugger)
 	bool anything_changed = update_screens && finish_screen_updates();
 
 	// update inputs and draw the user interface
-	machine().osd().input_update(true);
+	//machine().osd().input_update(true);
 	anything_changed = emulator_info::draw_user_interface(machine()) || anything_changed;
 
 	// let plugins draw over the UI
@@ -268,7 +268,7 @@ void video_manager::frame_update(bool from_debugger)
 	if (!from_debugger && phase > machine_phase::INIT && m_low_latency && effective_throttle())
 		update_throttle(current_time);
 
-	machine().osd().input_update(false);
+	machine().osd().input_update(true);
 	emulator_info::periodic_check();
 
 	if (!from_debugger)
