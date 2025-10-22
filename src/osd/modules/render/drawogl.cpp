@@ -1761,20 +1761,20 @@ int renderer_ogl::draw(const int update)
 
 	int ret = drmCrtcGetSequence(fd, crtc_id, &sequence, &ns);
 	if (ret != 0)
-		osd_printf_info("error: drmCrtcGetSequence(%d)\n", ret);
+		osd_printf_verbose("error: drmCrtcGetSequence(%d)\n", ret);
 
 	m_sync.register_vblank_in_ns(sequence, ns);
 
 	emusync::raster_status raster = {};
 	m_sync.get_raster(&raster);
-	osd_printf_info("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
+	osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
 
 	missed_previous_retrace = raster.count > sync_frame;
 
 	if (!missed_previous_retrace)
 		wait_before = m_sync.wait_raster(raster.count, 0.90);
 	else
-		osd_printf_info("missed retrace\n");
+		osd_printf_verbose("missed retrace\n");
 #endif
 
 /*
@@ -1813,11 +1813,11 @@ int renderer_ogl::draw(const int update)
 		// user defined
 		m_frame_delay = (double)(video_config.framedelay) / 10.0;
 
-	osd_printf_info("[%.3f] ", get_ms(osd_ticks() - m_time_start));
+	osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
 	sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
 	wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
 
-	osd_printf_info("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms(wait_before + wait_after));
+	osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms(wait_before + wait_after));
 #endif
 	m_sync.register_tag(emusync::AFTER_DRAW);
 
