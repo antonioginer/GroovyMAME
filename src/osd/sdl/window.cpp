@@ -11,6 +11,7 @@
 // MAME headers
 #include "emu.h"
 #include "emuopts.h"
+#include "emusync.h"
 #include "render.h"
 #include "screen.h"
 #include "uiinput.h"
@@ -782,7 +783,7 @@ void sdl_window_info::update()
 		}
 
 		// check if frame delay has changed
-		int new_frame_delay = machine().video().framedelay();
+		int new_frame_delay = machine().sync().framedelay();
 		if (new_frame_delay != video_config.framedelay)
 			video_config.framedelay = new_frame_delay;
 
