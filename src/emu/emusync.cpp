@@ -9,13 +9,14 @@
 #include "emuopts.h"
 #include "emusync.h"
 
+/*
 #define GPU_IS_DCN 1
-#if !defined(OSD_WINDOWS) && GPU_IS_DCN
+#if defined(__linux__) && GPU_IS_DCN
 	#define VBLANK_OFFSET 1.0e6 // hack
 #else
-	#define VBLANK_OFFSET 0
+	#define VBLANK_OFFSET -0.4e6
 #endif
-
+*/
 
 //============================================================
 //  emusync::emusync
@@ -230,7 +231,8 @@ register_and_exit:
 
 uint64_t emusync::wait_raster(uint64_t count, double scan)
 {
-	uint64_t sync_target = m_last_timestamp - VBLANK_OFFSET + (count - m_last_count) * period();
+	//uint64_t sync_target = m_last_timestamp - VBLANK_OFFSET + (count - m_last_count) * period();
+	uint64_t sync_target = m_last_timestamp - vsync_offset() * line_period() + (count - m_last_count) * period();
 	uint64_t time_target = sync_target + (uint64_t)(scan * period());
 
 	uint64_t time_entry = time_in_ns();
@@ -273,7 +275,8 @@ void emusync::get_raster(raster_status *status)
 	if (status == nullptr)
 		return;
 
-	uint64_t adjusted_prev_timestamp = m_last_timestamp - VBLANK_OFFSET;
+	//uint64_t adjusted_prev_timestamp = m_last_timestamp - VBLANK_OFFSET;
+	uint64_t adjusted_prev_timestamp = m_last_timestamp - vsync_offset() * line_period();
 
 	int64_t delta_time = time_in_ns() - adjusted_prev_timestamp;
 
