@@ -823,11 +823,8 @@ int renderer_d3d11::draw(const int update)
 	else
 	{
 		if (video_config.framedelay == 0)
-		{
 			// automatic
-			m_frame_delay = m_sync.auto_framedelay();
-			window().machine().video().set_auto_framedelay((float)m_frame_delay);
-		}
+			m_frame_delay = m_sync.current_framedelay();
 		else
 			// user defined
 			m_frame_delay = (double)(video_config.framedelay) / 10.0;
