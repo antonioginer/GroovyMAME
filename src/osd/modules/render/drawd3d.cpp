@@ -9,6 +9,7 @@
 // MAME headers
 #include "emu.h"
 #include "emuopts.h"
+#include "emusync.h"
 #include "render.h"
 #include "rendutil.h"
 #include "screen.h"
@@ -829,10 +830,10 @@ void renderer_d3d9::end_frame()
 	if (FAILED(result))
 		osd_printf_verbose("Direct3D: Error %08lX during device end_scene call\n", result);
 
-	if ((m_frame_delay != video_config.framedelay) || (m_vsync_offset != window().machine().video().vsync_offset()))
+	if ((m_frame_delay != video_config.framedelay) || (m_vsync_offset != window().machine().sync().vsync_offset()))
 	{
 		m_frame_delay = video_config.framedelay;
-		m_vsync_offset = window().machine().video().vsync_offset();
+		m_vsync_offset = window().machine().sync().vsync_offset();
 		update_break_scanlines();
 	}
 

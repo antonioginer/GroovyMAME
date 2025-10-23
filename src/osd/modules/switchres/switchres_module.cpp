@@ -14,6 +14,7 @@
 
 // MAME headers
 #include "emu.h"
+#include "emusync.h"
 #include "rendlay.h"
 #include "render.h"
 #include "../frontend/mame/mameopts.h"
@@ -495,6 +496,9 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 	#elif defined(OSD_SDL)
 		downcast<sdl_osd_interface &>(machine().osd()).extract_video_config();
 	#endif
+
+	// Update emusync settings
+	machine().sync().set_sync_refresh(options.sync_refresh());
 }
 
 //============================================================

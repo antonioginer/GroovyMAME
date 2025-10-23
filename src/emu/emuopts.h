@@ -78,7 +78,9 @@
 #define OPTION_SYNCREFRESH          "syncrefresh"
 #define OPTION_SYNCAUDIO            "syncaudio"
 #define OPTION_LOWLATENCY           "lowlatency"
+#define OPTION_AUTOFRAMEDELAY       "autoframedelay"
 #define OPTION_FRAMEDELAY           "framedelay"
+#define OPTION_FD_MARGIN            "fd_margin"
 #define OPTION_VSYNC_OFFSET         "vsync_offset"
 #define OPTION_BLACK_FRAME_INSERTION "black_frame_insertion"
 
@@ -368,7 +370,9 @@ public:
 	bool sync_refresh() const { return bool_value(OPTION_SYNCREFRESH); }
 	bool sync_audio() const { return bool_value(OPTION_SYNCAUDIO); }
 	bool low_latency() const { return bool_value(OPTION_LOWLATENCY); }
+	bool auto_frame_delay() const { return bool_value(OPTION_AUTOFRAMEDELAY); }
 	int frame_delay() const { return int_value(OPTION_FRAMEDELAY); }
+	float fd_margin() const { return float_value(OPTION_FD_MARGIN); }
 	int vsync_offset() const { return int_value(OPTION_VSYNC_OFFSET); }
 	int black_frame_insertion() const { return int_value(OPTION_BLACK_FRAME_INSERTION); }
 

@@ -23,6 +23,13 @@
 
 emusync::emusync(running_machine &machine)
 	: m_machine(machine)
+	, m_sleep_allowed(machine.options().sleep())
+	, m_syncrefresh(machine.options().sync_refresh())
+	, m_syncaudio(machine.options().sync_audio())
+	, m_auto_framedelay(machine.options().auto_frame_delay())
+	, m_framedelay(machine.options().frame_delay())
+	, m_fd_margin(machine.options().fd_margin() * 1e6) // ms->ns
+	, m_vsync_offset(machine.options().vsync_offset())
 	, ticks_to_ns(1e9 / osd_ticks_per_second())
 	, sleep_time (1 * osd_ticks_per_second() / 1000.0) // 1 ms
 {
@@ -279,7 +286,7 @@ void emusync::get_raster(raster_status *status)
 //  emusync::get_raster
 //============================================================
 
-double emusync::auto_framedelay()
+double emusync::current_framedelay()
 {
 	uint64_t effective_margin = std::max(m_emulation_time_dm, m_fd_margin);
 	uint64_t adjusted_emulation_time = std::min(m_emulation_time_avg + effective_margin, period());

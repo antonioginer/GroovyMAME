@@ -6,18 +6,14 @@
 //
 //============================================================
 
-#include "render_module.h"
-
-#include "modules/osdmodule.h"
-
-#include "window.h"
-
 // emu
 #include "emu.h"
+#include "emusync.h"
 #include "rendersw.hxx"
 
-
 #include "render_module.h"
+#include "modules/osdmodule.h"
+#include "window.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -386,7 +382,7 @@ int renderer_nogpu::draw(const int update)
 		{
 			osd_printf_verbose("failed.\n");
 			window().machine().video().set_throttled(true);
-			window().machine().video().set_sync_refresh(false);
+			window().machine().sync().set_sync_refresh(false);
 			m_first_blit = false;
 		}
 	}
@@ -894,7 +890,7 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 	{
 		// user defined
 		m_frame_delay = (double)(video_config.framedelay) / 10.0;
-		vsync_offset = window().machine().video().vsync_offset();
+		vsync_offset = window().machine().sync().vsync_offset();
 	}
 
 	// Update vsync scanline
