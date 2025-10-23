@@ -355,6 +355,7 @@ private:
 	int32_t slider_devvol(device_sound_interface *snd, std::string *str, int32_t newval);
 	int32_t slider_devvol_chan(device_sound_interface *snd, int channel, std::string *str, int32_t newval);
 	int32_t slider_framedelay(std::string *str, int32_t newval);
+	int32_t slider_fd_margin(std::string *str, int32_t newval);
 	int32_t slider_vsync_offset(std::string *str, int32_t newval);
 	int32_t slider_adjuster(ioport_field &field, std::string *str, int32_t newval);
 	int32_t slider_speed(std::string *str, int32_t newval);
