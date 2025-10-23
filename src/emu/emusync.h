@@ -48,6 +48,7 @@ public:
 	double fd_margin_in_ms() { return get_ms(m_fd_margin); };
 	double frame_time_in_ms() { return get_ms(m_frame_time); };
 	double current_framedelay();
+	uint64_t line_period() { return m_vtotal ? period() / m_vtotal : 0; };
 
 	// getters
 	running_machine &machine() const noexcept { return m_machine; }
@@ -65,6 +66,7 @@ public:
 	void set_fd_margin(float fd_margin) { m_fd_margin = fd_margin * 1e6; } // ms->ns
 	void set_auto_framedelay(bool autoframedelay) { m_auto_framedelay = autoframedelay; }
 	void set_vsync_offset(int vsync_offset) { m_vsync_offset = vsync_offset; }
+	void set_vtotal(int vtotal) { m_vtotal = vtotal; }
 
 
 private:
@@ -106,6 +108,7 @@ private:
 	int32_t  m_framedelay;               // tenths of frame to delay emulation start
 	uint64_t m_fd_margin;                //
 	int32_t  m_vsync_offset;             // offset vsync position by this many lines
+	uint32_t m_vtotal;
 
 	int ticks_to_ns = 0;
 	uint64_t sleep_time = 1e6; // 1 ms
