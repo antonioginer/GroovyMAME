@@ -1809,8 +1809,7 @@ int renderer_ogl::draw(const int update)
 	if (video_config.framedelay == 0)
 	{
 		// automatic
-		m_frame_delay = m_sync.auto_framedelay();
-		window().machine().video().set_auto_framedelay((float)m_frame_delay);
+		m_frame_delay = m_sync.current_framedelay();
 	}
 	else
 		// user defined
