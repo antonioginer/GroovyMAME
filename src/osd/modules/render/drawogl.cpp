@@ -796,17 +796,16 @@ int renderer_ogl::create()
 		return 1;
 	}
 #ifdef SDLMAME_X11
-	//if (window().index() == 0 && video_config.syncrefresh && video_config.sync_mode != 0)
+	if (window().index() == 0 && window().machine().sync().sync_refresh())
 	{
 		// Try to open DRM device
 		fd = drm_open(dri_device);
 		if (fd != 0)
-			//m_gl_context->set_swap_interval((video_config.sync_mode == 2 || video_config.sync_mode == 4)? 1 : 0);
 			m_gl_context->set_swap_interval(0);
 
 		crtc_id = drm_get_crtc(fd, window().monitor()->oshandle());
 	}
-
+	else
 #endif
 	m_gl_context->set_swap_interval((video_config.waitvsync) ? 1 : 0);
 
