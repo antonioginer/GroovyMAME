@@ -366,6 +366,7 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 		}
 
 		set_options(display, target);
+		machine().sync().set_vtotal(display->selected_mode()->vtotal);
 
 		return true;
 	}
