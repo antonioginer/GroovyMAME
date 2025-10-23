@@ -7,15 +7,15 @@
 // MAME headers
 #include "emu.h"
 #include "emuopts.h"
-
 #include "emusync.h"
 
-#define GPU_IS_DCN 0
-#if defined(SDLMAME_X11) && GPU_IS_DCN
-	#define VBLANK_OFFSET 2e6 // hack
+#define GPU_IS_DCN 1
+#if !defined(OSD_WINDOWS) && GPU_IS_DCN
+	#define VBLANK_OFFSET 1.0e6 // hack
 #else
 	#define VBLANK_OFFSET 0
 #endif
+
 
 //============================================================
 //  emusync::emusync
