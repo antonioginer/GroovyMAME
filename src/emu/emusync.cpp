@@ -8,6 +8,7 @@
 #include "emu.h"
 #include "emuopts.h"
 #include "emusync.h"
+#include "screen.h"
 
 /*
 #define GPU_IS_DCN 1
@@ -94,6 +95,8 @@ void emusync::register_tag(enum emusync::event_tag tag)
 			}
 			else
 				osd_printf_verbose("\n");
+
+			update_stats();
 			break;
 		}
 	}
@@ -232,7 +235,7 @@ register_and_exit:
 uint64_t emusync::wait_raster(uint64_t count, double scan)
 {
 	//uint64_t sync_target = m_last_timestamp - VBLANK_OFFSET + (count - m_last_count) * period();
-	uint64_t sync_target = m_last_timestamp - vsync_offset() * line_period() + (count - m_last_count) * period();
+	uint64_t sync_target = m_last_timestamp + vsync_offset() * line_period() + (count - m_last_count) * period();
 	uint64_t time_target = sync_target + (uint64_t)(scan * period());
 
 	uint64_t time_entry = time_in_ns();
@@ -276,7 +279,7 @@ void emusync::get_raster(raster_status *status)
 		return;
 
 	//uint64_t adjusted_prev_timestamp = m_last_timestamp - VBLANK_OFFSET;
-	uint64_t adjusted_prev_timestamp = m_last_timestamp - vsync_offset() * line_period();
+	uint64_t adjusted_prev_timestamp = m_last_timestamp + vsync_offset() * line_period();
 
 	int64_t delta_time = time_in_ns() - adjusted_prev_timestamp;
 
@@ -294,4 +297,16 @@ double emusync::current_framedelay()
 	uint64_t effective_margin = std::max(m_emulation_time_dm, m_fd_margin);
 	uint64_t adjusted_emulation_time = std::min(m_emulation_time_avg + effective_margin, period());
 	return std::max((double)(period() - adjusted_emulation_time) / period(), 0.0);
+}
+
+//============================================================
+//  emusync::update_stats
+//============================================================
+
+void emusync::update_stats()
+{
+	// determine the refresh rate of the primary screen
+	const screen_device *primary_screen = screen_device_enumerator(machine().root_device()).first();
+	if (primary_screen->configured())
+		m_emu_period = primary_screen->frame_period().as_attoseconds() / 1e9;
 }
