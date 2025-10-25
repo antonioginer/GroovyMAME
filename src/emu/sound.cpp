@@ -15,6 +15,7 @@
 
 #include "config.h"
 #include "emuopts.h"
+#include "emusync.h"
 #include "main.h"
 #include "speaker.h"
 
@@ -1037,7 +1038,7 @@ void sound_manager::run_effects()
 		// Copy the data to the effects threads, expanding as needed
 		// when -speed is in use
 		double sf = machine().video().speed_factor();
-		if(sf == 1000) {
+		if(sf == 1000 && !machine().options().sync_audio()) {
 			for(auto &si : m_speakers) {
 				int samples = si.m_buffer.available_samples();
 				int channels = si.m_buffer.channels();
@@ -1052,7 +1053,10 @@ void sound_manager::run_effects()
 				eb.commit(samples);
 			}
 		} else {
-			sf /= 1000;
+			if (machine().options().sync_audio())
+				sf = machine().sync().speed_factor();
+			else
+				sf /= 1000;
 			for(auto &si : m_speakers) {
 				int source_samples = si.m_buffer.available_samples();
 				int channels = si.m_buffer.channels();
@@ -2687,6 +2691,7 @@ void sound_manager::update(s32)
 	streams_update();
 
 	m_last_sync_time = machine().time();
+	m_update_timer->adjust(attotime::from_nsec(machine().sync().emu_period()));
 }
 
 void sound_manager::streams_update()
