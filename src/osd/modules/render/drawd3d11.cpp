@@ -31,7 +31,7 @@
 #include "emusync.h"
 #include "scanline.h"
 
-#define LOG_SCANLINES 0
+#define LOG_SCANLINES 1
 
 /* renderer_d3d11 is the information about Direct3D 11 for the current screen */
 class renderer_d3d11 : public osd_renderer
@@ -768,7 +768,7 @@ int renderer_d3d11::draw(const int update)
 	uint64_t wait_after = 0;
 	bool in_time_for_next_retrace = false;
 	bool missed_previous_retrace = false;
-	bool handle_vsync = true;
+	bool handle_vsync = video_config.syncrefresh;
 
 	emusync::raster_status raster = {};
 	DXGI_FRAME_STATISTICS st;
@@ -790,6 +790,14 @@ int renderer_d3d11::draw(const int update)
 		else
 			osd_printf_verbose("missed retrace\n");
 	}
+
+#if LOG_SCANLINES
+		uint32_t scanline;
+		bool in_vblank = false;
+		scanline_poll(&scanline, &in_vblank);
+		//osd_printf_verbose("scanline: %d in_vblank %d\n", scanline, in_vblank);
+		osd_printf_verbose("scanline: %d in_vblank: %d vsync_offset %d\n", scanline, in_vblank, m_sync.vsync_offset());
+#endif
 
 	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
@@ -820,7 +828,7 @@ int renderer_d3d11::draw(const int update)
 
 		first_count = st.SyncRefreshCount;
 	}
-	else
+	else if(video_config.syncrefresh)
 	{
 		if (video_config.framedelay == 0)
 			// automatic
@@ -832,13 +840,15 @@ int renderer_d3d11::draw(const int update)
 		osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
 		sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
 		wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
-
+/*
 #if LOG_SCANLINES
 		uint32_t scanline;
 		bool in_vblank;
 		scanline_poll(&scanline, &in_vblank);
-		osd_printf_verbose("scanline: %d in_vblank %d\n", scanline, in_vblank);
+		//osd_printf_verbose("scanline: %d in_vblank %d\n", scanline, in_vblank);
+		osd_printf_verbose("scanline: %d in_vblank: %d vsync_offset %d\n", scanline, in_vblank, m_sync.vsync_offset());
 #endif
+*/
 	}
 
 	osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
