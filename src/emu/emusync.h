@@ -49,6 +49,8 @@ public:
 	double frame_time_in_ms() { return get_ms(m_frame_time); };
 	double current_framedelay();
 	uint64_t line_period() { return m_vtotal ? period() / m_vtotal : 0; };
+	uint64_t emu_period() { return m_emu_period; };
+	double speed_factor() { return m_syncrefresh? (double)m_emu_period / period() : 1.0; };
 
 	// getters
 	running_machine &machine() const noexcept { return m_machine; }
@@ -96,6 +98,7 @@ private:
 	uint64_t m_emulation_time_avg = 0;
 	uint64_t m_emulation_time_dm = 0;
 	uint64_t m_frame_time = 0;
+	uint64_t m_emu_period = 0;
 
 	int64_t  m_vblank_count = 0;
 	int64_t  m_current_period = 0;
@@ -112,5 +115,7 @@ private:
 
 	int ticks_to_ns = 0;
 	uint64_t sleep_time = 1e6; // 1 ms
+
+	void update_stats();
 };
 #endif
