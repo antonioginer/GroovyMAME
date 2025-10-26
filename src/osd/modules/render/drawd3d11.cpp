@@ -768,11 +768,11 @@ int renderer_d3d11::draw(const int update)
 	uint64_t wait_after = 0;
 	bool in_time_for_next_retrace = false;
 	bool missed_previous_retrace = false;
-	bool handle_vsync = video_config.syncrefresh;
+	bool handle_vsync = m_sync.handle_throttle();
 
 	emusync::raster_status raster = {};
 	DXGI_FRAME_STATISTICS st;
-	if (m_frame)
+	if (handle_vsync && m_frame)
 	{
 		hr = m_swapchain->GetFrameStatistics(&st);
 		osd_printf_verbose("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
@@ -785,7 +785,7 @@ int renderer_d3d11::draw(const int update)
 		in_time_for_next_retrace = raster.scan <= 0.95 && have_new_timestamp;
 		missed_previous_retrace = raster.count > sync_frame;
 
-		if (handle_vsync && !missed_previous_retrace)
+		if (window().machine().video().throttled() && !missed_previous_retrace)
 			wait_before = m_sync.wait_raster(raster.count, 0.90);
 		else
 			osd_printf_verbose("missed retrace\n");
@@ -801,7 +801,7 @@ int renderer_d3d11::draw(const int update)
 
 	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
-	uint32_t interval = !handle_vsync && m_waitvsync && in_time_for_next_retrace? 1 : 0;
+	uint32_t interval = !handle_vsync && window().machine().video().throttled() && m_waitvsync && in_time_for_next_retrace? 1 : 0;
 
 	hr = m_swapchain->Present(interval, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
@@ -828,7 +828,7 @@ int renderer_d3d11::draw(const int update)
 
 		first_count = st.SyncRefreshCount;
 	}
-	else if(video_config.syncrefresh)
+	else if (handle_vsync)
 	{
 		if (video_config.framedelay == 0)
 			// automatic
@@ -839,7 +839,8 @@ int renderer_d3d11::draw(const int update)
 
 		osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
 		sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
-		wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
+		if (window().machine().video().throttled())
+			wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
 /*
 #if LOG_SCANLINES
 		uint32_t scanline;
