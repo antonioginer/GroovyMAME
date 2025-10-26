@@ -741,6 +741,9 @@ void sdl_window_info::update()
 	// adjust the cursor state
 	update_cursor_state();
 
+	// Update fullscreen state for raster based throttling
+	machine().sync().set_fullscreen(fullscreen());
+
 	// if we're visible and running and not in the middle of a resize, draw
 	if (target() != nullptr)
 	{

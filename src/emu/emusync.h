@@ -50,11 +50,12 @@ public:
 	double current_framedelay();
 	uint64_t line_period() { return m_vtotal ? period() / m_vtotal : 0; };
 	uint64_t emu_period() { return m_emu_period; };
-	double speed_factor() { return m_syncrefresh? (double)m_emu_period / period() : 1.0; };
+	double speed_factor() { return handle_throttle() ? (double)m_emu_period / period() : 1.0; };
 
 	// getters
 	running_machine &machine() const noexcept { return m_machine; }
 
+	bool handle_throttle() const { return m_fullscreen && m_syncrefresh; }
 	bool sync_refresh() const { return m_syncrefresh; }
 	bool sync_audio() const { return m_syncaudio; }
 	bool auto_framedelay() const { return m_auto_framedelay; }
@@ -62,6 +63,7 @@ public:
 	int32_t vsync_offset() const { return m_vsync_offset; }
 
 	// setters
+	void set_fullscreen(bool fullscreen) { m_fullscreen = fullscreen; }
 	void set_sync_refresh(bool syncrefresh) { m_syncrefresh = syncrefresh; }
 	void set_sync_audio(bool syncaudio) { m_syncaudio = syncaudio; }
 	void set_framedelay(int framedelay) { m_framedelay = framedelay; }
@@ -105,6 +107,7 @@ private:
 	int64_t  m_mean = 0;
 
 	bool     m_sleep_allowed;
+	bool     m_fullscreen;
 	bool     m_syncrefresh;              // flag: TRUE if we're currently refresh-synced
 	bool     m_syncaudio;                // flag: TRUE if audio resampling is enabled
 	bool     m_auto_framedelay;          // flag: TRUE if automatic frame delay is enabled

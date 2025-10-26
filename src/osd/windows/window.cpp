@@ -780,6 +780,9 @@ void win_window_info::update()
 {
 	assert(GetCurrentThreadId() == main_threadid);
 
+	// Update fullscreen state for raster based throttling
+	machine().sync().set_fullscreen(fullscreen() && !IsIconic(platform_window()));
+
 	// see if the target has changed significantly in window mode
 	unsigned const targetview = target()->view();
 	int const targetorient = target()->orientation();

@@ -737,7 +737,7 @@ void video_manager::update_throttle(attotime emutime)
 */
 
 	// if we're only syncing to the refresh, bail now
-	if (machine().sync().sync_refresh())
+	if (machine().sync().handle_throttle())
 		return;
 
 	// outer scope so we can break out in case of a resync
