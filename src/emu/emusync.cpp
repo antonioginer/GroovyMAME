@@ -33,6 +33,7 @@ emusync::emusync(running_machine &machine)
 	, m_framedelay(machine.options().frame_delay())
 	, m_fd_margin(machine.options().fd_margin() * 1e6) // ms->ns
 	, m_vsync_offset(machine.options().vsync_offset())
+	, m_bfi(machine.options().black_frame_insertion())
 	, ticks_to_ns(1e9 / osd_ticks_per_second())
 	, sleep_time (1 * osd_ticks_per_second() / 1000.0) // 1 ms
 {
