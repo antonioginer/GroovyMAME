@@ -693,7 +693,6 @@ int renderer_d3d11::draw(const int update)
 	HRESULT hr;
 	auto &win = dynamic_cast<win_window_info &>(window());
 	static uint32_t first_count = 0;
-	static int sync_frame = 0;
 
 	// Check that both swapchain's & window's fullscreen states match.
 	// This is required if fullscreen "optimizations" are enabled, since
@@ -766,23 +765,22 @@ int renderer_d3d11::draw(const int update)
 
 	uint64_t wait_before = 0;
 	uint64_t wait_after = 0;
-	bool in_time_for_next_retrace = false;
-	bool missed_previous_retrace = false;
 	bool handle_vsync = m_sync.handle_throttle();
-
+	bool missed_previous_retrace = false;
+	static uint64_t sync_frame = 0;
 	emusync::raster_status raster = {};
+
 	DXGI_FRAME_STATISTICS st;
 	if (handle_vsync && m_frame)
 	{
 		hr = m_swapchain->GetFrameStatistics(&st);
 		osd_printf_verbose("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
 
-		bool have_new_timestamp = m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
+		m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 		m_sync.get_raster(&raster);
 		osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
 
-		in_time_for_next_retrace = raster.scan <= 0.95 && have_new_timestamp;
 		missed_previous_retrace = raster.count > sync_frame;
 
 		if (window().machine().video().throttled() && !missed_previous_retrace)
@@ -795,13 +793,12 @@ int renderer_d3d11::draw(const int update)
 		uint32_t scanline;
 		bool in_vblank = false;
 		scanline_poll(&scanline, &in_vblank);
-		//osd_printf_verbose("scanline: %d in_vblank %d\n", scanline, in_vblank);
 		osd_printf_verbose("scanline: %d in_vblank: %d vsync_offset %d\n", scanline, in_vblank, m_sync.vsync_offset());
 #endif
 
 	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
-	uint32_t interval = !handle_vsync && window().machine().video().throttled() && m_waitvsync && in_time_for_next_retrace? 1 : 0;
+	uint32_t interval = !handle_vsync && window().machine().video().throttled() && m_waitvsync ? 1 : 0;
 
 	hr = m_swapchain->Present(interval, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
@@ -830,7 +827,7 @@ int renderer_d3d11::draw(const int update)
 	}
 	else if (handle_vsync)
 	{
-		if (video_config.framedelay == 0)
+		if (window().machine().options().auto_frame_delay() && video_config.framedelay == 0)
 			// automatic
 			m_frame_delay = m_sync.current_framedelay();
 		else
@@ -841,24 +838,11 @@ int renderer_d3d11::draw(const int update)
 		sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
 		if (window().machine().video().throttled())
 			wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
-/*
-#if LOG_SCANLINES
-		uint32_t scanline;
-		bool in_vblank;
-		scanline_poll(&scanline, &in_vblank);
-		//osd_printf_verbose("scanline: %d in_vblank %d\n", scanline, in_vblank);
-		osd_printf_verbose("scanline: %d in_vblank: %d vsync_offset %d\n", scanline, in_vblank, m_sync.vsync_offset());
-#endif
-*/
-	}
 
-	osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
+		osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
+	}
 	m_sync.register_tag(emusync::AFTER_DRAW);
 
-/*
-	osd_printf_debug("d3d11: software_renderer: %.3f, memcpy: %.3f, present: %.3f total: %.3f\n",
-		get_ms(after_prim - before_prim), get_ms(after_map - after_prim), get_ms(after_present - before_present), get_ms(after_present - before_prim));
-*/
 	return 0;
 }
 
