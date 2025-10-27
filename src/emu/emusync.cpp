@@ -25,6 +25,7 @@
 
 emusync::emusync(running_machine &machine)
 	: m_machine(machine)
+	, m_emu_period(1e9 / 60)
 	, m_sleep_allowed(machine.options().sleep())
 	, m_syncrefresh(machine.options().sync_refresh())
 	, m_syncaudio(machine.options().sync_audio())
