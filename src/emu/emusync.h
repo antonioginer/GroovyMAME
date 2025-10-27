@@ -50,7 +50,7 @@ public:
 	double current_framedelay();
 	uint64_t line_period() { return m_vtotal ? period() / m_vtotal : 0; };
 	uint64_t emu_period() { return m_emu_period; };
-	double speed_factor() { return handle_throttle() ? (double)m_emu_period / period() : 1.0; };
+	double speed_factor() { return handle_throttle() ? (double)m_emu_period / (period() * (1 + m_bfi)) : 1.0; };
 
 	// getters
 	running_machine &machine() const noexcept { return m_machine; }
@@ -114,6 +114,7 @@ private:
 	int32_t  m_framedelay;               // tenths of frame to delay emulation start
 	uint64_t m_fd_margin;                //
 	int32_t  m_vsync_offset;             // offset vsync position by this many lines
+	int32_t  m_bfi;
 	uint32_t m_vtotal;
 
 	int ticks_to_ns = 0;
