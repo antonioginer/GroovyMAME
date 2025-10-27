@@ -1808,7 +1808,7 @@ int renderer_ogl::draw(const int update)
 #ifdef SDLMAME_X11
 	if (handle_vsync)
 	{
-		if (video_config.framedelay == 0)
+		if (window().machine().options().auto_frame_delay() && video_config.framedelay == 0)
 		{
 			// automatic
 			m_frame_delay = m_sync.current_framedelay();
