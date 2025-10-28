@@ -142,7 +142,7 @@ private:
 	int                     m_height;                   // current height
 	int                     m_refresh;                  // current refresh rate
 	bool                    m_interlace;                // current interlace
-	int                     m_frame_delay;              // current frame delay value
+	double                  m_frame_delay;              // current frame delay value
 	int                     m_vsync_offset;             // current vsync_offset value
 	int                     m_first_scanline;           // first scanline number (visible)
 	int                     m_last_scanline;            // last scanline number (visible)
@@ -193,6 +193,13 @@ private:
 	std::unique_ptr<shaders> m_shaders;                 // HLSL interface
 
 	std::unique_ptr<d3d_texture_manager> m_texture_manager;          // texture manager
+
+	uint32_t m_frame;
+	uint64_t m_time_start = 0;
+	emusync &m_sync;
+
+	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
+	inline double time_now() { return get_ms(osd_ticks() - m_time_start); };
 };
 
 #endif // MAME_OSD_MODULES_RENDER_DRAWD3D_H
