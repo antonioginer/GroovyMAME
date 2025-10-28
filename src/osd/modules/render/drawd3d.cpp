@@ -618,6 +618,9 @@ renderer_d3d9::renderer_d3d9(osd_window &window, const IDirect3D9Ptr &d3dobj)
 	, m_last_modmode(0)
 	, m_shaders(nullptr)
 	, m_texture_manager()
+	, m_frame(0)
+	, m_time_start(0)
+	, m_sync(window.machine().sync())
 {
 }
 
@@ -830,61 +833,81 @@ void renderer_d3d9::end_frame()
 	if (FAILED(result))
 		osd_printf_verbose("Direct3D: Error %08lX during device end_scene call\n", result);
 
-	if ((m_frame_delay != video_config.framedelay) || (m_vsync_offset != window().machine().sync().vsync_offset()))
-	{
-		m_frame_delay = video_config.framedelay;
-		m_vsync_offset = window().machine().sync().vsync_offset();
-		update_break_scanlines();
-	}
+	m_sync.register_tag(emusync::BEFORE_DRAW);
 
-	// sync to VBLANK-BEGIN
-	if (video_config.syncrefresh)
-	{
-		m_device->GetRasterStatus(0, &m_raster_status);
-		m_enter_line = m_raster_status.ScanLine;
+	uint64_t wait_before = 0;
+	uint64_t wait_after = 0;
+	bool handle_vsync = m_sync.handle_throttle();
+	bool missed_previous_retrace = false;
+	static uint64_t sync_frame = 0;
+	static uint32_t first_count = 0;
+	emusync::raster_status raster = {};
 
-		do
-		{
-			if (m_device->GetRasterStatus(0, &m_raster_status) != D3D_OK)
-				break;
-		} while (m_frame_delay?
-			// with frame delay, wait for break scanline, or just exit if we're already in vblank
-			!m_raster_status.InVBlank && m_raster_status.ScanLine < m_break_scanline :
-			// with syncrefresh only, just wait for vblank
-			!m_raster_status.InVBlank);
+	D3DPRESENTSTATS st;
+	if (handle_vsync && m_frame)
+	{
+		m_swap->GetPresentStats(&st);
+		osd_printf_verbose("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
+
+		m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
+
+		m_sync.get_raster(&raster);
+		osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
+
+		missed_previous_retrace = raster.count > sync_frame;
+
+		if (window().machine().video().throttled() && !missed_previous_retrace)
+			wait_before = m_sync.wait_raster(raster.count, 0.90);
+		else
+			osd_printf_verbose("missed retrace\n");
 	}
+	m_sync.register_tag(emusync::BEFORE_PRESENT);
+
+	bool interval = !handle_vsync && window().machine().video().throttled() && video_config.waitvsync;
 
 	// present the current buffers
-	result = m_device->PresentEx(nullptr, nullptr, nullptr, nullptr, D3DPRESENT_INTERVAL_ONE);
+	result = m_device->PresentEx(nullptr, nullptr, nullptr, nullptr, interval? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE);
 	if (FAILED(result) && (result != D3DERR_WASSTILLDRAWING))
 		osd_printf_verbose("Direct3D: Error %08lX during device present call\n", result);
 
-	// sync to VBLANK-END
-	if (video_config.syncrefresh)
+	m_sync.register_tag(emusync::AFTER_PRESENT);
+
+	m_swap->GetLastPresentCount(&m_frame);
+	osd_printf_verbose("[%.3f] this present: #%d\n", get_ms(m_sync.get_tag(emusync::BEFORE_DRAW) - m_time_start), m_frame);
+
+	if (m_frame == 1)
 	{
+		osd_ticks_t time1 = osd_ticks(), time2;
 		do
 		{
-			if (m_device->GetRasterStatus(0, &m_raster_status) != D3D_OK)
-				break;
-		} while (m_raster_status.InVBlank);
+			Sleep(1);
+			time2 = osd_ticks();
 
-		m_exit_line = m_raster_status.ScanLine;
-
-		// check if retrace has been missed
-		if (m_swap != nullptr)
-		{
-			m_swap->GetPresentStats(&m_stats);
-
-			if (m_stats.PresentRefreshCount - m_sync_count > 1 && m_enter_line != 0)
-			{
-				static const double tps = (double)osd_ticks_per_second();
-				static const double time_start = (double)osd_ticks() / tps;
-				osd_printf_verbose("Missed retrace, realtime is %f\n", (double)osd_ticks() / tps - time_start);
-			}
-			m_sync_count = m_stats.PresentRefreshCount;
+			m_swap->GetPresentStats(&st);
 		}
-		//osd_printf_verbose("frame %d enter_line %d exit_line %d\n", m_sync_count, m_enter_line, m_exit_line);
+		while (st.PresentCount != 1 && get_ms(time2 - time1) < 300.0);
+		osd_printf_verbose("Synchronizing with first timestamp: [%.3f] stats: %d %d %d %lld\n\n",
+			get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
+
+		first_count = st.SyncRefreshCount;
 	}
+	else if (handle_vsync)
+	{
+		if (window().machine().options().auto_frame_delay() && video_config.framedelay == 0)
+			// automatic
+			m_frame_delay = m_sync.current_framedelay();
+		else
+			// user defined
+			m_frame_delay = (double)(video_config.framedelay) / 10.0;
+
+		osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
+		sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
+		if (window().machine().video().throttled())
+			wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
+
+		osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
+	}
+	m_sync.register_tag(emusync::AFTER_DRAW);
 }
 
 void renderer_d3d9::device_flush()
