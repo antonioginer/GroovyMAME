@@ -811,14 +811,6 @@ void win_window_info::update()
 	if (fullscreen() && options.switch_res() && options.changeres())
 		reset_required = WINOSD(machine())->switchres()->check_resolution_change(index(), monitor(), target(), &m_win_config);
 
-	// check if frame delay has changed
-	int new_frame_delay = machine().sync().framedelay();
-	if (new_frame_delay != video_config.framedelay)
-	{
-		reset_required |= ((bool)video_config.framedelay != (bool)new_frame_delay);
-		video_config.framedelay = new_frame_delay;
-	}
-
 	// check if geometry has changed
 	if (fullscreen() && options.switch_res() && WINOSD(machine())->switchres()->check_geometry_change(index()))
 	{
