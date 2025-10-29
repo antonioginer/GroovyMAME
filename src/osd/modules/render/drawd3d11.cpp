@@ -61,6 +61,7 @@ private:
 	ID3D11PixelShader* pick_shader();
 	bool get_updated_dimensions();
 	bool get_vblank_timestamp();
+	uint64_t get_frame_counter();
 	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
 	inline double time_now() { return get_ms(osd_ticks() - m_time_start); };
 
@@ -701,9 +702,49 @@ bool renderer_d3d11::get_vblank_timestamp()
 	//osd_printf_verbose("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
 	m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
+#if LOG_SCANLINES
+		uint32_t scanline;
+		bool in_vblank = false;
+		scanline_poll(&scanline, &in_vblank);
+		osd_printf_verbose("scanline: %d in_vblank: %d vsync_offset %d\n", scanline, in_vblank, m_sync.vsync_offset());
+#endif
+
 	return true;
 }
 
+
+//============================================================
+//  renderer_d3d11::get_frame_counter
+//============================================================
+
+uint64_t renderer_d3d11::get_frame_counter()
+{
+	HRESULT hr;
+	DXGI_FRAME_STATISTICS st;
+
+	uint32_t frame_count;
+	hr = m_swapchain->GetLastPresentCount(&frame_count);
+	//osd_printf_verbose("[%.3f] this present: #%d\n", get_ms(m_sync.get_tag(emusync::BEFORE_DRAW) - m_time_start), m_frame);
+
+	if (frame_counter == 1)
+	{
+		osd_ticks_t time1 = osd_ticks(), time2;
+		do
+		{
+			Sleep(1);
+			time2 = osd_ticks();
+
+			m_swapchain->GetFrameStatistics(&st);
+		}
+		while (st.PresentCount != 1 && get_ms(time2 - time1) < 300.0);
+		osd_printf_verbose("Synchronizing with first timestamp: [%.3f] stats: %d %d %d %lld\n\n",
+			get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
+
+		m_sync.set_first_count((uint64_t)st.SyncRefreshCount);
+	}
+
+	return (uint64_t)frame_count;
+}
 
 //============================================================
 //  renderer_d3d11::draw
@@ -793,8 +834,9 @@ int renderer_d3d11::draw(const int update)
 
 	m_sync.predraw_sync(std::bind(&get_vblank_timestamp, this));
 
+/*
 	DXGI_FRAME_STATISTICS st;
-/*	if (handle_vsync && m_frame)
+	if (handle_vsync && m_frame)
 	{
 		hr = m_swapchain->GetFrameStatistics(&st);
 		osd_printf_verbose("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
@@ -812,12 +854,6 @@ int renderer_d3d11::draw(const int update)
 			osd_printf_verbose("missed retrace\n");
 	}
 */
-#if LOG_SCANLINES
-		uint32_t scanline;
-		bool in_vblank = false;
-		scanline_poll(&scanline, &in_vblank);
-		osd_printf_verbose("scanline: %d in_vblank: %d vsync_offset %d\n", scanline, in_vblank, m_sync.vsync_offset());
-#endif
 
 	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
@@ -829,6 +865,9 @@ int renderer_d3d11::draw(const int update)
 
 	m_sync.register_tag(emusync::AFTER_PRESENT);
 
+	m_sync.postdraw_sync(std::bind(&get_frame_counter, this));
+
+/*
 	hr = m_swapchain->GetLastPresentCount(&m_frame);
 	osd_printf_verbose("[%.3f] this present: #%d\n", get_ms(m_sync.get_tag(emusync::BEFORE_DRAW) - m_time_start), m_frame);
 
@@ -864,6 +903,7 @@ int renderer_d3d11::draw(const int update)
 
 		osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
 	}
+*/
 	m_sync.register_tag(emusync::AFTER_DRAW);
 
 	return 0;
