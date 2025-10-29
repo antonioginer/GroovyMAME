@@ -589,7 +589,6 @@ renderer_d3d9::renderer_d3d9(osd_window &window, const IDirect3D9Ptr &d3dobj)
 	, m_width(0)
 	, m_height(0)
 	, m_refresh(0)
-	, m_frame_delay(0)
 	, m_create_error_count(0)
 	, m_post_fx_available(true)
 	, m_gamma_supported(0)
@@ -618,8 +617,6 @@ renderer_d3d9::renderer_d3d9(osd_window &window, const IDirect3D9Ptr &d3dobj)
 	, m_last_modmode(0)
 	, m_shaders(nullptr)
 	, m_texture_manager()
-	, m_frame(0)
-	, m_time_start(0)
 	, m_sync(window.machine().sync())
 {
 }
@@ -835,32 +832,9 @@ void renderer_d3d9::end_frame()
 
 	m_sync.register_tag(emusync::BEFORE_DRAW);
 
-	uint64_t wait_before = 0;
-	uint64_t wait_after = 0;
 	bool handle_vsync = m_sync.handle_throttle();
-	bool missed_previous_retrace = false;
-	static uint64_t sync_frame = 0;
-	static uint32_t first_count = 0;
-	emusync::raster_status raster = {};
+	m_sync.predraw_sync(std::bind(&get_vblank_timestamp, this));
 
-	D3DPRESENTSTATS st;
-	if (handle_vsync && m_frame)
-	{
-		m_swap->GetPresentStats(&st);
-		osd_printf_verbose("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
-
-		m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
-
-		m_sync.get_raster(&raster);
-		osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
-
-		missed_previous_retrace = raster.count > sync_frame;
-
-		if (window().machine().video().throttled() && !missed_previous_retrace)
-			wait_before = m_sync.wait_raster(raster.count, 0.90);
-		else
-			osd_printf_verbose("missed retrace\n");
-	}
 	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
 	bool interval = !handle_vsync && window().machine().video().throttled() && video_config.waitvsync;
@@ -872,10 +846,37 @@ void renderer_d3d9::end_frame()
 
 	m_sync.register_tag(emusync::AFTER_PRESENT);
 
-	m_swap->GetLastPresentCount(&m_frame);
-	osd_printf_verbose("[%.3f] this present: #%d\n", get_ms(m_sync.get_tag(emusync::BEFORE_DRAW) - m_time_start), m_frame);
+	m_sync.postdraw_sync(std::bind(&get_frame_counter, this));
 
-	if (m_frame == 1)
+	m_sync.register_tag(emusync::AFTER_DRAW);
+}
+
+
+bool renderer_d3d9::get_vblank_timestamp()
+{
+	HRESULT hr;
+	D3DPRESENTSTATS st;
+
+	hr = m_swap->GetPresentStats(&st);
+	if (FAILED(hr))
+		return false;
+
+	osd_printf_verbose("prev present count: #%d [%d]\n", st.PresentCount, st.SyncRefreshCount - m_sync.first_sync_count());
+	m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
+
+	return true;
+}
+
+
+uint64_t renderer_d3d9::get_frame_counter()
+{
+	D3DPRESENTSTATS st;
+
+	uint32_t frame_count;
+	m_swap->GetLastPresentCount(&frame_count);
+	osd_printf_verbose("this present count: #%d\n", frame_count);
+
+	if (frame_count == 1)
 	{
 		osd_ticks_t time1 = osd_ticks(), time2;
 		do
@@ -889,26 +890,12 @@ void renderer_d3d9::end_frame()
 		osd_printf_verbose("Synchronizing with first timestamp: [%.3f] stats: %d %d %d %lld\n\n",
 			get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
-		first_count = st.SyncRefreshCount;
+		m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 	}
-	else if (handle_vsync)
-	{
-		if (window().machine().options().auto_frame_delay() && video_config.framedelay == 0)
-			// automatic
-			m_frame_delay = m_sync.current_framedelay();
-		else
-			// user defined
-			m_frame_delay = (double)(video_config.framedelay) / 10.0;
 
-		osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
-		sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
-		if (window().machine().video().throttled())
-			wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
-
-		osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
-	}
-	m_sync.register_tag(emusync::AFTER_DRAW);
+	return (uint64_t)frame_count;
 }
+
 
 void renderer_d3d9::device_flush()
 {
@@ -1187,7 +1174,7 @@ int renderer_d3d9::device_create_resources()
 
 	// clear the buffer
 	result = m_device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-	result = m_device->Present(nullptr, nullptr, nullptr, nullptr);
+	//result = m_device->Present(nullptr, nullptr, nullptr, nullptr);
 
 	m_texture_manager->create_resources();
 
