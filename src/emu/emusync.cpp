@@ -28,6 +28,7 @@
 emusync::emusync(running_machine &machine)
 	: m_machine(machine)
 	, m_emu_period(1e9 / 60)
+	, m_time_start(time_in_ns())
 	, m_sleep_allowed(machine.options().sleep())
 	, m_syncrefresh(machine.options().sync_refresh())
 	, m_syncaudio(machine.options().sync_audio())
@@ -41,6 +42,7 @@ emusync::emusync(running_machine &machine)
 {
 };
 
+
 //============================================================
 //  emusync::reset
 //============================================================
@@ -48,6 +50,7 @@ emusync::emusync(running_machine &machine)
 void emusync::reset()
 {
 	m_initialized = false;
+	m_frame = 0;
 	m_first_sync_count = 0;
 	m_first_timestamp = 0;
 	m_last_sync_count = 0;
@@ -61,13 +64,29 @@ void emusync::reset()
 
 
 //============================================================
-//  emusync::register_tag
+//  emusync::time_in_ns
+//============================================================
+
+inline uint64_t emusync::time_in_ns()
+{
+//	Windows-only, calls QueryPerformanceCounter
+//	return osd_ticks() * ticks_to_ns;
+
+	struct timespec monotime;
+	clock_gettime(CLOCK_MONOTONIC, &monotime);
+	return (uint64_t)(monotime.tv_sec) * (uint64_t)1000000000 + (uint64_t)(monotime.tv_nsec);
+}
+
+
+//============================================================
+//  emusync::get_tag
 //============================================================
 
 uint64_t emusync::get_tag(enum emusync::event_tag tag)
 {
 	return m_timestamp[tag] / ticks_to_ns;
 }
+
 
 //============================================================
 //  emusync::register_tag
@@ -174,7 +193,7 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 	int64_t delta;
 	int count_delta = 0;
 
-	osd_printf_verbose("register vblank: ");
+	osd_printf_verbose("[%.3f] register vblank: ", time_now());
 
 	if (m_initialized)
 	{
@@ -333,13 +352,13 @@ void emusync::predraw_sync(std::function<void(void)> get_vblank_timestamp)
 
 	raster_status raster = {};
 	get_raster(&raster);
-	//osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
+	osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
 
-	m_missed_previous_retrace = raster.count > m_next_sync_frame;
+	m_this_sync_frame = raster.count;
+	m_missed_previous_retrace = m_this_sync_frame > m_next_sync_frame;
 
 	if (machine().video().throttled() && !m_missed_previous_retrace)
-		//wait_before = m_sync.wait_raster(raster.count, 0.90);
-		wait_raster(raster.count, 0.90);
+		m_predraw_sync_wait = wait_raster(raster.count, 0.90);
 	else
 		osd_printf_verbose("missed retrace\n");
 }
@@ -356,17 +375,23 @@ void emusync::postdraw_sync(std::function<uint64_t(void)> get_frame_counter)
 	else
 		m_frame = get_frame_counter();
 
-	if (machine().options().auto_frame_delay() && video_config.framedelay == 0)
+	if (m_frame == 1)
+		return;
+
+	double fd;
+	if (machine().options().auto_frame_delay() && m_framedelay == 0)
 		// automatic
-		m_frame_delay = m_sync.current_framedelay();
+		fd = current_framedelay();
 	else
 		// user defined
-		m_frame_delay = (double)(video_config.framedelay) / 10.0;
+		fd = (double)(m_framedelay) / 10.0;
 
-	osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
-	sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
+	osd_printf_verbose("[%.3f] ", time_now());
+	m_next_sync_frame = m_this_sync_frame + (m_missed_previous_retrace? 0 : 1);
+
 	if (machine().video().throttled())
-		wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
+		m_postdraw_sync_wait = wait_raster(m_next_sync_frame, fd);
 
-	osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
+	osd_printf_verbose("[%.3f] wait: %.3f ", time_now(), get_ms(m_predraw_sync_wait + m_postdraw_sync_wait));
 }
+
