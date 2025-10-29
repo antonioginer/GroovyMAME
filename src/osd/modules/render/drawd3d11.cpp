@@ -60,6 +60,7 @@ private:
 	bool pick_best_mode(DXGI_MODE_DESC *mode);
 	ID3D11PixelShader* pick_shader();
 	bool get_updated_dimensions();
+	bool get_vblank_timestamp();
 	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
 	inline double time_now() { return get_ms(osd_ticks() - m_time_start); };
 
@@ -685,6 +686,26 @@ void renderer_d3d11::set_viewport()
 
 
 //============================================================
+//  renderer_d3d11::get_vblank_timestamp
+//============================================================
+
+bool renderer_d3d11::get_vblank_timestamp()
+{
+	HRESULT hr;
+	DXGI_FRAME_STATISTICS st;
+
+	hr = m_swapchain->GetFrameStatistics(&st);
+	if (FAILED(hr))
+		return false;
+
+	//osd_printf_verbose("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
+	m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
+
+	return true;
+}
+
+
+//============================================================
 //  renderer_d3d11::draw
 //============================================================
 
@@ -768,10 +789,12 @@ int renderer_d3d11::draw(const int update)
 	bool handle_vsync = m_sync.handle_throttle();
 	bool missed_previous_retrace = false;
 	static uint64_t sync_frame = 0;
-	emusync::raster_status raster = {};
+//	emusync::raster_status raster = {};
+
+	m_sync.predraw_sync(std::bind(&get_vblank_timestamp, this));
 
 	DXGI_FRAME_STATISTICS st;
-	if (handle_vsync && m_frame)
+/*	if (handle_vsync && m_frame)
 	{
 		hr = m_swapchain->GetFrameStatistics(&st);
 		osd_printf_verbose("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
@@ -788,7 +811,7 @@ int renderer_d3d11::draw(const int update)
 		else
 			osd_printf_verbose("missed retrace\n");
 	}
-
+*/
 #if LOG_SCANLINES
 		uint32_t scanline;
 		bool in_vblank = false;

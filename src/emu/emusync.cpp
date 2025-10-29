@@ -4,6 +4,8 @@
 //
 //============================================================
 
+#include <functional>
+
 // MAME headers
 #include "emu.h"
 #include "emuopts.h"
@@ -301,6 +303,7 @@ double emusync::current_framedelay()
 	return std::max((double)(period() - adjusted_emulation_time) / period(), 0.0);
 }
 
+
 //============================================================
 //  emusync::update_stats
 //============================================================
@@ -312,3 +315,32 @@ void emusync::update_stats()
 	if (primary_screen->configured())
 		m_emu_period = primary_screen->frame_period().as_attoseconds() / 1e9;
 }
+
+
+//============================================================
+//  emusync::update_stats
+//============================================================
+
+void emusync::predraw_sync(std::function<void(void)> get_vblank_timestamp)
+{
+	if (get_vblank_timestamp == nullptr)
+		return;
+
+	if (m_frame == 0)
+		return;
+
+	get_vblank_timestamp();
+
+	raster_status raster = {};
+	get_raster(&raster);
+	//osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
+
+	m_missed_previous_retrace = raster.count > m_next_sync_frame;
+
+	if (machine().video().throttled() && !m_missed_previous_retrace)
+		//wait_before = m_sync.wait_raster(raster.count, 0.90);
+		wait_raster(raster.count, 0.90);
+	else
+		osd_printf_verbose("missed retrace\n");
+}
+
