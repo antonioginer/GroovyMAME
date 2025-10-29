@@ -375,6 +375,7 @@ private:
 
 	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
 	inline double time_now() { return get_ms(osd_ticks() - m_time_start); };
+	bool get_vblank_timestamp();
 
 #define GL_CHECK_ERROR_QUIET() gl_check_error(false, __FILE__, __LINE__)
 #define GL_CHECK_ERROR_NORMAL() gl_check_error(true, __FILE__, __LINE__)
@@ -1745,89 +1746,46 @@ int renderer_ogl::draw(const int update)
 	window().m_primlist->release_lock();
 	m_init_context = 0;
 
-	m_sync.register_tag(emusync::BEFORE_DRAW);
-
 //===========================
 
-#ifdef SDLMAME_X11
-	uint64_t wait_before = 0;
-	uint64_t wait_after = 0;
-	bool handle_vsync = m_sync.handle_throttle();
-	bool missed_previous_retrace = false;
-	static uint64_t sync_frame = 0;
-	emusync::raster_status raster = {};
+	m_sync.register_tag(emusync::BEFORE_DRAW);
 
-	uint64_t sequence = 0;
-	uint64_t ns = 0;
+	m_sync.predraw_sync(std::bind(&renderer_ogl::get_vblank_timestamp, this));
 
-	if (handle_vsync)
-	{
-		int ret = drmCrtcGetSequence(fd, crtc_id, &sequence, &ns);
-		if (ret != 0)
-			osd_printf_verbose("error: drmCrtcGetSequence(%d)\n", ret);
-
-		m_sync.register_vblank_in_ns(sequence, ns);
-
-		m_sync.get_raster(&raster);
-		osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
-
-		missed_previous_retrace = raster.count > sync_frame;
-
-		if (window().machine().video().throttled() && !missed_previous_retrace)
-			wait_before = m_sync.wait_raster(raster.count, 0.90);
-		else
-			osd_printf_verbose("missed retrace\n");
-	}
-#endif
-
-/*
-#ifdef SDLMAME_X11
-	// wait for vertical retrace
-	if ((video_config.sync_mode == 3 || video_config.sync_mode == 4) && video_config.syncrefresh && fd)
-		drm_waitvblank(window().monitor()->oshandle());
-#endif
-*/
 	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
 	m_gl_context->swap_buffer();
 
 	m_sync.register_tag(emusync::AFTER_PRESENT);
 
-/*
-#ifdef SDLMAME_X11
-	// wait for vertical retrace
-	if ((video_config.sync_mode == 1 || video_config.sync_mode == 2) && video_config.syncrefresh && fd)
-		drm_waitvblank(window().monitor()->oshandle());
-#endif
+	m_sync.postdraw_sync(nullptr);
 
-
-	// Finish GL to minimize latency
-	glFinish();
-*/
-
-#ifdef SDLMAME_X11
-	if (handle_vsync)
-	{
-		if (window().machine().options().auto_frame_delay() && video_config.framedelay == 0)
-		{
-			// automatic
-			m_frame_delay = m_sync.current_framedelay();
-		}
-		else
-			// user defined
-			m_frame_delay = (double)(video_config.framedelay) / 10.0;
-
-		osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
-		sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
-		if (window().machine().video().throttled())
-			wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
-
-		osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms(wait_before + wait_after));
-	}
-#endif
 	m_sync.register_tag(emusync::AFTER_DRAW);
 
 	return 0;
+}
+
+
+//============================================================
+//  renderer_ogl::get_vblank_timestamp
+//============================================================
+
+bool renderer_ogl::get_vblank_timestamp()
+{
+#ifdef SDLMAME_X11
+	uint64_t sequence = 0;
+	uint64_t ns = 0;
+
+	int ret = drmCrtcGetSequence(fd, crtc_id, &sequence, &ns);
+	if (ret != 0)
+	{
+		osd_printf_verbose("error: drmCrtcGetSequence(%d)\n", ret);
+		return false;
+	}
+
+	m_sync.register_vblank_in_ns(sequence, ns);
+#endif
+	return true;
 }
 
 //============================================================
