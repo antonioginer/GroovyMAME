@@ -87,6 +87,9 @@ public:
 	void                    begin_frame();
 	void                    end_frame();
 
+	bool                    get_vblank_timestamp();
+	uint64_t                get_frame_counter();
+
 	void                    draw_line(const render_primitive &prim);
 	void                    draw_quad(const render_primitive &prim);
 	void                    batch_vector(const render_primitive &prim);
@@ -194,12 +197,9 @@ private:
 
 	std::unique_ptr<d3d_texture_manager> m_texture_manager;          // texture manager
 
-	uint32_t m_frame;
-	uint64_t m_time_start = 0;
 	emusync &m_sync;
 
 	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
-	inline double time_now() { return get_ms(osd_ticks() - m_time_start); };
 };
 
 #endif // MAME_OSD_MODULES_RENDER_DRAWD3D_H
