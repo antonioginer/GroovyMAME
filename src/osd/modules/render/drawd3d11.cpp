@@ -31,7 +31,7 @@
 #include "emusync.h"
 #include "scanline.h"
 
-#define LOG_SCANLINES 1
+#define LOG_SCANLINES 0
 
 /* renderer_d3d11 is the information about Direct3D 11 for the current screen */
 class renderer_d3d11 : public osd_renderer
@@ -91,9 +91,7 @@ private:
 	int   m_client_width;             // current window client width
 	int   m_client_height;            // current window client height
 	bool  m_interlace;                // current interlace
-	double m_frame_delay;             // current frame delay value
 	float m_pixel_aspect = 1.0;
-	uint32_t m_frame;
 	uint64_t m_time_start = 0;
 	emusync &m_sync;
 
@@ -178,8 +176,6 @@ renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, I
 	, m_width(-1) // force get initial values
 	, m_height(0)
 	, m_refresh(0)
-	, m_frame_delay(0.0)
-	, m_frame(0)
 	, m_time_start(osd_ticks())
 	, m_sync(window.machine().sync())
 {
@@ -610,7 +606,6 @@ bool renderer_d3d11::resize_buffers()
 
 	if (window().fullscreen() && m_switchres)
 	{
-		m_frame = 0;
 		m_sync.reset();
 
 		DXGI_MODE_DESC mode {};
@@ -699,15 +694,8 @@ bool renderer_d3d11::get_vblank_timestamp()
 	if (FAILED(hr))
 		return false;
 
-	//osd_printf_verbose("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
+	osd_printf_verbose("prev present count: #%d [%d]\n", st.PresentCount, st.SyncRefreshCount - m_sync.first_sync_count());
 	m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
-
-#if LOG_SCANLINES
-		uint32_t scanline;
-		bool in_vblank = false;
-		scanline_poll(&scanline, &in_vblank);
-		osd_printf_verbose("scanline: %d in_vblank: %d vsync_offset %d\n", scanline, in_vblank, m_sync.vsync_offset());
-#endif
 
 	return true;
 }
@@ -719,14 +707,13 @@ bool renderer_d3d11::get_vblank_timestamp()
 
 uint64_t renderer_d3d11::get_frame_counter()
 {
-	HRESULT hr;
 	DXGI_FRAME_STATISTICS st;
 
 	uint32_t frame_count;
-	hr = m_swapchain->GetLastPresentCount(&frame_count);
-	//osd_printf_verbose("[%.3f] this present: #%d\n", get_ms(m_sync.get_tag(emusync::BEFORE_DRAW) - m_time_start), m_frame);
+	m_swapchain->GetLastPresentCount(&frame_count);
+	osd_printf_verbose("this present count: #%d\n", frame_count);
 
-	if (frame_counter == 1)
+	if (frame_count == 1)
 	{
 		osd_ticks_t time1 = osd_ticks(), time2;
 		do
@@ -740,7 +727,7 @@ uint64_t renderer_d3d11::get_frame_counter()
 		osd_printf_verbose("Synchronizing with first timestamp: [%.3f] stats: %d %d %d %lld\n\n",
 			get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
-		m_sync.set_first_count((uint64_t)st.SyncRefreshCount);
+		m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 	}
 
 	return (uint64_t)frame_count;
@@ -754,7 +741,6 @@ int renderer_d3d11::draw(const int update)
 {
 	HRESULT hr;
 	auto &win = dynamic_cast<win_window_info &>(window());
-	static uint32_t first_count = 0;
 
 	// Check that both swapchain's & window's fullscreen states match.
 	// This is required if fullscreen "optimizations" are enabled, since
@@ -819,44 +805,22 @@ int renderer_d3d11::draw(const int update)
 
 	m_device_context->UpdateSubresource(m_cpu_tex, 0, &box, m_bmdata.get(), pitch * 4, pitch * m_height * 4);
 
-	//osd_ticks_t after_map = osd_ticks();
-
 	m_device_context->Draw(3, 0); // fullscreen triangle
+
+#if LOG_SCANLINES
+		uint32_t scanline;
+		bool in_vblank = false;
+		scanline_poll(&scanline, &in_vblank);
+		osd_printf_verbose("scanline: %d in_vblank: %d vsync_offset %d\n", scanline, in_vblank, m_sync.vsync_offset());
+#endif
 
 	m_sync.register_tag(emusync::BEFORE_DRAW);
 
-	uint64_t wait_before = 0;
-	uint64_t wait_after = 0;
-	bool handle_vsync = m_sync.handle_throttle();
-	bool missed_previous_retrace = false;
-	static uint64_t sync_frame = 0;
-//	emusync::raster_status raster = {};
-
 	m_sync.predraw_sync(std::bind(&get_vblank_timestamp, this));
-
-/*
-	DXGI_FRAME_STATISTICS st;
-	if (handle_vsync && m_frame)
-	{
-		hr = m_swapchain->GetFrameStatistics(&st);
-		osd_printf_verbose("[%.3f] prev present: #%d [%d] ", time_now(), st.PresentCount, st.SyncRefreshCount - first_count);
-
-		m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
-
-		m_sync.get_raster(&raster);
-		osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
-
-		missed_previous_retrace = raster.count > sync_frame;
-
-		if (window().machine().video().throttled() && !missed_previous_retrace)
-			wait_before = m_sync.wait_raster(raster.count, 0.90);
-		else
-			osd_printf_verbose("missed retrace\n");
-	}
-*/
 
 	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
+	bool handle_vsync = m_sync.handle_throttle();
 	uint32_t interval = !handle_vsync && window().machine().video().throttled() && m_waitvsync ? 1 : 0;
 
 	hr = m_swapchain->Present(interval, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
@@ -867,43 +831,6 @@ int renderer_d3d11::draw(const int update)
 
 	m_sync.postdraw_sync(std::bind(&get_frame_counter, this));
 
-/*
-	hr = m_swapchain->GetLastPresentCount(&m_frame);
-	osd_printf_verbose("[%.3f] this present: #%d\n", get_ms(m_sync.get_tag(emusync::BEFORE_DRAW) - m_time_start), m_frame);
-
-	if (m_frame == 1)
-	{
-		osd_ticks_t time1 = osd_ticks(), time2;
-		do
-		{
-			Sleep(1);
-			time2 = osd_ticks();
-
-			m_swapchain->GetFrameStatistics(&st);
-		}
-		while (st.PresentCount != 1 && get_ms(time2 - time1) < 300.0);
-		osd_printf_verbose("Synchronizing with first timestamp: [%.3f] stats: %d %d %d %lld\n\n",
-			get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
-
-		first_count = st.SyncRefreshCount;
-	}
-	else if (handle_vsync)
-	{
-		if (window().machine().options().auto_frame_delay() && video_config.framedelay == 0)
-			// automatic
-			m_frame_delay = m_sync.current_framedelay();
-		else
-			// user defined
-			m_frame_delay = (double)(video_config.framedelay) / 10.0;
-
-		osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
-		sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
-		if (window().machine().video().throttled())
-			wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
-
-		osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
-	}
-*/
 	m_sync.register_tag(emusync::AFTER_DRAW);
 
 	return 0;
