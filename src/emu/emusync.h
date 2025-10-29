@@ -51,6 +51,7 @@ public:
 	uint64_t line_period() { return m_vtotal ? period() / m_vtotal : 0; };
 	uint64_t emu_period() { return m_emu_period; };
 	double speed_factor() { return handle_throttle() ? (double)m_emu_period / (period() * (1 + m_bfi)) : 1.0; };
+	void predraw_sync(std::function<void(void)> get_vblank_timestamp);
 
 	// getters
 	running_machine &machine() const noexcept { return m_machine; }
@@ -86,6 +87,10 @@ private:
 	}
 
 	bool m_initialized = false;
+
+	uint64_t m_frame = 0;
+	uint64_t m_next_sync_frame;
+	bool     m_missed_previous_retrace;
 
 	// All timestamps in nanoseconds
 	uint64_t m_timestamp[static_cast<int>(TIMESTAMP_ITEMS)] {};
