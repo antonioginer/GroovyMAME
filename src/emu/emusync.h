@@ -57,6 +57,8 @@ public:
 	// getters
 	running_machine &machine() const noexcept { return m_machine; }
 
+	uint64_t frame_count() const { return m_frame; }
+	uint64_t first_sync_count() const { return m_first_sync_count; }
 	bool handle_throttle() const { return m_fullscreen && m_syncrefresh; }
 	bool sync_refresh() const { return m_syncrefresh; }
 	bool sync_audio() const { return m_syncaudio; }
@@ -65,7 +67,6 @@ public:
 	int32_t vsync_offset() const { return m_vsync_offset; }
 
 	// setters
-	void set_first_count(uint64_t frame_count) { m_first_count = frame_count; };
 	void set_fullscreen(bool fullscreen) { m_fullscreen = fullscreen; }
 	void set_sync_refresh(bool syncrefresh) { m_syncrefresh = syncrefresh; }
 	void set_sync_audio(bool syncaudio) { m_syncaudio = syncaudio; }
@@ -79,20 +80,17 @@ public:
 private:
 	running_machine &m_machine;
 
+	uint64_t time_in_ns();
 	inline double get_ms(int64_t time) { return (double)time / 1e6; };
-	//inline uint64_t time_in_ns() { return osd_ticks() * ticks_to_ns; };
-	inline uint64_t time_in_ns()
-	{
-		struct timespec monotime;
-		clock_gettime(CLOCK_MONOTONIC, &monotime);
-		return (uint64_t)(monotime.tv_sec) * (uint64_t)1000000000 + (uint64_t)(monotime.tv_nsec);
-	}
+	inline double time_now() { return get_ms(time_in_ns() - m_time_start); };
 
 	bool m_initialized = false;
 
 	uint64_t m_frame = 0;
-	uint64_t m_first_count;
+	uint64_t m_this_sync_frame;
 	uint64_t m_next_sync_frame;
+	uint64_t m_predraw_sync_wait;
+	uint64_t m_postdraw_sync_wait;
 	bool     m_missed_previous_retrace;
 
 	// All timestamps in nanoseconds
@@ -109,6 +107,7 @@ private:
 	uint64_t m_emulation_time_dm = 0;
 	uint64_t m_frame_time = 0;
 	uint64_t m_emu_period = 0;
+	uint64_t m_time_start = 0;
 
 	int64_t  m_vblank_count = 0;
 	int64_t  m_current_period = 0;
