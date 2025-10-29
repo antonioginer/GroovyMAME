@@ -318,7 +318,7 @@ void emusync::update_stats()
 
 
 //============================================================
-//  emusync::update_stats
+//  emusync::predraw_sync
 //============================================================
 
 void emusync::predraw_sync(std::function<void(void)> get_vblank_timestamp)
@@ -344,3 +344,29 @@ void emusync::predraw_sync(std::function<void(void)> get_vblank_timestamp)
 		osd_printf_verbose("missed retrace\n");
 }
 
+
+//============================================================
+//  emusync::postdraw_sync
+//============================================================
+
+void emusync::postdraw_sync(std::function<uint64_t(void)> get_frame_counter)
+{
+	if (get_frame_counter == nullptr)
+		m_frame++;
+	else
+		m_frame = get_frame_counter();
+
+	if (machine().options().auto_frame_delay() && video_config.framedelay == 0)
+		// automatic
+		m_frame_delay = m_sync.current_framedelay();
+	else
+		// user defined
+		m_frame_delay = (double)(video_config.framedelay) / 10.0;
+
+	osd_printf_verbose("[%.3f] ", get_ms(osd_ticks() - m_time_start));
+	sync_frame = raster.count + (missed_previous_retrace? 0 : 1);
+	if (machine().video().throttled())
+		wait_after = m_sync.wait_raster(sync_frame, m_frame_delay);
+
+	osd_printf_verbose("[%.3f] wait: %.3f ", get_ms(osd_ticks() - m_time_start), get_ms((wait_before + wait_after) / 100));
+}

@@ -52,6 +52,7 @@ public:
 	uint64_t emu_period() { return m_emu_period; };
 	double speed_factor() { return handle_throttle() ? (double)m_emu_period / (period() * (1 + m_bfi)) : 1.0; };
 	void predraw_sync(std::function<void(void)> get_vblank_timestamp);
+	void postdraw_sync(std::function<uint64_t(void)> get_frame_counter);
 
 	// getters
 	running_machine &machine() const noexcept { return m_machine; }
@@ -64,6 +65,7 @@ public:
 	int32_t vsync_offset() const { return m_vsync_offset; }
 
 	// setters
+	void set_first_count(uint64_t frame_count) { m_first_count = frame_count; };
 	void set_fullscreen(bool fullscreen) { m_fullscreen = fullscreen; }
 	void set_sync_refresh(bool syncrefresh) { m_syncrefresh = syncrefresh; }
 	void set_sync_audio(bool syncaudio) { m_syncaudio = syncaudio; }
@@ -89,6 +91,7 @@ private:
 	bool m_initialized = false;
 
 	uint64_t m_frame = 0;
+	uint64_t m_first_count;
 	uint64_t m_next_sync_frame;
 	bool     m_missed_previous_retrace;
 
