@@ -192,7 +192,7 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 {
 	int64_t delta;
 	int count_delta = 0;
-
+//osd_printf_info("sync_count: %lld timestamp: %lld\n", sync_count, timestamp);
 	osd_printf_verbose("[%.3f] register vblank: ", time_now());
 
 	if (m_initialized)

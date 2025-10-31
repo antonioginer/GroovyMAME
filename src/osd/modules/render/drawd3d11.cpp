@@ -31,7 +31,7 @@
 #include "emusync.h"
 #include "scanline.h"
 
-#define LOG_SCANLINES 0
+#define LOG_SCANLINES 1
 
 /* renderer_d3d11 is the information about Direct3D 11 for the current screen */
 class renderer_d3d11 : public osd_renderer
@@ -511,7 +511,7 @@ int renderer_d3d11::create()
 	osd_printf_verbose("d3d11: device created.\n");
 
 #if LOG_SCANLINES
-	scanline_init(options.screen());
+	scanline_init(std::string(window().monitor()->devicename()).c_str());
 #endif
 
 	return 0;
@@ -807,16 +807,16 @@ int renderer_d3d11::draw(const int update)
 
 	m_device_context->Draw(3, 0); // fullscreen triangle
 
+	m_sync.register_tag(emusync::BEFORE_DRAW);
+
+	m_sync.predraw_sync(std::bind(&get_vblank_timestamp, this));
+
 #if LOG_SCANLINES
 		uint32_t scanline;
 		bool in_vblank = false;
 		scanline_poll(&scanline, &in_vblank);
 		osd_printf_verbose("scanline: %d in_vblank: %d vsync_offset %d\n", scanline, in_vblank, m_sync.vsync_offset());
 #endif
-
-	m_sync.register_tag(emusync::BEFORE_DRAW);
-
-	m_sync.predraw_sync(std::bind(&get_vblank_timestamp, this));
 
 	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
