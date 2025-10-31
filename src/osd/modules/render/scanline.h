@@ -2,9 +2,11 @@
 // copyright-holders:Antonio Giner
 //============================================================
 //
-//  scanline.j - Windows scanline polling
+//  scanline.h - Windows scanline polling
 //
 //============================================================
+
+#pragma once
 
 #include <ntdef.h>
 #include <ntstatus.h>
@@ -17,25 +19,25 @@ typedef UINT D3DKMT_HANDLE;
 
 typedef struct _D3DKMT_OPENADAPTERFROMHDC
 {
-  HDC                            hDc;
-  D3DKMT_HANDLE                  hAdapter;
-  LUID                           AdapterLuid;
-  D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId;
+	HDC                            hDc;
+	D3DKMT_HANDLE                  hAdapter;
+	LUID                           AdapterLuid;
+	D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId;
 } D3DKMT_OPENADAPTERFROMHDC;
 
 typedef struct _D3DKMT_GETSCANLINE
 {
-  D3DKMT_HANDLE                  hAdapter;
-  D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId;
-  BOOLEAN                        InVerticalBlank;
-  UINT                           ScanLine;
+	D3DKMT_HANDLE                  hAdapter;
+	D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId;
+	BOOLEAN                        InVerticalBlank;
+	UINT                           ScanLine;
 } D3DKMT_GETSCANLINE;
 
 typedef struct _D3DKMT_WAITFORVERTICALBLANKEVENT
 {
-  D3DKMT_HANDLE                  hAdapter;
-  D3DKMT_HANDLE                  hDevice;
-  D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId;
+	D3DKMT_HANDLE                  hAdapter;
+	D3DKMT_HANDLE                  hDevice;
+	D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId;
 } D3DKMT_WAITFORVERTICALBLANKEVENT;
 
 typedef NTSTATUS (*D3DKMT_GET_SCANLINE) (D3DKMT_GETSCANLINE *Arg1);
@@ -54,8 +56,75 @@ D3DKMT_WAITFORVERTICALBLANKEVENT vblank_data;
 
 // static variables
 static std::thread scan_poll;
-static uint64_t vblank_timestamp;
+static uint64_t vblank_timestamp = 0;
 static uint64_t vblank_counter = 0;
+static bool is_active = false;
+static bool is_initialized = false;
+
+
+//============================================================
+//  scanline_poll
+//============================================================
+
+void scanline_poll(uint32_t *scanline, bool *in_vblank)
+{
+	// Poll new values
+
+	scanline_data.hAdapter = adapter_data.hAdapter;
+	scanline_data.VidPnSourceId = adapter_data.VidPnSourceId;
+	if ((*GetScanline)(&scanline_data) == STATUS_SUCCESS)
+	{
+		if (scanline != nullptr) *scanline = scanline_data.ScanLine;
+		if (in_vblank != nullptr) *in_vblank = scanline_data.InVerticalBlank;
+	}
+}
+
+
+//============================================================
+//  scanline_poll
+//============================================================
+
+void wait_for_vertical_blank()
+{
+	vblank_data.hAdapter = adapter_data.hAdapter;
+	vblank_data.VidPnSourceId = adapter_data.VidPnSourceId;
+	if ((*WaitForVerticalBlankEvent)(&vblank_data) == STATUS_SUCCESS)
+	{
+		struct timespec monotime;
+		clock_gettime(CLOCK_MONOTONIC, &monotime);
+		vblank_timestamp = (uint64_t)(monotime.tv_sec) * (uint64_t)1000000000 + (uint64_t)(monotime.tv_nsec);
+		vblank_counter ++;
+		is_initialized = true;
+	}
+}
+
+
+//============================================================
+//  polling thread
+//============================================================
+
+void vblank_poll()
+{
+	osd_printf_verbose("emusync: polling thread started.\n");
+	is_active = true;
+
+	while (is_active)
+		wait_for_vertical_blank();
+
+	osd_printf_verbose("emusync: polling thread destroyed\n");
+}
+
+
+//============================================================
+//  get_vblank_timestamp_external
+//============================================================
+
+bool get_vblank_timestamp_external(uint64_t *counter, uint64_t *timestamp)
+{
+	*counter = vblank_counter;
+	*timestamp = vblank_timestamp;
+	return is_initialized;
+}
 
 //============================================================
 //  scanline_init
@@ -95,41 +164,19 @@ bool scanline_init(const char *output_name)
 	DeleteDC(hdc);
 
 	// Create polling thread
-	//scan_poll = std::thread(&vblank_poll);
+	scan_poll = std::thread(&vblank_poll);
 
 	return true;
 }
 
+
 //============================================================
-//  scanline_poll
+//  scanline_exit
 //============================================================
 
-void scanline_poll(uint32_t *scanline, bool *in_vblank)
+void scanline_exit()
 {
-	// Poll new values
-
-	scanline_data.hAdapter = adapter_data.hAdapter;
-	scanline_data.VidPnSourceId = adapter_data.VidPnSourceId;
-	if ((*GetScanline)(&scanline_data) == STATUS_SUCCESS)
-	{
-		if (scanline != nullptr) *scanline = scanline_data.ScanLine;
-		if (in_vblank != nullptr) *in_vblank = scanline_data.InVerticalBlank;
-	}
+	is_active = false;
+	scan_poll.join();
 }
 
-//============================================================
-//  scanline_poll
-//============================================================
-
-void wait_for_vertical_blank()
-{
-	vblank_data.hAdapter = adapter_data.hAdapter;
-	vblank_data.VidPnSourceId = adapter_data.VidPnSourceId;
-	if ((*WaitForVerticalBlankEvent)(&vblank_data) == STATUS_SUCCESS)
-	{
-		struct timespec monotime;
-		clock_gettime(CLOCK_MONOTONIC, &monotime);
-		vblank_timestamp = (uint64_t)(monotime.tv_sec) * (uint64_t)1000000000 + (uint64_t)(monotime.tv_nsec);
-		vblank_counter ++;
-	}
-}
