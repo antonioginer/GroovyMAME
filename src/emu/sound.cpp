@@ -1032,7 +1032,7 @@ void sound_manager::run_effects()
 		// Copy the data to the effects threads, expanding as needed
 		// when -speed is in use
 		double sf = machine().video().speed_factor();
-		if(sf == 1000 && !machine().options().sync_audio()) {
+		if(sf == 1000 && !(machine().sync().handle_throttle() && machine().options().sync_audio())) {
 			for(auto &si : m_speakers) {
 				int samples = si.m_buffer.available_samples();
 				int channels = si.m_buffer.channels();
@@ -1047,7 +1047,7 @@ void sound_manager::run_effects()
 				eb.commit(samples);
 			}
 		} else {
-			if (machine().options().sync_audio())
+			if (machine().sync().handle_throttle() && machine().options().sync_audio())
 				sf = machine().sync().speed_factor();
 			else
 				sf /= 1000;
