@@ -244,6 +244,10 @@ renderer_d3d11::~renderer_d3d11()
 		m_dxgi_device->Release();
 		m_dxgi_device = nullptr;
 	}
+
+#if LOG_SCANLINES
+	scanline_exit();
+#endif
 }
 
 
@@ -326,7 +330,7 @@ bool renderer_d3d11::pick_best_mode(DXGI_MODE_DESC *mode)
 		DXGI_MODE_DESC *m = &ml[i];
 		bool is_interlaced = m->ScanlineOrdering > 1;
 
-		if (m->Width == sr_width && m->Height == sr_height && m->RefreshRate.Numerator == sr_refresh && is_interlaced == sr_interlace)
+		if (m->Width == sr_width && m->Height == sr_height && int((float)m->RefreshRate.Numerator / (float)m->RefreshRate.Denominator) == sr_refresh && is_interlaced == sr_interlace)
 		{
 			osd_printf_verbose("->");
 			match = true;
@@ -680,7 +684,7 @@ void renderer_d3d11::set_viewport()
 	m_device_context->PSSetConstantBuffers(0, 1, &m_constant_buffer);
 }
 
-
+/*
 //============================================================
 //  renderer_d3d11::get_vblank_timestamp
 //============================================================
@@ -699,8 +703,24 @@ bool renderer_d3d11::get_vblank_timestamp()
 
 	return true;
 }
+*/
 
+//============================================================
+//  renderer_d3d11::get_vblank_timestamp
+//============================================================
 
+bool renderer_d3d11::get_vblank_timestamp()
+{
+	uint64_t count;
+	uint64_t timestamp;
+
+	if (get_vblank_timestamp_external(&count, &timestamp))
+		m_sync.register_vblank_in_ns(count, timestamp);
+
+	return true;
+}
+
+/*
 //============================================================
 //  renderer_d3d11::get_frame_counter
 //============================================================
@@ -731,6 +751,13 @@ uint64_t renderer_d3d11::get_frame_counter()
 	}
 
 	return (uint64_t)frame_count;
+}
+*/
+
+uint64_t renderer_d3d11::get_frame_counter()
+{
+	static uint64_t count = 0;
+	return ++count;
 }
 
 //============================================================
@@ -809,7 +836,7 @@ int renderer_d3d11::draw(const int update)
 
 	m_sync.register_tag(emusync::BEFORE_DRAW);
 
-	m_sync.predraw_sync(std::bind(&get_vblank_timestamp, this));
+	m_sync.predraw_sync(std::bind(&renderer_d3d11::get_vblank_timestamp, this));
 
 #if LOG_SCANLINES
 		uint32_t scanline;
