@@ -73,6 +73,8 @@ typedef uint64_t HashT;
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <fcntl.h>
+#elif defined _WIN32
+#include "scanline.h"
 #endif
 #include "emusync.h"
 
@@ -304,6 +306,10 @@ public:
 	{
 		// free the memory in the window
 		destroy_all_textures();
+
+		#ifdef _WIN32
+			scanline_exit();
+		#endif
 	}
 
 	virtual int create() override;
@@ -796,19 +802,22 @@ int renderer_ogl::create()
 		osd_printf_error("Creating OpenGL context failed: %s\n", msg ? msg : "unknown error");
 		return 1;
 	}
-#ifdef SDLMAME_X11
+
 	if (window().index() == 0 && window().machine().sync().sync_refresh())
 	{
+#ifdef SDLMAME_X11
 		// Try to open DRM device
 		fd = drm_open(dri_device);
 		if (fd != 0)
 			m_gl_context->set_swap_interval(0);
 
 		crtc_id = drm_get_crtc(fd, window().monitor()->oshandle());
-	}
-	else
+#elif defined _WIN32
+		scanline_init(std::string(window().monitor()->devicename()).c_str());
 #endif
-	m_gl_context->set_swap_interval((video_config.waitvsync) ? 1 : 0);
+	}
+//	else
+//	m_gl_context->set_swap_interval((video_config.waitvsync) ? 1 : 0);
 
 	m_blittimer = 0;
 	m_surf_w = 0;
@@ -1784,6 +1793,14 @@ bool renderer_ogl::get_vblank_timestamp()
 	}
 
 	m_sync.register_vblank_in_ns(sequence, ns);
+#else
+	uint64_t count;
+	uint64_t timestamp;
+
+	if (get_vblank_timestamp_external(&count, &timestamp))
+		m_sync.register_vblank_in_ns(count, timestamp);
+
+	m_sync.register_vblank_in_ns(count, timestamp);
 #endif
 	return true;
 }
