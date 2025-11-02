@@ -12,6 +12,7 @@
 #include "emusync.h"
 #include "screen.h"
 
+#include "kalman.h"
 /*
 #define GPU_IS_DCN 1
 #if defined(__linux__) && GPU_IS_DCN
@@ -20,6 +21,8 @@
 	#define VBLANK_OFFSET -0.4e6
 #endif
 */
+
+static kalman_filter kf;
 
 //============================================================
 //  emusync::emusync
@@ -192,8 +195,75 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 {
 	int64_t delta;
 	int count_delta = 0;
-//osd_printf_info("sync_count: %lld timestamp: %lld\n", sync_count, timestamp);
-	osd_printf_verbose("[%.3f] register vblank: ", time_now());
+
+	osd_printf_info("[%lld][%lld] [%.3f] register vblank: ", sync_count, timestamp, time_now());
+
+	if (m_initialized)
+	{
+		count_delta = sync_count - m_last_sync_count;
+
+		// Skip sample if it's not newer. Big deltas may be inaccurate, discard.
+		if (count_delta == 0)
+		{
+			//osd_printf_info("count delta: %d\n", count_delta);
+			goto register_and_exit;
+		}
+
+		// Sometimes the received counter is not properly incremented.
+		// This breaks period computation. So we recalculate it based on the timestamp.
+		if (m_mean > 0)
+			count_delta = round(double(timestamp - m_last_timestamp) / (double)m_mean);
+
+		m_current_period = (timestamp - m_last_timestamp) / count_delta;
+
+		if (m_current_period > 20 * 1e6) // 20 ms
+		{
+			osd_printf_verbose("invalid period: %.3f ms\n", get_ms(m_current_period));
+			goto register_and_exit;
+		}
+
+		for (int i = count_delta; i > 0; i--)
+			kf.update(timestamp - (i - 1) * m_current_period);
+
+		osd_printf_info("[%lld][%lld] diff: %+d period: %f\n", timestamp, kf.get_filtered_timestamp(), (int64_t)(timestamp - kf.get_filtered_timestamp()), kf.get_period());
+
+		delta = m_current_period - m_mean;
+
+		m_vblank_count++;
+		m_mean += delta / m_vblank_count;
+		osd_printf_info("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms",
+			get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
+	}
+
+	if (!m_initialized)
+	{
+		osd_printf_info("initialize, sync_count %d", sync_count);
+		m_initialized = true;
+		m_first_sync_count = sync_count;
+		m_first_timestamp = timestamp;
+	}
+
+register_and_exit:
+
+	if(count_delta != 1)
+		osd_printf_info(" count_delta: %d\n", count_delta);
+	else
+		osd_printf_info("\n");
+
+	m_last_count = sync_count - m_first_sync_count;
+	m_last_sync_count = sync_count;
+	m_last_timestamp = timestamp;
+
+	return count_delta > 0;
+}
+
+/*
+bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
+{
+	int64_t delta;
+	int count_delta = 0;
+
+	osd_printf_info("[%.3f] register vblank: ", time_now());
 
 	if (m_initialized)
 	{
@@ -202,7 +272,7 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		// Skip sample if it's not newer. Big deltas may be inaccurate, discard.
 		if (count_delta == 0 || count_delta > 4)
 		{
-			osd_printf_verbose("count delta: %d\n", count_delta);
+			osd_printf_info("count delta: %d\n", count_delta);
 			goto register_and_exit;
 		}
 
@@ -214,7 +284,7 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		// Double check we have a valid delta now
 		if (count_delta == 0)
 		{
-			osd_printf_verbose("count delta: %d\n", count_delta);
+			osd_printf_info("count delta: %d\n", count_delta);
 			goto register_and_exit;
 		}
 
@@ -222,7 +292,7 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 
 		if (m_current_period > 20 * 1e6) // 20 ms
 		{
-			osd_printf_verbose("invalid period: %.3f ms\n", get_ms(m_current_period));
+			osd_printf_info("invalid period: %.3f ms\n", get_ms(m_current_period));
 			goto register_and_exit;
 		}
 
@@ -230,25 +300,27 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 
 		m_vblank_count++;
 		m_mean += delta / m_vblank_count;
-		osd_printf_verbose("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
+		osd_printf_info("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
 			get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
 	}
 
 	if (!m_initialized)
 	{
-		osd_printf_verbose("initialize, sync_count %d\n", sync_count);
+		osd_printf_info("initialize, sync_count %d\n", sync_count);
 		m_initialized = true;
 		m_first_sync_count = sync_count;
 		m_first_timestamp = timestamp;
 	}
 
 register_and_exit:
+
 	m_last_count = sync_count - m_first_sync_count;
 	m_last_sync_count = sync_count;
 	m_last_timestamp = timestamp;
 
 	return count_delta > 0;
 }
+*/
 
 
 //============================================================
@@ -258,7 +330,8 @@ register_and_exit:
 uint64_t emusync::wait_raster(uint64_t count, double scan)
 {
 	//uint64_t sync_target = m_last_timestamp - VBLANK_OFFSET + (count - m_last_count) * period();
-	uint64_t sync_target = m_last_timestamp + vsync_offset() * line_period() + (count - m_last_count) * period();
+	//uint64_t sync_target = m_last_timestamp + vsync_offset() * line_period() + (count - m_last_count) * period();
+	uint64_t sync_target = kf.get_filtered_timestamp() + vsync_offset() * line_period() + (count - m_last_count) * period();
 	uint64_t time_target = sync_target + (uint64_t)(scan * period());
 
 	uint64_t time_entry = time_in_ns();
@@ -302,7 +375,8 @@ void emusync::get_raster(raster_status *status)
 		return;
 
 	//uint64_t adjusted_prev_timestamp = m_last_timestamp - VBLANK_OFFSET;
-	uint64_t adjusted_prev_timestamp = m_last_timestamp + vsync_offset() * line_period();
+	//uint64_t adjusted_prev_timestamp = m_last_timestamp + vsync_offset() * line_period();
+	uint64_t adjusted_prev_timestamp = kf.get_filtered_timestamp() + vsync_offset() * line_period();
 
 	int64_t delta_time = time_in_ns() - adjusted_prev_timestamp;
 

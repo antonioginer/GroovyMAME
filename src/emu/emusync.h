@@ -35,6 +35,7 @@ public:
 		double scan;
 	};
 
+	virtual void init_osd() {};
 	void reset();
 	uint64_t get_tag(enum emusync::event_tag tag);
 	void register_tag(enum emusync::event_tag timestamp_event);
