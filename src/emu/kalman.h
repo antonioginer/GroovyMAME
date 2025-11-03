@@ -67,4 +67,13 @@ struct kalman_filter
 
     // Devuelve el timestamp filtrado actual
     uint64_t get_filtered_timestamp() const { return (uint64_t)t; }
+
+    void reset()
+    {
+        t = 0.0;
+        P = 0.0;
+        C11 = 1e6, C12 = 0.0;
+        C21 = 0.0, C22 = 1e6;
+        initialized = false;
+    }
 };
