@@ -98,8 +98,6 @@ private:
 	// Options
 	bool  m_filter = false;
 	bool  m_autofilter = false;
-	bool  m_syncrefresh = false;
-	bool  m_waitvsync = false;
 	bool  m_switchres = false;
 
 	struct factors
@@ -369,8 +367,6 @@ int renderer_d3d11::create()
 	windows_options &options = downcast<windows_options &>(window().machine().options());
 	m_filter = options.filter();
 	m_autofilter = options.autofilter();
-	m_syncrefresh = options.sync_refresh();
-	m_waitvsync = options.wait_vsync();
 	m_switchres = options.switch_res();
 
 	// Set max frame latency = 1
@@ -848,9 +844,9 @@ int renderer_d3d11::draw(const int update)
 	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
 	bool handle_vsync = m_sync.handle_throttle();
-	uint32_t interval = !handle_vsync && window().machine().video().throttled() && m_waitvsync ? 1 : 0;
+	uint32_t interval = !handle_vsync && window().machine().video().throttled() && video_config.waitvsync ? 1 : 0;
 
-	hr = m_swapchain->Present(interval, m_syncrefresh? 0 : DXGI_PRESENT_DO_NOT_WAIT);
+	hr = m_swapchain->Present(interval, m_sync.sync_refresh() ? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
 		osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
 
