@@ -812,8 +812,8 @@ int renderer_ogl::create()
 		scanline_init(std::string(window().monitor()->devicename()).c_str());
 #endif
 	}
-//	else
-//	m_gl_context->set_swap_interval((video_config.waitvsync) ? 1 : 0);
+	else
+		m_gl_context->set_swap_interval((video_config.waitvsync) ? 1 : 0);
 
 	m_blittimer = 0;
 	m_surf_w = 0;
