@@ -177,6 +177,9 @@ bool scanline_init(const char *output_name)
 
 void scanline_exit()
 {
-	is_active = false;
-	scan_poll.join();
+	if (is_active)
+	{
+		is_active = false;
+		scan_poll.join();
+	}
 }
