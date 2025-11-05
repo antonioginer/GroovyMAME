@@ -197,7 +197,7 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 	int64_t delta;
 	int count_delta = 0;
 
-	osd_printf_verbose("[%lld][%lld] [%.3f] register vblank: ", sync_count, timestamp, time_now());
+	osd_printf_verbose("[%.3f] register vblank: ", time_now());
 
 	if (m_initialized)
 	{
@@ -226,7 +226,7 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		for (int i = count_delta; i > 0; i--)
 			kf.update(timestamp - (i - 1) * m_current_period);
 
-		osd_printf_verbose("[%lld][%lld] diff: %+d period: %f\n", timestamp, kf.get_filtered_timestamp(), (int64_t)(timestamp - kf.get_filtered_timestamp()), kf.get_period());
+		//osd_printf_verbose("[%lld][%lld] diff: %+d period: %f\n", timestamp, kf.get_filtered_timestamp(), (int64_t)(timestamp - kf.get_filtered_timestamp()), kf.get_period());
 
 		delta = m_current_period - m_mean;
 
