@@ -217,16 +217,11 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 
 		m_current_period = (timestamp - m_last_timestamp) / count_delta;
 
-		if (m_current_period > 20 * 1e6) // 20 ms
-		{
-			osd_printf_verbose("invalid period: %.3f ms\n", get_ms(m_current_period));
-			goto register_and_exit;
-		}
+		// Filter timestamp. If needed, compute intermediate timestamps to feed the filter.
+		for (int i = count_delta; i > 0; --i) kf.update(timestamp - i * m_current_period);
 
-		for (int i = count_delta; i > 0; i--)
-			kf.update(timestamp - (i - 1) * m_current_period);
-
-		//osd_printf_verbose("[%lld][%lld] diff: %+d period: %f\n", timestamp, kf.get_filtered_timestamp(), (int64_t)(timestamp - kf.get_filtered_timestamp()), kf.get_period());
+		//osd_printf_verbose("raw: %lld filtered: %lld diff: %+d period: %f\n", timestamp, kf.get_filtered_timestamp(),
+		//					(int64_t)(timestamp - kf.get_filtered_timestamp()), get_ms(kf.get_period()));
 
 		delta = m_current_period - m_mean;
 
@@ -257,71 +252,6 @@ register_and_exit:
 
 	return count_delta > 0;
 }
-
-/*
-bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
-{
-	int64_t delta;
-	int count_delta = 0;
-
-	osd_printf_verbose("[%.3f] register vblank: ", time_now());
-
-	if (m_initialized)
-	{
-		count_delta = sync_count - m_last_sync_count;
-
-		// Skip sample if it's not newer. Big deltas may be inaccurate, discard.
-		if (count_delta == 0 || count_delta > 4)
-		{
-			osd_printf_verbose("count delta: %d\n", count_delta);
-			goto register_and_exit;
-		}
-
-		// Sometimes the received counter is not properly incremented.
-		// This breaks period computation. So we recalculate it based on the timestamp.
-		if (m_mean > 0)
-			count_delta = round(double(timestamp - m_last_timestamp) / (double)m_mean);
-
-		// Double check we have a valid delta now
-		if (count_delta == 0)
-		{
-			osd_printf_verbose("count delta: %d\n", count_delta);
-			goto register_and_exit;
-		}
-
-		m_current_period = (timestamp - m_last_timestamp) / count_delta;
-
-		if (m_current_period > 20 * 1e6) // 20 ms
-		{
-			osd_printf_verbose("invalid period: %.3f ms\n", get_ms(m_current_period));
-			goto register_and_exit;
-		}
-
-		delta = m_current_period - m_mean;
-
-		m_vblank_count++;
-		m_mean += delta / m_vblank_count;
-		osd_printf_verbose("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms\n",
-			get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
-	}
-
-	if (!m_initialized)
-	{
-		osd_printf_verbose("initialize, sync_count %d\n", sync_count);
-		m_initialized = true;
-		m_first_sync_count = sync_count;
-		m_first_timestamp = timestamp;
-	}
-
-register_and_exit:
-
-	m_last_count = sync_count - m_first_sync_count;
-	m_last_sync_count = sync_count;
-	m_last_timestamp = timestamp;
-
-	return count_delta > 0;
-}
-*/
 
 
 //============================================================
