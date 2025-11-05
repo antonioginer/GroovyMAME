@@ -35,7 +35,11 @@ public:
 		double scan;
 	};
 
-	virtual void init_osd() {};
+	void osd_init(uint64_t monitor_handle,
+					std::function<bool(void)> get_vblank_timestamp,
+					std::function<uint64_t(void)> get_frame_counter);
+	void osd_deinit();
+	bool get_vblank_timestamp_default();
 	void reset();
 	uint64_t get_tag(enum emusync::event_tag tag);
 	void register_tag(enum emusync::event_tag timestamp_event);
@@ -52,8 +56,8 @@ public:
 	uint64_t line_period() { return m_vtotal ? period() / m_vtotal : 0; };
 	uint64_t emu_period() { return m_emu_period; };
 	double speed_factor() { return handle_throttle() ? (double)m_emu_period / (period() * (1 + m_bfi)) : 1.0; };
-	void predraw_sync(std::function<void(void)> get_vblank_timestamp);
-	void postdraw_sync(std::function<uint64_t(void)> get_frame_counter);
+	void predraw_sync();
+	void postdraw_sync();
 
 	// getters
 	running_machine &machine() const noexcept { return m_machine; }
@@ -81,6 +85,7 @@ public:
 private:
 	running_machine &m_machine;
 
+	void update_stats();
 	uint64_t time_in_ns();
 	inline double get_ms(int64_t time) { return (double)time / 1e6; };
 	inline double time_now() { return get_ms(time_in_ns() - m_time_start); };
@@ -128,6 +133,7 @@ private:
 	int ticks_to_ns = 0;
 	uint64_t sleep_time = 1e6; // 1 ms
 
-	void update_stats();
+	std::function<void(void)> get_vblank_timestamp;
+	std::function<uint64_t(void)> get_frame_counter;
 };
 #endif

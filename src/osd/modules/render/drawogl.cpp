@@ -73,8 +73,6 @@ typedef uint64_t HashT;
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <fcntl.h>
-#elif defined _WIN32
-#include "scanline.h"
 #endif
 #include "emusync.h"
 
@@ -307,9 +305,8 @@ public:
 		// free the memory in the window
 		destroy_all_textures();
 
-		#ifdef _WIN32
-			scanline_exit();
-		#endif
+		// destroy vblank thread
+		m_sync.osd_deinit();
 	}
 
 	virtual int create() override;
@@ -381,7 +378,6 @@ private:
 
 	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
 	inline double time_now() { return get_ms(osd_ticks() - m_time_start); };
-	bool get_vblank_timestamp();
 
 #define GL_CHECK_ERROR_QUIET() gl_check_error(false, __FILE__, __LINE__)
 #define GL_CHECK_ERROR_NORMAL() gl_check_error(true, __FILE__, __LINE__)
@@ -813,7 +809,7 @@ int renderer_ogl::create()
 
 		crtc_id = drm_get_crtc(fd, window().monitor()->oshandle());
 #elif defined _WIN32
-		scanline_init(std::string(window().monitor()->devicename()).c_str());
+		m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr);
 #endif
 	}
 	else
@@ -1759,7 +1755,7 @@ int renderer_ogl::draw(const int update)
 
 	m_sync.register_tag(emusync::BEFORE_DRAW);
 
-	m_sync.predraw_sync(std::bind(&renderer_ogl::get_vblank_timestamp, this));
+	m_sync.predraw_sync();
 
 	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
@@ -1767,14 +1763,14 @@ int renderer_ogl::draw(const int update)
 
 	m_sync.register_tag(emusync::AFTER_PRESENT);
 
-	m_sync.postdraw_sync(nullptr);
+	m_sync.postdraw_sync();
 
 	m_sync.register_tag(emusync::AFTER_DRAW);
 
 	return 0;
 }
 
-
+/*
 //============================================================
 //  renderer_ogl::get_vblank_timestamp
 //============================================================
@@ -1808,7 +1804,7 @@ bool renderer_ogl::get_vblank_timestamp()
 #endif
 	return true;
 }
-
+*/
 //============================================================
 //  texture handling
 //============================================================
