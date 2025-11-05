@@ -1797,8 +1797,12 @@ bool renderer_ogl::get_vblank_timestamp()
 	uint64_t count;
 	uint64_t timestamp;
 
-	if (get_vblank_timestamp_external(&count, &timestamp))
-		m_sync.register_vblank_in_ns(count, timestamp);
+	bool ret = get_vblank_timestamp_external(&count, &timestamp);
+	if (!ret)
+	{
+		osd_printf_verbose("error: no vblank timestamps\n", ret);
+		return false;
+	}
 
 	m_sync.register_vblank_in_ns(count, timestamp);
 #endif
