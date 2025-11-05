@@ -345,7 +345,7 @@ void emusync::update_stats()
 //  emusync::predraw_sync
 //============================================================
 
-void emusync::predraw_sync(std::function<void(void)> get_vblank_timestamp)
+void emusync::predraw_sync()
 {
 	m_predraw_sync_wait = 0;
 
@@ -375,7 +375,7 @@ void emusync::predraw_sync(std::function<void(void)> get_vblank_timestamp)
 //  emusync::postdraw_sync
 //============================================================
 
-void emusync::postdraw_sync(std::function<uint64_t(void)> get_frame_counter)
+void emusync::postdraw_sync()
 {
 	m_postdraw_sync_wait = 0;
 

@@ -637,6 +637,8 @@ int renderer_d3d9::initialize()
 		return false;
 	}
 
+	m_sync.osd_init(window().monitor()->oshandle(), std::bind(&renderer_d3d9::get_vblank_timestamp, this), std::bind(&renderer_d3d9::get_frame_counter, this));
+
 	return true;
 }
 
@@ -833,7 +835,7 @@ void renderer_d3d9::end_frame()
 	m_sync.register_tag(emusync::BEFORE_DRAW);
 
 	bool handle_vsync = m_sync.handle_throttle();
-	m_sync.predraw_sync(std::bind(&get_vblank_timestamp, this));
+	m_sync.predraw_sync();
 
 	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
@@ -846,7 +848,7 @@ void renderer_d3d9::end_frame()
 
 	m_sync.register_tag(emusync::AFTER_PRESENT);
 
-	m_sync.postdraw_sync(std::bind(&get_frame_counter, this));
+	m_sync.postdraw_sync();
 
 	m_sync.register_tag(emusync::AFTER_DRAW);
 }

@@ -243,9 +243,7 @@ renderer_d3d11::~renderer_d3d11()
 		m_dxgi_device = nullptr;
 	}
 
-#if LOG_SCANLINES
-	scanline_exit();
-#endif
+	m_sync.osd_deinit();
 }
 
 
@@ -510,9 +508,7 @@ int renderer_d3d11::create()
 
 	osd_printf_verbose("d3d11: device created.\n");
 
-#if LOG_SCANLINES
-	scanline_init(std::string(window().monitor()->devicename()).c_str());
-#endif
+	m_sync.osd_init(window().monitor()->oshandle(), std::bind(&renderer_d3d11::get_vblank_timestamp, this), std::bind(&renderer_d3d11::get_frame_counter, this));
 
 	return 0;
 }
@@ -680,7 +676,7 @@ void renderer_d3d11::set_viewport()
 	m_device_context->PSSetConstantBuffers(0, 1, &m_constant_buffer);
 }
 
-/*
+
 //============================================================
 //  renderer_d3d11::get_vblank_timestamp
 //============================================================
@@ -699,24 +695,8 @@ bool renderer_d3d11::get_vblank_timestamp()
 
 	return true;
 }
-*/
 
-//============================================================
-//  renderer_d3d11::get_vblank_timestamp
-//============================================================
 
-bool renderer_d3d11::get_vblank_timestamp()
-{
-	uint64_t count;
-	uint64_t timestamp;
-
-	if (get_vblank_timestamp_external(&count, &timestamp))
-		m_sync.register_vblank_in_ns(count, timestamp);
-
-	return true;
-}
-
-/*
 //============================================================
 //  renderer_d3d11::get_frame_counter
 //============================================================
@@ -748,13 +728,7 @@ uint64_t renderer_d3d11::get_frame_counter()
 
 	return (uint64_t)frame_count;
 }
-*/
 
-uint64_t renderer_d3d11::get_frame_counter()
-{
-	static uint64_t count = 0;
-	return ++count;
-}
 
 //============================================================
 //  renderer_d3d11::draw
@@ -832,7 +806,7 @@ int renderer_d3d11::draw(const int update)
 
 	m_sync.register_tag(emusync::BEFORE_DRAW);
 
-	m_sync.predraw_sync(std::bind(&renderer_d3d11::get_vblank_timestamp, this));
+	m_sync.predraw_sync();
 
 #if LOG_SCANLINES
 		uint32_t scanline;
@@ -852,7 +826,7 @@ int renderer_d3d11::draw(const int update)
 
 	m_sync.register_tag(emusync::AFTER_PRESENT);
 
-	m_sync.postdraw_sync(std::bind(&get_frame_counter, this));
+	m_sync.postdraw_sync();
 
 	m_sync.register_tag(emusync::AFTER_DRAW);
 
