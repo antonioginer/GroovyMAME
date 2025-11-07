@@ -29,7 +29,6 @@
 
 #include <switchres/switchres.h>
 #include "emusync.h"
-#include "scanline.h"
 
 #define LOG_SCANLINES 1
 
@@ -811,7 +810,7 @@ int renderer_d3d11::draw(const int update)
 #if LOG_SCANLINES
 		uint32_t scanline;
 		bool in_vblank = false;
-		scanline_poll(&scanline, &in_vblank);
+		m_sync.get_scanline(&scanline, &in_vblank);
 		osd_printf_verbose("scanline: %d in_vblank: %d vsync_offset %d\n", scanline, in_vblank, m_sync.vsync_offset());
 #endif
 

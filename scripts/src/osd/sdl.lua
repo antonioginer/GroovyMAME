@@ -394,6 +394,13 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/sdl/window.h",
 	}
 
+	if _OPTIONS["targetos"]=="linux" then
+		files {
+			MAME_DIR .. "src/osd/modules/emusync/emusync_linux.cpp",
+		}
+	end
+
+
 project ("ocore_" .. _OPTIONS["osd"])
 	targetsubdir(_OPTIONS["target"] .."_" .. _OPTIONS["subtarget"])
 	uuid (os.uuid("ocore_" .. _OPTIONS["osd"]))
