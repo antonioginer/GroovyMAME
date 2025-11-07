@@ -2,7 +2,7 @@
 // copyright-holders:Antonio Giner
 //============================================================
 //
-//  scanline.cpp - Windows scanline polling
+//  emusync_windows.cpp - Windows raster synchronization
 //
 //============================================================
 
@@ -10,7 +10,6 @@
 #include <ntdef.h>
 #include <ntstatus.h>
 #include <thread>
-#include "scanline.h"
 #include "emu.h"
 #include "emusync.h"
 
@@ -59,15 +58,14 @@ static uint64_t vblank_counter = 0;
 static bool is_active = false;
 static bool is_initialized = false;
 
-bool scanline_init(uint64_t monitor_handle, bool polling_thread);
-void scanline_poll(uint32_t *scanline, bool *in_vblank);
+static bool scanline_init(uint64_t monitor_handle, bool polling_thread);
 
 
 //============================================================
 //  emusync:init_osd
 //============================================================
 
-void emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vblank_timestamp_external, std::function<uint64_t(void)> get_frame_counter_external)
+bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vblank_timestamp_external, std::function<uint64_t(void)> get_frame_counter_external)
 {
 	get_vblank_timestamp = get_vblank_timestamp_external == nullptr ?
 						std::bind(&emusync::get_vblank_timestamp_default, this) :
@@ -78,7 +76,7 @@ void emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 	// If the renderer doesn't have a timestamp method, use Windows to get timestamps
 	bool use_polling_thread = (get_vblank_timestamp_external == nullptr);
 
-	scanline_init(monitor_handle, use_polling_thread);
+	return scanline_init(monitor_handle, use_polling_thread);
 }
 
 
@@ -184,10 +182,10 @@ bool scanline_init(uint64_t monitor_handle, bool polling_thread)
 
 
 //============================================================
-//  scanline_poll
+//  emusync::get_scanline
 //============================================================
 
-void scanline_poll(uint32_t *scanline, bool *in_vblank)
+void emusync::get_scanline(uint32_t *scanline, bool *in_vblank)
 {
 	// Poll new values
 	D3DKMT_GETSCANLINE scanline_data;
