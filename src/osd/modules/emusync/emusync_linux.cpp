@@ -1,21 +1,36 @@
+// license:BSD-3-Clause
+// copyright-holders:Antonio Giner
+//============================================================
+//
+//  emusync_linux.cpp - Linux raster synchronization
+//
+//============================================================
+
+
 // DRM
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <fcntl.h>
+#include <unistd.h>
 
-static int drm_open(const char *dri_device);
+#include "osdsdl.h"
+
+#include "emu.h"
+#include "emuopts.h"
+#include "emusync.h"
+
+static int drm_open(const char *dri_device, int monitor_handle);
 static int drm_get_crtc(int fd, int crtc);
-//static void drm_waitvblank(int crtc);
+//static bool drm_waitvblank(int fd, int crtc);
 static int fd = 0;
 static int crtc_id = 0;
-static const char* dri_device = nullptr;
 
 
 //============================================================
 //  emusync:init_osd
 //============================================================
 
-void emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vblank_timestamp_external, std::function<uint64_t(void)> get_frame_counter_external)
+bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vblank_timestamp_external, std::function<uint64_t(void)> get_frame_counter_external)
 {
 	get_vblank_timestamp = get_vblank_timestamp_external == nullptr ?
 						std::bind(&emusync::get_vblank_timestamp_default, this) :
@@ -23,9 +38,20 @@ void emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 
 	get_frame_counter = get_frame_counter_external;
 
-	scanline_init(monitor_handle, use_polling_thread);
+	fd = drm_open(dynamic_cast<sdl_options const &>(machine().options()).dri_device(), (int)monitor_handle);
+
+	return (fd != 0);
 }
 
+
+//============================================================
+//  emusync:osd_deinit
+//============================================================
+
+void emusync::osd_deinit()
+{
+	close(fd);
+}
 
 //============================================================
 //  emusync::get_vblank_timestamp_default
@@ -43,7 +69,7 @@ bool emusync::get_vblank_timestamp_default()
 		return false;
 	}
 
-	m_sync.register_vblank_in_ns(sequence, ns);
+	register_vblank_in_ns(sequence, ns);
 
 	return true;
 }
@@ -53,7 +79,7 @@ bool emusync::get_vblank_timestamp_default()
 //  drm_open
 //============================================================
 
-static int drm_open(const char *dri_device)
+static int drm_open(const char *dri_device, int monitor_handle)
 {
 	int fd = 0;
 	char dri_path[16];
@@ -140,6 +166,8 @@ static int drm_open(const char *dri_device)
 		return 0;
 	}
 
+	crtc_id = drm_get_crtc(fd, monitor_handle);
+
 	osd_printf_verbose("drm_open: %s successfully opened\n", node);
 	return fd;
 }
@@ -149,7 +177,7 @@ static int drm_open(const char *dri_device)
 //  drm_get_crtc
 //============================================================
 
-int drm_get_crtc(int fd, int crtc)
+static int drm_get_crtc(int fd, int crtc)
 {
 	drmModeRes *resources = drmModeGetResources(fd);
 	int crtc_id = 0;
@@ -180,12 +208,12 @@ int drm_get_crtc(int fd, int crtc)
 	return crtc_id;
 }
 
-
+/*
 //============================================================
 //  drm_waitvblank
 //============================================================
 
-static void drm_waitvblank(int crtc)
+static bool drm_waitvblank(int fd, int crtc)
 {
 
 	drmVBlank vbl;
@@ -213,13 +241,21 @@ static void drm_waitvblank(int crtc)
 		{
 			caps_checked = true;
 			if (drmGetCap(fd, DRM_CAP_VBLANK_HIGH_CRTC, &caps))
+			{
 				osd_printf_error("A newer kernel is needed for vblank syncing on multi screen\n");
+				return false;
+			}
 		}
 		if (caps)
 			vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | ((crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
 	}
 
 	if (drmWaitVBlank(fd, &vbl) != 0)
+	{
 		osd_printf_verbose("drmWaitVBlank failed\n");
-}
+		return false;
+	}
 
+	return true;
+}
+*/
