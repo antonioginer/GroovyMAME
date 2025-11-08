@@ -67,6 +67,7 @@
 
 #include "wavwrite.h"
 #include "interface/audio.h"
+#include "cosine.h"
 
 #include <string>
 #include <string_view>
@@ -560,11 +561,16 @@ private:
 
 	struct osd_output_stream : public osd_stream {
 		u32 m_samples;
+		cosine_resampler m_output_resampler;
 		std::vector<s16> m_buffer;
+		std::vector<s16> m_output_buffer;
+
 		osd_output_stream(u32 node, std::string &&node_name, u32 channels, u32 rate, bool is_system_default, sound_io_device *dev) :
 			osd_stream(node, std::move(node_name), channels, rate, is_system_default, dev),
 			m_samples(0),
-			m_buffer(channels*rate, 0)
+			m_output_resampler(cosine_resampler()),
+			m_buffer(channels*rate, 0),
+			m_output_buffer(channels * rate, 0)
 		{ }
 	};
 
