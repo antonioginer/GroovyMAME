@@ -16,6 +16,8 @@
 #include <string>
 #include <vector>
 
+#include "osdcore.h"
+
 #define OSD_SOUND_PROVIDER   "sound"
 
 class sound_module
@@ -63,9 +65,11 @@ protected:
 		void pop_buffer() noexcept;
 		buffer &push_buffer();
 
-		int32_t m_delta, m_delta2;
+		osd_ticks_t m_buf_maintenance;
+		osd_ticks_t m_start_ticks;
 		uint32_t m_channels;
-		uint32_t m_used_buffers;
+		int m_used_buffers;
+		int m_unused_buffers;
 		std::vector<int16_t> m_last_sample;
 		std::vector<buffer> m_buffers;
 	};
