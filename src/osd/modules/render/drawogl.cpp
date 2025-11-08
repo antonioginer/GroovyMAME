@@ -45,6 +45,7 @@ typedef uint64_t HashT;
 #include "emucore.h"
 #include "emuopts.h"
 #include "render.h"
+#include "emusync.h"
 
 
 #if !defined(OSD_WINDOWS) && !defined(OSD_MAC)
@@ -63,14 +64,6 @@ typedef uint64_t HashT;
 #include <utility>
 
 
-#ifdef SDLMAME_X11
-#include <unistd.h>
-// DRM
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#include <fcntl.h>
-#endif
-#include "emusync.h"
 
 #if defined(SDLMAME_MACOSX) || defined(OSD_MAC)
 
@@ -287,7 +280,6 @@ public:
 		, m_surf_w(0)
 		, m_surf_h(0)
 		, m_sync(window.machine().sync())
-		, m_time_start(osd_ticks())
 	{
 		for (int i=0; i < HASH_SIZE + OVERFLOW_SIZE; i++)
 			m_texhash[i] = nullptr;
@@ -372,9 +364,6 @@ private:
 		return (GL_NO_ERROR != glerr) ? glerr : 0;
 	}
 
-	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
-	inline double time_now() { return get_ms(osd_ticks() - m_time_start); };
-
 #define GL_CHECK_ERROR_QUIET() gl_check_error(false, __FILE__, __LINE__)
 #define GL_CHECK_ERROR_NORMAL() gl_check_error(true, __FILE__, __LINE__)
 
@@ -452,9 +441,8 @@ private:
 
 	static bool     s_shown_video_info;
 
+	// emusync manager
 	emusync         &m_sync;
-	double          m_frame_delay;             // current frame delay value
-	uint64_t        m_time_start = 0;
 };
 
 
@@ -786,6 +774,7 @@ int renderer_ogl::create()
 		osd_printf_error("Creating OpenGL context failed: %s\n", msg ? msg : "unknown error");
 		return 1;
 	}
+	m_gl_context->set_swap_interval(video_config.waitvsync ? 1 : 0);
 
 	if (window().index() == 0 && window().machine().sync().sync_refresh())
 	{
@@ -793,8 +782,7 @@ int renderer_ogl::create()
 		if (sync_ok)
 			m_gl_context->set_swap_interval(0);
 	}
-	else
-		m_gl_context->set_swap_interval((video_config.waitvsync) ? 1 : 0);
+
 
 	m_blittimer = 0;
 	m_surf_w = 0;
@@ -1582,41 +1570,6 @@ int renderer_ogl::draw(const int update)
 	return 0;
 }
 
-/*
-//============================================================
-//  renderer_ogl::get_vblank_timestamp
-//============================================================
-
-bool renderer_ogl::get_vblank_timestamp()
-{
-#ifdef SDLMAME_X11
-	uint64_t sequence = 0;
-	uint64_t ns = 0;
-
-	int ret = drmCrtcGetSequence(fd, crtc_id, &sequence, &ns);
-	if (ret != 0)
-	{
-		osd_printf_verbose("error: drmCrtcGetSequence(%d)\n", ret);
-		return false;
-	}
-
-	m_sync.register_vblank_in_ns(sequence, ns);
-#else
-	uint64_t count;
-	uint64_t timestamp;
-
-	bool ret = get_vblank_timestamp_external(&count, &timestamp);
-	if (!ret)
-	{
-		osd_printf_verbose("error: no vblank timestamps\n", ret);
-		return false;
-	}
-
-	m_sync.register_vblank_in_ns(count, timestamp);
-#endif
-	return true;
-}
-*/
 //============================================================
 //  texture handling
 //============================================================
