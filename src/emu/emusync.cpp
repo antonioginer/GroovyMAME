@@ -24,6 +24,15 @@
 
 static kalman_filter kf;
 
+//#define emusync_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
+#define emusync_printf_verbose(...)
+
+//#define emusync_printf_info(...) osd_printf_info(__VA_ARGS__)
+#define emusync_printf_info(...)
+
+//#define emusync_sinks_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
+#define emusync_sinks_printf_verbose(...)
+
 //============================================================
 //  emusync::emusync
 //============================================================
@@ -116,12 +125,11 @@ void emusync::register_tag(enum emusync::event_tag tag)
 			if (prev_timestamp != 0)
 			{
 				m_frame_time = m_timestamp[tag] - prev_timestamp;
-				uint64_t present_time = m_timestamp[AFTER_PRESENT] - m_timestamp[BEFORE_PRESENT];
-				osd_printf_verbose("present: %.3f emu_t: %.3f emu_t_avg: %.3f Dm: %.3f period: %.3f\n\n",
-					get_ms(present_time), get_ms(m_current_emulation_time), get_ms(m_emulation_time_avg), get_ms(m_emulation_time_dm), frame_time_in_ms());
+				emusync_printf_verbose("present: %.3f emu_t: %.3f emu_t_avg: %.3f Dm: %.3f period: %.3f\n\n",
+					get_ms(m_timestamp[AFTER_PRESENT] - m_timestamp[BEFORE_PRESENT]), get_ms(m_current_emulation_time), get_ms(m_emulation_time_avg), get_ms(m_emulation_time_dm), frame_time_in_ms());
 			}
 			else
-				osd_printf_verbose("\n");
+				emusync_printf_verbose("\n");
 
 			update_stats();
 			break;
@@ -177,6 +185,40 @@ void emusync::register_emutime(uint64_t emutime)
 	m_emulation_time_dm += diff_delta;
 }
 
+//============================================================
+//  emusync::register_sink_samples
+//============================================================
+
+void emusync::register_sink_samples(int id, uint64_t samples)
+{
+	double timestamp = time_now() / 1e3;
+
+	auto sink_st = m_sinks.find(id);
+
+	if (sink_st == m_sinks.end()) {
+		m_sinks.emplace(id, sink_status(timestamp, samples));
+		return;
+	}
+
+	sink_st->second.m_samples_out += samples;
+	sink_st->second.m_ef.update(timestamp, sink_st->second.m_samples_out);
+
+	emusync_sinks_printf_verbose("[%.3f][%d][%llu][%f] register_sink_samples\n", timestamp * 1e3, id, samples, sink_st->second.m_ef.slope());
+}
+
+//============================================================
+//  emusync::sink_rate
+//============================================================
+
+double emusync::sink_rate(int id)
+{
+	auto sink_st = m_sinks.find(id);
+
+	if (sink_st == m_sinks.end())
+		return 0.0;
+
+	return sink_st->second.m_ef.slope_out();
+}
 
 //============================================================
 //  emusync::register_vblank_in_ticks
@@ -197,7 +239,7 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 	int64_t delta;
 	int count_delta = 0;
 
-	osd_printf_verbose("[%.3f] register vblank: ", time_now());
+	emusync_printf_verbose("[%.3f] register vblank: ", time_now());
 
 	if (m_initialized)
 	{
@@ -206,7 +248,7 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		// Skip sample if it's not newer. Big deltas may be inaccurate, discard.
 		if (count_delta == 0)
 		{
-			//osd_printf_verbose("count delta: %d\n", count_delta);
+			//emusync_printf_verbose("count delta: %d\n", count_delta);
 			goto register_and_exit;
 		}
 
@@ -220,20 +262,20 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		// Filter timestamp. If needed, compute intermediate timestamps to feed the filter.
 		for (int i = count_delta; i > 0; --i) kf.update(timestamp - i * m_current_period);
 
-		//osd_printf_verbose("raw: %lld filtered: %lld diff: %+d period: %f\n", timestamp, kf.get_filtered_timestamp(),
+		//emusync_printf_verbose("raw: %lld filtered: %lld diff: %+d period: %f\n", timestamp, kf.get_filtered_timestamp(),
 		//					(int64_t)(timestamp - kf.get_filtered_timestamp()), get_ms(kf.get_period()));
 
 		delta = m_current_period - m_mean;
 
 		m_vblank_count++;
 		m_mean += delta / m_vblank_count;
-		osd_printf_verbose("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms",
+		emusync_printf_verbose("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms",
 			get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
 	}
 
 	if (!m_initialized)
 	{
-		osd_printf_verbose("initialize, sync_count %d", sync_count);
+		emusync_printf_verbose("initialize, sync_count %d", sync_count);
 		m_initialized = true;
 		m_first_sync_count = sync_count;
 		m_first_timestamp = timestamp;
@@ -242,9 +284,9 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 register_and_exit:
 
 	if(count_delta != 1)
-		osd_printf_verbose(" count_delta: %d\n", count_delta);
+		emusync_printf_verbose(" count_delta: %d\n", count_delta);
 	else
-		osd_printf_verbose("\n");
+		emusync_printf_verbose("\n");
 
 	m_last_count = sync_count - m_first_sync_count;
 	m_last_sync_count = sync_count;
@@ -267,12 +309,12 @@ uint64_t emusync::wait_raster(uint64_t count, double scan)
 
 	uint64_t time_entry = time_in_ns();
 
-	osd_printf_verbose("wait raster [%d][%.3f]: ", count, scan);
+	emusync_printf_verbose("wait raster [%d][%.3f]: ", count, scan);
 
 	// Wait for target time
 	if ((int)(time_target - time_entry) > 0)
 	{
-		osd_printf_verbose("must wait: %+.3f ", get_ms(time_target) - get_ms(time_entry));
+		emusync_printf_verbose("must wait: %+.3f ", get_ms(time_target) - get_ms(time_entry));
 
 		uint64_t current_time;
 		do
@@ -287,10 +329,10 @@ uint64_t emusync::wait_raster(uint64_t count, double scan)
 		} while ((current_time - time_entry) < period() * 2);
 	}
 	else
-		osd_printf_verbose("delayed, exiting. ");
+		emusync_printf_verbose("delayed, exiting. ");
 
 	uint64_t time_exit = time_in_ns();
-	osd_printf_verbose("elapsed: %.3f\n", get_ms(time_exit - time_entry));
+	emusync_printf_verbose("elapsed: %.3f\n", get_ms(time_exit - time_entry));
 
 	return time_exit - time_entry;
 }
@@ -359,7 +401,7 @@ void emusync::predraw_sync()
 
 	raster_status raster = {};
 	get_raster(&raster);
-	osd_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
+	emusync_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
 
 	m_this_sync_frame = raster.count;
 	m_missed_previous_retrace = m_this_sync_frame > m_next_sync_frame;
@@ -367,7 +409,7 @@ void emusync::predraw_sync()
 	if (handle_throttle() && machine().video().throttled() && !m_missed_previous_retrace)
 		m_predraw_sync_wait = wait_raster(raster.count, 0.90);
 	else
-		osd_printf_verbose("missed retrace\n");
+		emusync_printf_verbose("missed retrace\n");
 }
 
 
@@ -399,10 +441,10 @@ void emusync::postdraw_sync()
 
 	if (handle_throttle() && machine().video().throttled())
 	{
-		osd_printf_verbose("[%.3f] ", time_now());
+		emusync_printf_verbose("[%.3f] ", time_now());
 		m_postdraw_sync_wait = wait_raster(m_next_sync_frame, fd);
 	}
 
-	osd_printf_verbose("[%.3f] wait: %.3f ", time_now(), get_ms(m_predraw_sync_wait + m_postdraw_sync_wait));
+	emusync_printf_verbose("[%.3f] wait: %.3f ", time_now(), get_ms(m_predraw_sync_wait + m_postdraw_sync_wait));
 }
 
