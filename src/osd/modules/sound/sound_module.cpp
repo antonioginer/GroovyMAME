@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:O. Galibert
+// copyright-holders:O. Galibert, intealls
 
 
 #include "sound_module.h"
@@ -8,26 +8,26 @@
 #include <cassert>
 #include <utility>
 
-
 sound_module::~sound_module()
 {
 	// implementing this here forces the vtable and inline virtual member functions to be instantiated
 }
 
-sound_module::abuffer::abuffer(uint32_t channels) noexcept : m_channels(channels), m_used_buffers(0), m_last_sample(channels, 0)
+sound_module::abuffer::abuffer(uint32_t channels) noexcept : m_channels(channels), m_used_buffers(0), m_unused_buffers(0), m_last_sample(channels, 0)
 {
-	m_delta = 0;
-	m_delta2 = 0;
+	m_buf_maintenance = osd_ticks();
+	m_start_ticks = m_buf_maintenance;
 }
 
 void sound_module::abuffer::get(int16_t *data, uint32_t samples) noexcept
 {
-	m_delta -= samples;
-	m_delta2 -= samples;
+	osd_ticks_t ticks_now = osd_ticks();
+	double d_ticks_now = (double)(ticks_now - m_start_ticks) / osd_ticks_per_second();
+
 	uint32_t pos = 0;
 	while(pos != samples) {
 		if(!m_used_buffers) {
-			m_delta2 += samples - pos;
+			//osd_printf_verbose("%f: underflow\n", d_ticks_now);
 			while(pos != samples) {
 				std::copy_n(m_last_sample.data(), m_channels, data);
 				data += m_channels;
@@ -55,36 +55,39 @@ void sound_module::abuffer::get(int16_t *data, uint32_t samples) noexcept
 		pos += avail;
 		data += avail * m_channels;
 	}
-	//  printf("# %d %d\n", m_delta, m_delta2);
+
+	// this tracks the number of unused buffers (which can be dropped safely)
+	m_unused_buffers = (m_used_buffers < m_unused_buffers) ? m_used_buffers : m_unused_buffers;
+
+	if (ticks_now - m_buf_maintenance > 2 * osd_ticks_per_second()) {
+		m_unused_buffers = m_used_buffers;
+		m_buf_maintenance = ticks_now;
+	}
+
+	//osd_printf_verbose("9999.9999, %d, %d, %d\n", available(), m_used_buffers, m_unused_buffers);
 }
 
 void sound_module::abuffer::push(const int16_t *data, uint32_t samples)
 {
-	m_delta += samples;
-	m_delta2 += samples;
 	auto &buf = push_buffer();
+
+	const int buf_safety_margin = 2;
+	const int buf_keep = std::min<int>(std::max<int>(m_used_buffers - m_unused_buffers + buf_safety_margin, 0), 5);
+
 	buf.m_cpos = 0;
 	buf.m_data.resize(samples * m_channels);
 	std::copy_n(data, samples * m_channels, buf.m_data.data());
 	std::copy_n(data + ((samples - 1) * m_channels), m_channels, m_last_sample.data());
 
-	if(m_used_buffers > 10) {
-		for(uint32_t i=0; i != m_used_buffers-10; i++)
-			m_delta2 -= (m_buffers[i].m_data.size()/m_channels - m_buffers[i].m_cpos);
-		// If there are way too many buffers, drop some so only 10 are left (roughly 0.2s)
-		for(unsigned i = 0; 10 > i; ++i) {
+	if(m_used_buffers > buf_keep) {
+		// If there are too many buffers, drop so we only keep the number we need (reduces latency)
+		for(unsigned i = 0; i < buf_keep; i++) {
 			using std::swap;
-			swap(m_buffers[i], m_buffers[m_used_buffers + i - 10]);
+			swap(m_buffers[i], m_buffers[m_used_buffers + i - buf_keep]);
 		}
-		m_used_buffers = 10;
-	} else if(m_used_buffers >= 5) {
-		// If there are too many buffers, remove five samples per buffer
-		// to slowly resync to reduce latency (4 seconds to
-		// compensate one buffer, roughly)
-		m_delta2 -= std::max<uint32_t>(samples / 200, 1);
-		buf.m_cpos = std::max<uint32_t>(samples / 200, 1);
+		//osd_printf_verbose("%f: overflow, used: %d, unused: %d, dropping %d\n", (double)(osd_ticks() - m_start_ticks) / osd_ticks_per_second(), m_used_buffers, m_unused_buffers, m_used_buffers - buf_keep);
+		m_used_buffers = buf_keep;
 	}
-	//  printf("# %d %d\n", m_delta, m_delta2);
 }
 
 uint32_t sound_module::abuffer::available() const noexcept
