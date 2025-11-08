@@ -22,7 +22,7 @@ sound_module::abuffer::abuffer(uint32_t channels) noexcept : m_channels(channels
 void sound_module::abuffer::get(int16_t *data, uint32_t samples) noexcept
 {
 	osd_ticks_t ticks_now = osd_ticks();
-	double d_ticks_now = (double)(ticks_now - m_start_ticks) / osd_ticks_per_second();
+	//double d_ticks_now = (double)(ticks_now - m_start_ticks) / osd_ticks_per_second();
 
 	uint32_t pos = 0;
 	while(pos != samples) {

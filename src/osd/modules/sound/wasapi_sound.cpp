@@ -12,6 +12,9 @@
 
 #if defined(OSD_WINDOWS) | defined(SDLMAME_WIN32)
 
+#include "emu.h"
+#include "emusync.h"
+
 // local headers
 #include "mmdevice_helpers.h"
 
@@ -49,7 +52,6 @@
 #include <functiondiscoverykeys_devpkey.h>
 #include <mmdeviceapi.h>
 #include <mmreg.h>
-
 
 namespace osd {
 
@@ -220,6 +222,8 @@ private:
 	float                       m_audio_latency = 0.0F;
 	uint32_t                    m_generation = 1;
 	bool                        m_exiting = false;
+
+	emusync* m_emusync;
 };
 
 
@@ -420,6 +424,7 @@ void sound_wasapi::stream_info::render_task()
 			{
 				auto const available = m_buffer.available();
 				auto *samples = reinterpret_cast<int16_t *>(data);
+				m_host.m_emusync->register_sink_samples(info.m_node, locked);
 				if (!m_underflowing)
 				{
 					m_buffer.get(samples, locked);
@@ -683,6 +688,8 @@ int sound_wasapi::init(osd_interface &osd, osd_options const &options)
 	// start a thread to clean up removed streams
 	m_updated_devices.reserve(m_device_info.size() * 4); // hopefully avoid reallocations
 	m_housekeeping_thread = std::thread([] (sound_wasapi *self) { self->housekeeping_task(); }, this);
+
+	m_emusync = &downcast<osd_common_t &>(osd).machine().sync();
 
 	return 0;
 

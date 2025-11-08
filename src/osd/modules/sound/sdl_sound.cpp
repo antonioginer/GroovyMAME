@@ -12,6 +12,9 @@
 
 #include "modules/osdmodule.h"
 
+#include "emu.h"
+#include "emusync.h"
+
 #if (defined(OSD_SDL) || defined(USE_SDL_SOUND))
 
 #include "modules/lib/osdobj_common.h"
@@ -66,12 +69,14 @@ private:
 		uint32_t m_id;
 		SDL_AudioDeviceID m_sdl_id;
 		abuffer m_buffer;
-		stream_info(uint32_t id, uint8_t channels) : m_id(id), m_sdl_id(0), m_buffer(channels) {}
+		emusync* m_emusync;
+		stream_info(uint32_t id, uint8_t channels, emusync* emusync) : m_id(id), m_sdl_id(0), m_buffer(channels), m_emusync(emusync) {}
 	};
 
 	std::vector<device_info> m_devices;
 	uint32_t m_default_sink;
 	uint32_t m_stream_next_id;
+	emusync* m_emusync;
 
 	std::map<uint32_t, std::unique_ptr<stream_info>> m_streams;
 
@@ -132,6 +137,7 @@ int sound_sdl::init(osd_interface &osd, const osd_options &options)
 		SDL_free(def_name);
 	}
 #endif
+	m_emusync = &downcast<osd_common_t &>(osd).machine().sync();
 	return 0;
 }
 
@@ -202,7 +208,7 @@ osd::audio_info sound_sdl::get_information()
 uint32_t sound_sdl::stream_sink_open(uint32_t node, std::string name, uint32_t rate)
 {
 	device_info &dev = m_devices[node-1];
-	std::unique_ptr<stream_info> stream = std::make_unique<stream_info>(m_stream_next_id ++, dev.m_channels);
+	std::unique_ptr<stream_info> stream = std::make_unique<stream_info>(m_stream_next_id ++, dev.m_channels, m_emusync);
 
 	SDL_AudioSpec dspec, ospec;
 	dspec.freq = rate;
@@ -244,6 +250,7 @@ void sound_sdl::stream_sink_update(uint32_t id, const int16_t *buffer, int sampl
 void sound_sdl::sink_callback(void *userdata, uint8_t *data, int len)
 {
 	stream_info *stream = reinterpret_cast<stream_info *>(userdata);
+	stream->m_emusync->register_sink_samples(stream->m_id, len / 2 / stream->m_buffer.channels());
 	stream->m_buffer.get((int16_t *)data, len / 2 / stream->m_buffer.channels());
 }
 
