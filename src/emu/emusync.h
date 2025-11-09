@@ -45,7 +45,7 @@ public:
 	bool register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp);
 	void register_emutime(uint64_t emutime);
 	void register_sink_samples(int id, uint64_t samples);
-	double sink_rate(int id);
+	double get_sink_rate(int id);
 	uint64_t wait_raster(uint64_t count, double scan);
 	void get_raster(raster_status *status);
 	void get_scanline(uint32_t *scanline, bool *in_vblank);
