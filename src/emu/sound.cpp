@@ -17,6 +17,7 @@
 #include "emuopts.h"
 #include "emusync.h"
 #include "main.h"
+#include "screen.h"
 #include "speaker.h"
 
 #include "wavwrite.h"
@@ -766,7 +767,14 @@ sound_manager::sound_manager(running_machine &machine) :
 
 	// start the periodic update flushing timer
 	m_update_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(sound_manager::update), this));
-	m_update_timer->adjust(STREAMS_UPDATE_ATTOTIME, 0, STREAMS_UPDATE_ATTOTIME);
+	screen_device_enumerator iter(machine.root_device());
+	if (iter.first() == nullptr) {
+		// screenless
+		m_update_timer->adjust(STREAMS_UPDATE_ATTOTIME, 0, STREAMS_UPDATE_ATTOTIME);
+	} else {
+		attotime update_period = iter.first()->frame_period();
+		m_update_timer->adjust(update_period, 0, update_period);
+	}
 
 	// mark the generation as "just starting, waiting for config loading"
 	m_osd_info.m_generation = 0xffff0000;
@@ -1123,13 +1131,18 @@ void sound_manager::run_effects()
 
 		machine().osd().sound_begin_update();
 
-		// Send the result to the osd
+		// Resample streams and send to osd
 		for(auto &stream : m_osd_output_streams)
 			if(stream.m_samples) {
 				size_t output_frames;
 
-				double sink_rate = machine().sync().sink_rate(stream.m_id) / stream.m_rate;
-				double rate = (1000.0 / machine().video().speed_factor()) * (sink_rate == 0.0 ? 1.0 : sink_rate);
+				double rate = 1000.0 / machine().video().speed_factor();
+				double sink_rate = machine().sync().get_sink_rate(stream.m_id) / stream.m_rate;
+
+				if (machine().sync().handle_throttle() && machine().options().sync_audio())
+					rate = machine().sync().speed_factor();
+
+				rate *= sink_rate == 0.0 ? 1.0 : sink_rate;
 
 				stream.m_output_resampler.apply(rate, stream.m_buffer.data(), stream.m_samples, stream.m_output_buffer.data(), &output_frames, stream.m_channels);
 
