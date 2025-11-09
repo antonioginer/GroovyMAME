@@ -210,7 +210,7 @@ void emusync::register_sink_samples(int id, uint64_t samples)
 //  emusync::sink_rate
 //============================================================
 
-double emusync::sink_rate(int id)
+double emusync::get_sink_rate(int id)
 {
 	auto sink_st = m_sinks.find(id);
 
