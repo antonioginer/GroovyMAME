@@ -378,7 +378,8 @@ void emusync::update_stats()
 {
 	// determine the refresh rate of the primary screen
 	const screen_device *primary_screen = screen_device_enumerator(machine().root_device()).first();
-	if (primary_screen->configured())
+
+	if (primary_screen != nullptr && primary_screen->configured())
 		m_emu_period = primary_screen->frame_period().as_attoseconds() / 1e9;
 }
 
