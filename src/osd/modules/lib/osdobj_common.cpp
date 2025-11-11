@@ -192,6 +192,9 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_SOUND,                           OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "sound output method: " },
 	{ OSDOPTION_AUDIO_LATENCY ";alat(0.0-50.0)", "0.0",            core_options::option_type::FLOAT,     "audio latency, 0 for default (increase to reduce glitches, decrease for responsiveness)" },
 
+	{ OSDOPTION_PART_LATENCY "(0.001-1.0)",      "0.020",          core_options::option_type::FLOAT,     "suggest output latency for portaudio" },
+	{ OSDOPTION_PART_LOG,                        "0",              core_options::option_type::BOOLEAN,   "Real-time PortAudio logging" },
+
 #ifdef SDLMAME_MACOSX
 	{ nullptr,                                   nullptr,          core_options::option_type::HEADER,    "CoreAudio-SPECIFIC OPTIONS" },
 	{ OSDOPTION_AUDIO_OUTPUT,                    OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "audio output device" },
@@ -315,6 +318,7 @@ void osd_common_t::register_options()
 #endif
 #ifndef NO_USE_PORTAUDIO
 	REGISTER_MODULE(m_mod_man, SOUND_PORTAUDIO);
+	REGISTER_MODULE(m_mod_man, SOUND_PART);
 #endif
 #ifndef NO_USE_PULSEAUDIO
 	REGISTER_MODULE(m_mod_man, SOUND_PULSEAUDIO);
