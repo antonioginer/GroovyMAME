@@ -14,6 +14,9 @@
 
 #ifndef NO_USE_PORTAUDIO
 
+#include "emu.h"
+#include "emusync.h"
+
 #include <atomic>
 
 #include "modules/lib/osdobj_common.h"
@@ -305,6 +308,8 @@ private:
 	int m_sample_rate;
 	bool m_log;
 
+	emusync* m_emusync;
+
 	int stream_callback(stream_info *stream, const void *input, void *output, unsigned long frameCount, const PaStreamCallbackTimeInfo *timeInfo, PaStreamCallbackFlags statusFlags);
 	static int s_stream_callback(const void *input, void *output, unsigned long frameCount, const PaStreamCallbackTimeInfo *timeInfo, PaStreamCallbackFlags statusFlags, void *userData);
 
@@ -405,6 +410,8 @@ int sound_part::init(osd_interface &osd, osd_options const &options)
 
 	m_stream_id = 1;
 
+	m_emusync = &downcast<osd_common_t &>(osd).machine().sync();
+
 	return 0;
 }
 
@@ -492,8 +499,10 @@ void sound_part::stream_source_update(uint32_t id, int16_t *buffer, int samples_
 
 int sound_part::stream_callback(stream_info *stream, const void *input, void *output, unsigned long frameCount, const PaStreamCallbackTimeInfo *timeInfo, PaStreamCallbackFlags statusFlags)
 {
-	if(output)
+	if(output) {
+		m_emusync->register_sink_samples(stream->m_id, frameCount);
 		stream->m_buffer.get((int16_t *)output, frameCount);
+	}
 	return 0;
 }
 
