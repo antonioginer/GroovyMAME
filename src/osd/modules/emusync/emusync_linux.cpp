@@ -137,7 +137,26 @@ static int drm_open(const char *dri_device, int monitor_handle)
 
 					// We found a valid connector, use it
 					if (conn->connection == DRM_MODE_CONNECTED && conn->count_modes > 0)
+					{
+/*
+						drmModeEncoder *encoder = drmModeGetEncoder(fd, conn->encoder_id);
+						if (encoder)
+						{
+							for (int k = 0; k < resources->count_crtcs; k++)
+							{
+								drmModeCrtc *crtc = drmModeGetCrtc(fd, resources->crtcs[k]);
+
+							if (mp_crtc_desktop->crtc_id == p_encoder->crtc_id)
+							{
+								log_verbose("DRM/KMS: <%d> (init) desktop mode name %s crtc %d fb %d valid %d\n", m_id, mp_crtc_desktop->mode.name, mp_crtc_desktop->crtc_id, mp_crtc_desktop->buffer_id, mp_crtc_desktop->mode_valid);
+								break;
+							}
+							drmModeFreeCrtc(mp_crtc_desktop);
+						}
+					}
+*/
 						found = true;
+					}
 
 					drmModeFreeConnector(conn);
 					if (found) break;

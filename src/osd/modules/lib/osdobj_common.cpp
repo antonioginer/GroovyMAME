@@ -290,7 +290,9 @@ void osd_common_t::register_options()
 #endif
 	REGISTER_MODULE(m_mod_man, RENDERER_NONE);
 	REGISTER_MODULE(m_mod_man, RENDERER_MISTER);
-
+#if !defined(OSD_WINDOWS) && !defined(SDLMAME_WIN32) && !defined(SDLMAME_MACOSX)
+	REGISTER_MODULE(m_mod_man, RENDERER_KMSRAW);
+#endif
 	REGISTER_MODULE(m_mod_man, SOUND_WASAPI);
 	REGISTER_MODULE(m_mod_man, SOUND_XAUDIO2);
 	REGISTER_MODULE(m_mod_man, SOUND_COREAUDIO);
