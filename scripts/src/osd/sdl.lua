@@ -397,6 +397,7 @@ project ("osd_" .. _OPTIONS["osd"])
 	if _OPTIONS["targetos"]=="linux" then
 		files {
 			MAME_DIR .. "src/osd/modules/emusync/emusync_linux.cpp",
+			MAME_DIR .. "src/osd/modules/render/drawkmsraw.cpp",
 		}
 	end
 
