@@ -13,10 +13,13 @@
 #if defined(OSD_SDL)
 
 #include "window.h"
+#include "osdsdl.h"
 
 // emu
 #include "emu.h"
 #include "rendersw.hxx"
+#include <switchres/switchres.h>
+#include <switchres/switchres_defines.h>
 
 #include <xf86drmMode.h>
 #include <xf86drm.h>
@@ -25,6 +28,7 @@
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+
 
 namespace osd {
 
@@ -64,6 +68,17 @@ private:
 
 int renderer_kmsraw::create()
 {
+	switchres_manager *m_switchres = &downcast<sdl_osd_interface&>(window().machine().osd()).switchres()->switchres();
+	display_manager *display = m_switchres->display(window().index());
+
+	void *map = display->video()->get_resource(SR_RES_KMS_BUFFER);
+	if (map == nullptr)
+		osd_printf_error("no buffer found\n");
+
+	memset(map, 80, 320*240*4);
+
+	return 0;
+
 	int err;
 	fd = drm_open("auto", 0);
 

@@ -172,6 +172,9 @@ bool sdl2_display::set_mode(modeline *mode)
 		}
 	}
 
+	video()->set_timing(mode);
+	return true;
+
 	// We may first check if the mode was already added, so we don't force a probe of all modes
 	if ( SDL_GetClosestDisplayMode(SDL_GetWindowDisplayIndex(m_sdlwindow), &target, &closest) == NULL )
 	{
