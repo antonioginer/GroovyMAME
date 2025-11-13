@@ -247,6 +247,8 @@ drmkms_timing::drmkms_timing(char *device_name, custom_video_settings *vs)
 	m_vs = *vs;
 	m_id = ++static_id;
 
+	m_kernel_user_modes = m_vs.kms_user_modes;
+
 	log_verbose("DRM/KMS: <%d> (drmkms_timing) creation (%s)\n", m_id, device_name);
 	// Copy screen device name and limit size
 	if ((strlen(device_name) + 1) > 32)
@@ -701,7 +703,7 @@ bool drmkms_timing::init()
 		m_caps |= CUSTOM_VIDEO_CAPS_UPDATE;
 	}
 	// Check if the kernel handles user modes
-	else //if (test_kernel_user_modes())
+	else
 		m_caps |= CUSTOM_VIDEO_CAPS_ADD;
 
 	if (drmIsMaster(m_drm_fd) and m_drm_fd != m_hook_fd)
