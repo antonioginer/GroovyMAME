@@ -54,7 +54,7 @@ public:
 	double fd_margin_in_ms() { return get_ms(m_fd_margin); };
 	double frame_time_in_ms() { return get_ms(m_frame_time); };
 	double current_framedelay();
-	uint64_t line_period() { return m_vtotal ? period() / m_vtotal : 0; };
+	uint64_t line_period() { return m_vtotal ? period() / m_vtotal * (m_interlaced ? 2.0 : 1.0) : 0; };
 	uint64_t emu_period() { return m_emu_period; };
 	double speed_factor() { return handle_throttle() ? (double)m_emu_period / (period() * (1 + m_bfi)) : 1.0; };
 	void predraw_sync();
@@ -71,6 +71,7 @@ public:
 	bool auto_framedelay() const { return m_auto_framedelay; }
 	int32_t framedelay() const { return m_framedelay; }
 	int32_t vsync_offset() const { return m_vsync_offset; }
+	bool interlaced() const { return m_interlaced; }
 
 	// setters
 	void set_fullscreen(bool fullscreen) { m_fullscreen = fullscreen; }
@@ -81,6 +82,7 @@ public:
 	void set_auto_framedelay(bool autoframedelay) { m_auto_framedelay = autoframedelay; }
 	void set_vsync_offset(int vsync_offset) { m_vsync_offset = vsync_offset; }
 	void set_vtotal(int vtotal) { m_vtotal = vtotal; }
+	void set_interlace(bool interlace) { m_interlaced = interlace; }
 
 	struct sink_status
 	{
@@ -138,6 +140,7 @@ private:
 	int32_t  m_vsync_offset;             // offset vsync position by this many lines
 	int32_t  m_bfi;
 	uint32_t m_vtotal;
+	bool     m_interlaced;
 
 	int ticks_to_ns = 0;
 	uint64_t sleep_time = 1e6; // 1 ms
