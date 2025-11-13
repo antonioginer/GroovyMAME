@@ -202,7 +202,11 @@ void emusync::register_sink_samples(int id, uint64_t samples)
 	}
 
 	sink_st->second.m_samples_out += samples;
-	sink_st->second.m_ef.update(timestamp, sink_st->second.m_samples_out);
+
+	if (timestamp - sink_st->second.m_update_ts >= sink_st->second.m_update_interval) {
+		sink_st->second.m_ef.update(timestamp, sink_st->second.m_samples_out);
+		sink_st->second.m_update_ts = timestamp;
+	}
 
 	emusync_sinks_printf_verbose("[%.3f][%d][%llu][%f] register_sink_samples\n", timestamp * 1e3, id, samples, sink_st->second.m_ef.slope());
 }
