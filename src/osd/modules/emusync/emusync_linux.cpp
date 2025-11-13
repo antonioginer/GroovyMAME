@@ -69,6 +69,10 @@ bool emusync::get_vblank_timestamp_default()
 		return false;
 	}
 
+	// Sync counts increase by 2 on interlaced modes. Normalize
+	if (interlaced())
+		sequence /= 2;
+
 	register_vblank_in_ns(sequence, ns);
 
 	return true;

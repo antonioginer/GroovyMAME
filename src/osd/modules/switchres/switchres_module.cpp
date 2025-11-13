@@ -363,10 +363,12 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 			display->set_mode(display->selected_mode());
 			monitor->refresh();
 			monitor->update_resolution(display->width(), display->height());
+			machine().sync().reset();
 		}
 
 		set_options(display, target);
 		machine().sync().set_vtotal(display->selected_mode()->vtotal? display->selected_mode()->vtotal : display->selected_mode()->vactive);
+		machine().sync().set_interlace(display->is_interlaced());
 
 		return true;
 	}
