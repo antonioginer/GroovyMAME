@@ -130,6 +130,8 @@ void osd_sdl_info()
 	{
 		osd_printf_verbose("\t%-20s\n", SDL_GetAudioDriver(i));
 	}
+
+	SDL_ShowCursor(SDL_DISABLE);
 }
 
 
