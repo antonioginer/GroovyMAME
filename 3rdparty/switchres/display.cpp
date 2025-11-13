@@ -27,7 +27,6 @@
 
 #include "log.h"
 
-#undef SR_WITH_SDL2
 
 //============================================================
 //  display_manager::make
