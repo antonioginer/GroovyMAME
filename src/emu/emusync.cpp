@@ -77,6 +77,12 @@ void emusync::reset()
 }
 
 
+uint64_t emusync::period()
+{
+	return m_vblank_count > 10 ? kf.get_period() : 1e9 / 60;
+};
+
+
 //============================================================
 //  emusync::time_in_ns
 //============================================================
