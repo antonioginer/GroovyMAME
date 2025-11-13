@@ -34,8 +34,6 @@ struct exp_fit
 		m_alpha = alpha;
 		reset(x, y);
 
-		m_slope_lim = 0.0;
-
 		// use estimate when 1% of initial value remains
 		m_lim = std::log(0.01) / std::log(1.0 - alpha) + 0.5;
 	}
@@ -75,7 +73,7 @@ struct exp_fit
 
 		m_meanX += dx * alpha;
 		m_meanY += dy * alpha;
-		m_meanXY += dxy  * alpha;
+		m_meanXY += dxy * alpha;
 
 		if (m_n > m_lim)
 			m_slope_lim = slope();
