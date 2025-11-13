@@ -248,6 +248,10 @@ void sdl_osd_interface::init(running_machine &machine)
 	}
 #endif
 
+	stemp = options().video();
+	if(strcmp(stemp, "kmsraw") == 0)
+		SDL_SetHint(SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER, "0");
+
 	/* get number of processors */
 	stemp = options().numprocessors();
 
