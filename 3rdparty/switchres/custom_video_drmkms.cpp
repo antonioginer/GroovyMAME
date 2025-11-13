@@ -951,11 +951,6 @@ bool drmkms_timing::set_timing(modeline *mode)
 		return false;
 	}
 
-/*
-	if (!kms_has_mode(mode))
-		add_mode(mode);
-*/
-
 	// If we can't be master, no need to go further
 	drmSetMaster(m_drm_fd);
 	if (!drmIsMaster(m_drm_fd))
@@ -1038,6 +1033,7 @@ bool drmkms_timing::set_timing(modeline *mode)
 
 			drm_mode_map_dumb map_dumb = {};
 			map_dumb.handle = create_dumb.handle;
+			m_pitch = create_dumb.pitch;
 
 			ret = drmIoctl(m_drm_fd, DRM_IOCTL_MODE_MAP_DUMB, &map_dumb);
 			if (ret)
@@ -1313,6 +1309,9 @@ void *drmkms_timing::get_resource(const char *resource)
 {
 	if (!strcmp(resource, SR_RES_KMS_BUFFER))
 		return m_map;
+
+	if (!strcmp(resource, SR_RES_KMS_PITCH))
+		return (void*)&m_pitch;
 
 	return nullptr;
 }

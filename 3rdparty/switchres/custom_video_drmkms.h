@@ -50,10 +50,11 @@ class drmkms_timing : public custom_video
 		drmModeCrtc *mp_crtc_desktop = NULL;
 		int m_card_id = 0;
 		bool m_kernel_user_modes = false;
-		bool can_drop_master = true;
+		bool can_drop_master = false;
 		int m_hook_fd = -1;
 		int m_caps = 0;
 		void *m_map = nullptr;
+		int m_pitch = 0;
 
 		char m_device_name[32];
 		char m_drm_name[32];
