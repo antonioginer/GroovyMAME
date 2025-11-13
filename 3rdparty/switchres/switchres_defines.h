@@ -40,3 +40,5 @@
 #define  SR_OPT_CUSTOM_TIMING           "custom_timing"
 #define  SR_OPT_VERBOSE                 "verbose"
 #define  SR_OPT_VERBOSITY               "verbosity"
+
+#define  SR_RES_KMS_BUFFER              "kms_buffer"
