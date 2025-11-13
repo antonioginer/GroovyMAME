@@ -23,6 +23,7 @@
 #include <dirent.h>
 #include "custom_video_drmkms.h"
 #include "log.h"
+#include "switchres_defines.h"
 
 #define drmGetVersion p_drmGetVersion
 #define drmFreeVersion p_drmFreeVersion
@@ -191,11 +192,9 @@ void modeline_to_drm_modeline(int id, modeline *mode, drmModeModeInfo *drmmode)
 
 bool drmkms_timing::test_kernel_user_modes()
 {
-	int ret = 0, first_modes_count = 0, second_modes_count = 0;
+	int ret = 0;
 	int fd;
 	drmModeModeInfo mode = {};
-	const char* my_name = "KMS Test mode";
-	drmModeConnector *conn;
 
 	// Make sure we are master, that is required for the IOCTL
 	fd = get_master_fd();
@@ -208,7 +207,7 @@ bool drmkms_timing::test_kernel_user_modes()
 	// Create a dummy modeline with a pixel clock higher than 25MHz to avoid
 	// drivers checks rejecting the mode. Use a modeline that no one would
 	// ever use hopefully
-	strcpy(mode.name, my_name);
+	strcpy(mode.name, "KMS Test mode");
 	mode.clock       = 25212;
 	mode.hdisplay    = 1234;
 	mode.hsync_start = 1290;
@@ -220,46 +219,22 @@ bool drmkms_timing::test_kernel_user_modes()
 	mode.vtotal      = 261;
 	mode.flags       = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC;
 
-	// Count the number of existing modes, so it should be +1 when attaching
-	// a new mode. Could also check the mode name, still better
-	conn = drmModeGetConnector(fd, m_desktop_output);
-	if (!conn)
-	{
-		log_verbose("DRM/KMS: <%d> (%s) Cannot get connector\n", m_id, __FUNCTION__);
-		m_kernel_user_modes = false;
-		return false;
-	}
-
-	first_modes_count = conn->count_modes;
-	ret = drmModeAttachMode(fd, m_desktop_output, &mode);
-	drmModeFreeConnector(conn);
-
-	// This case can only happen if we're not drmMaster. If the kernel doesn't
-	// support adding new modes, the IOCTL will still return 0, not an error
-	if (ret < 0)
+	// Call the IOCT with a bad connector id, stock kernel won't return an error
+	ret = drmModeAttachMode(fd, -1, &mode);
+	if (ret == 0)
 	{
 		// Let's fail, no need to go further
-		log_verbose("DRM/KMS: <%d> (%s) Cannot add new kernel user mode\n", m_id, __FUNCTION__);
+		log_verbose("DRM/KMS: <%d> (%s) Kernel doesn't supports user modes\n", m_id, __FUNCTION__);
 		m_kernel_user_modes = false;
 		return false;
 	}
 
-	// Not using drmModeGetConnectorCurrent here since we need to force a
-	// modelist connector refresh, so the kernel will probe the connector
-	conn = drmModeGetConnector(fd, m_desktop_output);
-	second_modes_count = conn->count_modes;
-	if (first_modes_count != second_modes_count)
-	{
-		log_verbose("DRM/KMS: <%d> (%s) Kernel supports user modes (%d vs %d)\n", m_id, __FUNCTION__, first_modes_count, second_modes_count);
-		m_kernel_user_modes = true;
-		drmModeDetachMode(fd, m_desktop_output, &mode);
-		if (fd != m_hook_fd)
-			drmDropMaster(fd);
-	}
-	else
-		log_verbose("DRM/KMS: <%d> (%s) Kernel doesn't supports user modes\n", m_id, __FUNCTION__);
+	log_verbose("DRM/KMS: <%d> (%s) Kernel supports user modes\n", m_id, __FUNCTION__);
+	m_kernel_user_modes = true;
 
-	drmModeFreeConnector(conn);
+	if (fd != m_hook_fd)
+		drmDropMaster(fd);
+
 	return m_kernel_user_modes;
 }
 
@@ -726,7 +701,7 @@ bool drmkms_timing::init()
 		m_caps |= CUSTOM_VIDEO_CAPS_UPDATE;
 	}
 	// Check if the kernel handles user modes
-	else if (test_kernel_user_modes())
+	else //if (test_kernel_user_modes())
 		m_caps |= CUSTOM_VIDEO_CAPS_ADD;
 
 	if (drmIsMaster(m_drm_fd) and m_drm_fd != m_hook_fd)
@@ -976,8 +951,10 @@ bool drmkms_timing::set_timing(modeline *mode)
 		return false;
 	}
 
+/*
 	if (!kms_has_mode(mode))
 		add_mode(mode);
+*/
 
 	// If we can't be master, no need to go further
 	drmSetMaster(m_drm_fd);
@@ -1066,14 +1043,15 @@ bool drmkms_timing::set_timing(modeline *mode)
 			if (ret)
 				log_verbose("DRM/KMS: <%d> (set_timing) [ERROR] ioctl DRM_IOCTL_MODE_MAP_DUMB %d\n", m_id, ret);
 
-			void *map = mmap(0, create_dumb.size, PROT_READ | PROT_WRITE, MAP_SHARED, m_drm_fd, map_dumb.offset);
-			if (map != MAP_FAILED)
+			//void *map = mmap(0, create_dumb.size, PROT_READ | PROT_WRITE, MAP_SHARED, m_drm_fd, map_dumb.offset);
+			m_map = mmap(0, create_dumb.size, PROT_READ | PROT_WRITE, MAP_SHARED, m_drm_fd, map_dumb.offset);
+			if (m_map != MAP_FAILED)
 			{
 				// clear the frame buffer
-				memset(map, 0, create_dumb.size);
+				memset(m_map, 0, create_dumb.size);
 			}
 			else
-				log_verbose("DRM/KMS: <%d> (set_timing) [ERROR] failed to map frame buffer %p\n", m_id, map);
+				log_verbose("DRM/KMS: <%d> (set_timing) [ERROR] failed to map frame buffer %p\n", m_id, m_map);
 		}
 		else
 			log_verbose("DRM/KMS: <%d> (set_timing) <debug> use existing frame buffer\n", m_id);
@@ -1325,4 +1303,16 @@ bool drmkms_timing::kms_has_mode(modeline* mode)
 	log_verbose("DRM/KMS: <%d> (%s) Couldn't find the mode in the connector\n", m_id, __FUNCTION__);
 	drmModeFreeConnector(conn);
 	return false;
+}
+
+//============================================================
+//  drmkms_timing::get_resource
+//============================================================
+
+void *drmkms_timing::get_resource(const char *resource)
+{
+	if (!strcmp(resource, SR_RES_KMS_BUFFER))
+		return m_map;
+
+	return nullptr;
 }
