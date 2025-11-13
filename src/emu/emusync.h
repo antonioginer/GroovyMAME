@@ -49,7 +49,7 @@ public:
 	uint64_t wait_raster(uint64_t count, double scan);
 	void get_raster(raster_status *status);
 	void get_scanline(uint32_t *scanline, bool *in_vblank);
-	uint64_t period() { return m_mean > 0? (uint64_t)m_mean : 1e9 / 60; };
+	uint64_t period();
 	double period_in_ms() { return get_ms(period()); };
 	double fd_margin_in_ms() { return get_ms(m_fd_margin); };
 	double frame_time_in_ms() { return get_ms(m_frame_time); };
