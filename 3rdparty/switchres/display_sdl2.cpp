@@ -43,10 +43,11 @@ sdl2_display::sdl2_display(display_settings *ds)
 	}
 	else
 	{
-		// If we can't be master, exit
+		// If SDL is hinted to not require DRM master, set modes directly through the DRMKMS backend
 		const char *require_master = SDL_GetHint(SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER);
 		if (require_master != nullptr && strcmp(SDL_GetHint(SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER), "0") == 0)
 		{
+			ds->vs.kms_modesetting = true;
 			log_verbose("Switchres/SDL2: (%s): kernel modesetting handled by Switchres\n", __FUNCTION__);
 			throw std::exception();
 		}
@@ -54,7 +55,6 @@ sdl2_display::sdl2_display(display_settings *ds)
 
 	// Get display settings
 	m_ds = *ds;
-	m_ds.vs.kms_user_modes = true;
 }
 
 //============================================================
