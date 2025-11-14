@@ -46,7 +46,7 @@ typedef struct custom_video_settings
 	bool screen_compositing;
 	bool screen_reordering;
 	bool allow_hardware_refresh;
-	bool kms_user_modes;
+	bool kms_modesetting;
 	char device_reg_key[128];
 	char custom_timing[256];
 } custom_video_settings;

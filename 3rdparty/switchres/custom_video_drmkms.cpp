@@ -247,8 +247,6 @@ drmkms_timing::drmkms_timing(char *device_name, custom_video_settings *vs)
 	m_vs = *vs;
 	m_id = ++static_id;
 
-	m_kernel_user_modes = m_vs.kms_user_modes;
-
 	log_verbose("DRM/KMS: <%d> (drmkms_timing) creation (%s)\n", m_id, device_name);
 	// Copy screen device name and limit size
 	if ((strlen(device_name) + 1) > 32)
@@ -702,8 +700,14 @@ bool drmkms_timing::init()
 		log_verbose("DRM/KMS: libdrm hook found!\n");
 		m_caps |= CUSTOM_VIDEO_CAPS_UPDATE;
 	}
+	// Check if we're setting modes directly
+	else if (m_vs.kms_modesetting)
+	{
+		can_drop_master = false;
+		m_caps |= CUSTOM_VIDEO_CAPS_ADD;
+	}
 	// Check if the kernel handles user modes
-	else
+	else if (test_kernel_user_modes())
 		m_caps |= CUSTOM_VIDEO_CAPS_ADD;
 
 	if (drmIsMaster(m_drm_fd) and m_drm_fd != m_hook_fd)
@@ -1041,7 +1045,6 @@ bool drmkms_timing::set_timing(modeline *mode)
 			if (ret)
 				log_verbose("DRM/KMS: <%d> (set_timing) [ERROR] ioctl DRM_IOCTL_MODE_MAP_DUMB %d\n", m_id, ret);
 
-			//void *map = mmap(0, create_dumb.size, PROT_READ | PROT_WRITE, MAP_SHARED, m_drm_fd, map_dumb.offset);
 			m_map = mmap(0, create_dumb.size, PROT_READ | PROT_WRITE, MAP_SHARED, m_drm_fd, map_dumb.offset);
 			if (m_map != MAP_FAILED)
 			{
