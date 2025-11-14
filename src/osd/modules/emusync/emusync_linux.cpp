@@ -20,7 +20,7 @@
 #include "emusync.h"
 
 static int drm_open(const char *dri_device, int monitor_handle);
-static int drm_get_crtc(int fd, int crtc);
+//static int drm_get_crtc(int fd, int crtc);
 //static bool drm_waitvblank(int fd, int crtc);
 static int fd = 0;
 static int crtc_id = 0;
@@ -119,6 +119,8 @@ static int drm_open(const char *dri_device, int monitor_handle)
 
 		for (int i = 0; i < num_devices; i++)
 		{
+			int crtc_count = 0;
+
 			// Skip non-primary nodes
 			if (devices[i]->available_nodes & (1 << DRM_NODE_PRIMARY))
 				node = devices[i]->nodes[DRM_NODE_PRIMARY];
@@ -134,36 +136,16 @@ static int drm_open(const char *dri_device, int monitor_handle)
 			drmModeRes *resources = drmModeGetResources(fd);
 			if (resources && resources->count_connectors > 0 && resources->count_encoders > 0 && resources->count_crtcs > 0)
 			{
-				for (int j = 0; j < resources->count_connectors; j++)
+				for (int j = 0; j < resources->count_crtcs; j++)
 				{
-					drmModeConnector *conn = drmModeGetConnector(fd, resources->connectors[j]);
-					if (!conn) continue;
-
-					// We found a valid connector, use it
-					if (conn->connection == DRM_MODE_CONNECTED && conn->count_modes > 0)
+					if (crtc_count == monitor_handle)
 					{
-/*
-						drmModeEncoder *encoder = drmModeGetEncoder(fd, conn->encoder_id);
-						if (encoder)
-						{
-							for (int k = 0; k < resources->count_crtcs; k++)
-							{
-								drmModeCrtc *crtc = drmModeGetCrtc(fd, resources->crtcs[k]);
-
-							if (mp_crtc_desktop->crtc_id == p_encoder->crtc_id)
-							{
-								log_verbose("DRM/KMS: <%d> (init) desktop mode name %s crtc %d fb %d valid %d\n", m_id, mp_crtc_desktop->mode.name, mp_crtc_desktop->crtc_id, mp_crtc_desktop->buffer_id, mp_crtc_desktop->mode_valid);
-								break;
-							}
-							drmModeFreeCrtc(mp_crtc_desktop);
-						}
-					}
-*/
 						found = true;
+						crtc_id = resources->crtcs[j];
+						osd_printf_verbose("drm_open: crtc_id: %d\n", crtc_id);
+						break;
 					}
-
-					drmModeFreeConnector(conn);
-					if (found) break;
+					crtc_count++;
 				}
 			}
 			drmModeFreeResources(resources);
@@ -189,13 +171,11 @@ static int drm_open(const char *dri_device, int monitor_handle)
 		return 0;
 	}
 
-	crtc_id = drm_get_crtc(fd, monitor_handle);
-
 	osd_printf_verbose("drm_open: %s successfully opened\n", node);
 	return fd;
 }
 
-
+/*
 //============================================================
 //  drm_get_crtc
 //============================================================
@@ -231,7 +211,7 @@ static int drm_get_crtc(int fd, int crtc)
 	return crtc_id;
 }
 
-/*
+
 //============================================================
 //  drm_waitvblank
 //============================================================

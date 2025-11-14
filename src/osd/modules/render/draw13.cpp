@@ -25,7 +25,6 @@
 #include "options.h"
 
 // emu
-#include "emu.h"
 #include "emucore.h"
 #include "render.h"
 #include "emusync.h"
@@ -261,7 +260,7 @@ renderer_sdl2::renderer_sdl2(
 	, m_blit_dim(0, 0)
 	, m_last_blit_time(0)
 	, m_last_blit_pixels(0)
-	, m_sync(window.machine().sync())
+	, m_sync(window.sync())
 {
 	for (int i = 0; i < 30; i++)
 	{
@@ -469,7 +468,7 @@ int renderer_sdl2::create()
 	}
 
 	bool handle_vsync = false;
-	if (window().index() == 0 && window().machine().sync().sync_refresh())
+	if (window().index() == 0 && m_sync.sync_refresh())
 		handle_vsync = m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr);
 
 	if (video_config.waitvsync)
@@ -621,18 +620,14 @@ int renderer_sdl2::draw(int update)
 
 	window().m_primlist->release_lock();
 
-	m_sync.register_tag(emusync::BEFORE_DRAW);
 	m_sync.predraw_sync();
-	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
 	m_last_blit_pixels = blit_pixels;
 	m_last_blit_time = -osd_ticks();
 	SDL_RenderPresent(m_sdl_renderer);
 	m_last_blit_time += osd_ticks();
 
-	m_sync.register_tag(emusync::AFTER_PRESENT);
 	m_sync.postdraw_sync();
-	m_sync.register_tag(emusync::AFTER_DRAW);
 
 	return 0;
 }
