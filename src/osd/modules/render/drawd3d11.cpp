@@ -174,7 +174,7 @@ renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, I
 	, m_height(0)
 	, m_refresh(0)
 	, m_time_start(osd_ticks())
-	, m_sync(window.machine().sync())
+	, m_sync(window.sync())
 {
 }
 
@@ -803,8 +803,6 @@ int renderer_d3d11::draw(const int update)
 
 	m_device_context->Draw(3, 0); // fullscreen triangle
 
-	m_sync.register_tag(emusync::BEFORE_DRAW);
-
 	m_sync.predraw_sync();
 
 #if LOG_SCANLINES
@@ -814,20 +812,13 @@ int renderer_d3d11::draw(const int update)
 		osd_printf_verbose("scanline: %d in_vblank: %d vsync_offset %d\n", scanline, in_vblank, m_sync.vsync_offset());
 #endif
 
-	m_sync.register_tag(emusync::BEFORE_PRESENT);
-
-	bool handle_vsync = m_sync.handle_throttle();
-	uint32_t interval = !handle_vsync && window().machine().video().throttled() && video_config.waitvsync ? 1 : 0;
+	uint32_t interval = !m_sync.handle_throttle() && window().machine().video().throttled() && video_config.waitvsync ? 1 : 0;
 
 	hr = m_swapchain->Present(interval, m_sync.sync_refresh() ? 0 : DXGI_PRESENT_DO_NOT_WAIT);
 	if (FAILED(hr) && (hr != DXGI_ERROR_WAS_STILL_DRAWING))
 		osd_printf_error("d3d11: swapchain Present failed: %x\n", hr);
 
-	m_sync.register_tag(emusync::AFTER_PRESENT);
-
 	m_sync.postdraw_sync();
-
-	m_sync.register_tag(emusync::AFTER_DRAW);
 
 	return 0;
 }

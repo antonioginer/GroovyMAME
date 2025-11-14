@@ -638,7 +638,7 @@ renderer_bgfx::renderer_bgfx(osd_window &window, parent_module &parent)
 	, m_avi_target(nullptr)
 	, m_load_sub(parent.subscribe_load(&renderer_bgfx::load_config, this))
 	, m_save_sub(parent.subscribe_save(&renderer_bgfx::save_config, this))
-	, m_sync(window.machine().sync())
+	, m_sync(window.sync())
 	, m_handle_vsync(false)
 {
 	// load settings if recreated after fullscreen toggle
@@ -659,11 +659,6 @@ renderer_bgfx::renderer_bgfx(osd_window &window, parent_module &parent)
 			std::exchange(windownode, windownode->get_next_sibling("window"))->delete_node();
 		}
 	}
-/*
-	if (window.index() == 0 && window.machine().sync().sync_refresh())
-		m_sync.osd_init(window.monitor()->oshandle(), nullptr, nullptr);
-
-*/
 }
 
 
@@ -772,7 +767,7 @@ int renderer_bgfx::create()
 	memset(m_white, 0xff, sizeof(uint32_t) * 16 * 16);
 	m_texinfo.push_back(rectangle_packer::packable_rectangle(WHITE_HASH, PRIMFLAG_TEXFORMAT(TEXFORMAT_ARGB32), 16, 16, 16, nullptr, m_white));
 
-	if (window().index() == 0 && window().machine().sync().sync_refresh())
+	if (window().index() == 0 && m_sync.sync_refresh())
 		m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr);
 
 	return 0;
@@ -1376,19 +1371,9 @@ int renderer_bgfx::draw(int update)
 
 	if (window().index() == osd_common_t::window_list().size() - 1)
 	{
-		m_sync.register_tag(emusync::BEFORE_DRAW);
-
 		m_sync.predraw_sync();
-
-		m_sync.register_tag(emusync::BEFORE_PRESENT);
-
 		bgfx::frame();
-
-		m_sync.register_tag(emusync::AFTER_PRESENT);
-
 		m_sync.postdraw_sync();
-
-		m_sync.register_tag(emusync::AFTER_DRAW);
 	}
 
 	return 0;

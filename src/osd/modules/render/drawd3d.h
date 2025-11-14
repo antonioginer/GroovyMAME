@@ -69,8 +69,6 @@ public:
 	int                     device_create_resources();
 	void                    device_delete();
 	void                    device_delete_resources();
-	void                    device_flush();
-	void                    update_break_scanlines();
 	void                    update_presentation_parameters();
 	void                    update_gamma_ramp();
 

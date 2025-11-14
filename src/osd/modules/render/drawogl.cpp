@@ -41,7 +41,6 @@ typedef uint64_t HashT;
 #endif
 
 // emu
-#include "emu.h"
 #include "emucore.h"
 #include "emuopts.h"
 #include "render.h"
@@ -283,7 +282,7 @@ public:
 		, m_last_vofs(0.0f)
 		, m_surf_w(0)
 		, m_surf_h(0)
-		, m_sync(window.machine().sync())
+		, m_sync(window.sync())
 	{
 		for (int i=0; i < HASH_SIZE + OVERFLOW_SIZE; i++)
 			m_texhash[i] = nullptr;
@@ -780,10 +779,9 @@ int renderer_ogl::create()
 	}
 	m_gl_context->set_swap_interval(video_config.waitvsync ? 1 : 0);
 
-	if (window().index() == 0 && window().machine().sync().sync_refresh())
+	if (window().index() == 0 && m_sync.sync_refresh())
 	{
-		bool sync_ok = m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr);
-		if (sync_ok)
+		if (m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr))
 			m_gl_context->set_swap_interval(0);
 	}
 
@@ -1548,21 +1546,9 @@ int renderer_ogl::draw(const int update)
 	window().m_primlist->release_lock();
 	m_init_context = 0;
 
-//===========================
-
-	m_sync.register_tag(emusync::BEFORE_DRAW);
-
 	m_sync.predraw_sync();
-
-	m_sync.register_tag(emusync::BEFORE_PRESENT);
-
 	m_gl_context->swap_buffer();
-
-	m_sync.register_tag(emusync::AFTER_PRESENT);
-
 	m_sync.postdraw_sync();
-
-	m_sync.register_tag(emusync::AFTER_DRAW);
 
 	return 0;
 }
