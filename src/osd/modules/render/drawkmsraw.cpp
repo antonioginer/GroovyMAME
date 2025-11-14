@@ -36,7 +36,7 @@ public:
 		: osd_renderer(window)
 		, m_bmdata(nullptr)
 		, m_bmsize(0)
-		, m_sync(window.machine().sync())
+		, m_sync(window.sync())
 	{
 	}
 	~renderer_kmsraw()
@@ -60,7 +60,7 @@ private:
 	display_manager   *m_display;
 
 	// emusync manager
-	emusync         &m_sync;
+	emusync           &m_sync;
 };
 
 
@@ -85,7 +85,7 @@ int renderer_kmsraw::create()
 		return -1;
 	}
 
-	if (window().index() == 0 && window().machine().sync().sync_refresh())
+	if (window().index() == 0 && m_sync.sync_refresh())
 		m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr);
 
 	return 0;
@@ -142,20 +142,12 @@ int renderer_kmsraw::draw(const int update)
 		return -1;
 	}
 
-	m_sync.register_tag(emusync::BEFORE_DRAW);
-
 	m_sync.predraw_sync();
-
-	m_sync.register_tag(emusync::BEFORE_PRESENT);
 
 	// blit frame
 	memcpy(map, m_bmdata.get(), pitch * height * 4);
 
-	m_sync.register_tag(emusync::AFTER_PRESENT);
-
 	m_sync.postdraw_sync();
-
-	m_sync.register_tag(emusync::AFTER_DRAW);
 
 	return 0;
 }

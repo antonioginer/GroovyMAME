@@ -390,17 +390,19 @@ void emusync::update_stats()
 
 void emusync::predraw_sync()
 {
+	register_tag(emusync::BEFORE_DRAW);
+
 	m_predraw_sync_wait = 0;
+	raster_status raster = {};
 
 	if (get_vblank_timestamp == nullptr)
-		return;
+		goto exit;
 
 	if (m_frame == 0)
-		return;
+		goto exit;
 
 	get_vblank_timestamp();
 
-	raster_status raster = {};
 	get_raster(&raster);
 	emusync_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
 
@@ -411,6 +413,9 @@ void emusync::predraw_sync()
 		m_predraw_sync_wait = wait_raster(raster.count, 0.90);
 	else
 		emusync_printf_verbose("missed retrace\n");
+
+	exit:
+	register_tag(emusync::BEFORE_PRESENT);
 }
 
 
@@ -420,6 +425,8 @@ void emusync::predraw_sync()
 
 void emusync::postdraw_sync()
 {
+	register_tag(emusync::AFTER_PRESENT);
+
 	m_postdraw_sync_wait = 0;
 
 	if (get_frame_counter == nullptr)
@@ -428,7 +435,7 @@ void emusync::postdraw_sync()
 		m_frame = get_frame_counter();
 
 	if (m_frame == 1)
-		return;
+		goto exit;
 
 	double fd;
 	if (machine().options().auto_frame_delay() && m_framedelay == 0)
@@ -447,5 +454,8 @@ void emusync::postdraw_sync()
 	}
 
 	emusync_printf_verbose("[%.3f] wait: %.3f ", time_now(), get_ms(m_predraw_sync_wait + m_postdraw_sync_wait));
+
+	exit:
+	register_tag(emusync::AFTER_DRAW);
 }
 
