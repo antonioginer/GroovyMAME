@@ -617,7 +617,7 @@ renderer_d3d9::renderer_d3d9(osd_window &window, const IDirect3D9Ptr &d3dobj)
 	, m_last_modmode(0)
 	, m_shaders(nullptr)
 	, m_texture_manager()
-	, m_sync(window.machine().sync())
+	, m_sync(window.sync())
 {
 }
 
@@ -832,25 +832,16 @@ void renderer_d3d9::end_frame()
 	if (FAILED(result))
 		osd_printf_verbose("Direct3D: Error %08lX during device end_scene call\n", result);
 
-	m_sync.register_tag(emusync::BEFORE_DRAW);
-
-	bool handle_vsync = m_sync.handle_throttle();
 	m_sync.predraw_sync();
 
-	m_sync.register_tag(emusync::BEFORE_PRESENT);
-
-	bool interval = !handle_vsync && window().machine().video().throttled() && video_config.waitvsync;
+	bool interval = !m_sync.handle_throttle() && window().machine().video().throttled() && video_config.waitvsync;
 
 	// present the current buffers
 	result = m_device->PresentEx(nullptr, nullptr, nullptr, nullptr, interval? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE);
 	if (FAILED(result) && (result != D3DERR_WASSTILLDRAWING))
 		osd_printf_verbose("Direct3D: Error %08lX during device present call\n", result);
 
-	m_sync.register_tag(emusync::AFTER_PRESENT);
-
 	m_sync.postdraw_sync();
-
-	m_sync.register_tag(emusync::AFTER_DRAW);
 }
 
 
@@ -896,72 +887,6 @@ uint64_t renderer_d3d9::get_frame_counter()
 	}
 
 	return (uint64_t)frame_count;
-}
-
-
-void renderer_d3d9::device_flush()
-{
-	HRESULT result;
-
-	if(m_device)
-	{
-		if(m_query != nullptr)
-		{
-			m_query->Issue(D3DISSUE_END);
-			do
-			{
-				result = m_query->GetData(NULL, 0, D3DGETDATA_FLUSH);
-				if (result == D3DERR_DEVICELOST)
-					return;
-			} while(result == S_FALSE);
-		}
-	}
-}
-
-void renderer_d3d9::update_break_scanlines()
-{
-	switchres_manager *m_switchres = &downcast<windows_osd_interface&>(window().machine().osd()).switchres()->switchres();
-	if (m_switchres->display(window().index()) == nullptr)
-		return;
-
-	modeline *m_switchres_mode = m_switchres->display(window().index())->selected_mode();
-	if (m_switchres_mode == nullptr)
-		return;
-
-	switch (m_vendor_id)
-	{
-		case 0x1002: // ATI
-			m_first_scanline = m_switchres_mode && m_switchres_mode->vtotal ?
-				(m_switchres_mode->vtotal - m_switchres_mode->vbegin - 1) / (m_switchres_mode->interlace ? 2 : 1) :
-				1;
-
-			m_last_scanline = m_switchres_mode && m_switchres_mode->vtotal ?
-				(m_switchres_mode->vactive - 1) + (m_switchres_mode->vtotal - m_switchres_mode->vbegin - 1) / (m_switchres_mode->interlace ? 2 : 1) :
-				m_height;
-			break;
-
-		case 0x8086: // Intel
-			m_first_scanline = 1;
-
-			m_last_scanline = m_switchres_mode && m_switchres_mode->vtotal ?
-				m_switchres_mode->vactive / (m_switchres_mode->interlace ? 2 : 1) :
-				m_height;
-			break;
-
-		default: // NVIDIA (0x10DE) + others (?)
-			m_first_scanline = 0;
-
-			m_last_scanline = m_switchres_mode && m_switchres_mode->vtotal ?
-				(m_switchres_mode->vactive - 1) / (m_switchres_mode->interlace ? 2 : 1) :
-				m_height - 1;
-			break;
-	}
-
-	m_break_scanline = m_last_scanline - m_vsync_offset;
-	m_break_scanline = m_break_scanline > m_first_scanline ? m_break_scanline : m_last_scanline;
-	m_delay_scanline = m_first_scanline + m_height * (float)video_config.framedelay / (10 * m_switchres_mode->result.v_scale);
-
-	osd_printf_verbose("Direct3D: Frame delay: %d, First scanline: %d, Last scanline: %d, Break scanline: %d, Delay scanline: %d\n", video_config.framedelay, m_first_scanline, m_last_scanline, m_break_scanline, m_delay_scanline);
 }
 
 
@@ -1091,8 +1016,6 @@ int renderer_d3d9::device_create(HWND hwnd)
 	else
 		m_swap9->QueryInterface(__uuidof(IDirect3DSwapChain9Ex), (void**)&m_swap);
 
-	update_break_scanlines();
-
 	update_gamma_ramp();
 
 	return device_create_resources();
@@ -1176,6 +1099,7 @@ int renderer_d3d9::device_create_resources()
 
 	// clear the buffer
 	result = m_device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
+	// disable to not increment frame sync counter
 	//result = m_device->Present(nullptr, nullptr, nullptr, nullptr);
 
 	m_texture_manager->create_resources();
@@ -1394,9 +1318,6 @@ int renderer_d3d9::restart()
 	if (video_config.switchres)
 		pick_best_mode();
 	update_presentation_parameters();
-
-	if (video_config.syncrefresh)
-		update_break_scanlines();
 
 	D3DDISPLAYMODEEX *display_mode = window().fullscreen()? &m_display_mode : nullptr;
 
