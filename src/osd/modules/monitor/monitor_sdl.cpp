@@ -115,7 +115,16 @@ protected:
 
 			osd_printf_verbose("Enter init_monitors\n");
 
-			for (i = 0; i < SDL_GetNumVideoDisplays(); i++)
+			// SDL2 doesn't get the number of displays correctly on a multi-gpu setup
+			// It only gets the number of displays of the first reported gpu
+			// Do this in order to have access to any screen from the kmsraw renderer
+			int max_displays;
+			if (strcmp(options.video(), "kmsraw") == 0)
+				max_displays = MAX_VIDEO_WINDOWS;
+			else
+				max_displays = SDL_GetNumVideoDisplays();
+
+			for (i = 0; i < max_displays; i++)
 			{
 				char temp[64];
 				snprintf(temp, sizeof(temp) - 1, "%s%d", OSDOPTION_SCREEN, i);
