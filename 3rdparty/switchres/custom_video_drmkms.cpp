@@ -1040,6 +1040,7 @@ bool drmkms_timing::set_timing(modeline *mode)
 			drm_mode_map_dumb map_dumb = {};
 			map_dumb.handle = create_dumb.handle;
 			m_pitch = create_dumb.pitch;
+			m_bpp = create_dumb.bpp;
 
 			ret = drmIoctl(m_drm_fd, DRM_IOCTL_MODE_MAP_DUMB, &map_dumb);
 			if (ret)
@@ -1317,6 +1318,15 @@ void *drmkms_timing::get_resource(const char *resource)
 
 	if (!strcmp(resource, SR_RES_KMS_PITCH))
 		return (void*)&m_pitch;
+
+	if (!strcmp(resource, SR_RES_KMS_BPP))
+		return (void*)&m_bpp;
+
+	if (!strcmp(resource, SR_RES_KMS_FD))
+		return (void*)&m_drm_fd;
+
+	if (!strcmp(resource, SR_RES_KMS_CRTC_ID))
+		return (void*)&mp_crtc_desktop->crtc_id;
 
 	return nullptr;
 }
