@@ -34,8 +34,8 @@ struct exp_fit
 		m_alpha = alpha;
 		reset(x, y);
 
-		// use estimate when 1% of initial value remains
-		m_lim = std::log(0.01) / std::log(1.0 - alpha) + 0.5;
+		// use estimate when 10% of initial value remains
+		m_lim = std::log(0.10) / std::log(1.0 - alpha) + 0.5;
 	}
 
 	void reset(double x, double y)
