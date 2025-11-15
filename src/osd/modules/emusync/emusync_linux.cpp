@@ -19,11 +19,13 @@
 #include "emuopts.h"
 #include "emusync.h"
 
+#include <switchres/switchres.h>
+#include <switchres/switchres_defines.h>
+
 static int drm_open(const char *dri_device, int monitor_handle);
-//static int drm_get_crtc(int fd, int crtc);
-//static bool drm_waitvblank(int fd, int crtc);
 static int fd = 0;
 static int crtc_id = 0;
+static bool must_close_fd = false;
 
 
 //============================================================
@@ -38,7 +40,22 @@ bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 
 	get_frame_counter = get_frame_counter_external;
 
-	fd = drm_open(dynamic_cast<sdl_options const &>(machine().options()).dri_device(), (int)monitor_handle);
+	display_manager *display = downcast<sdl_osd_interface&>(machine().osd()).switchres()->switchres().display(0);
+	if (display != nullptr)
+	{
+		int *sr_fd = (int*)display->video()->get_resource(SR_RES_KMS_FD);
+		if (sr_fd) fd = *sr_fd;
+
+		int *sr_crtc_id = (int*)display->video()->get_resource(SR_RES_KMS_CRTC_ID);
+		if (sr_crtc_id) crtc_id = *sr_crtc_id;
+	}
+
+	if (fd == 0)
+	{
+		fd = drm_open(dynamic_cast<sdl_options const &>(machine().options()).dri_device(), (int)monitor_handle);
+		if (fd)
+			must_close_fd = true;
+	}
 
 	return (fd != 0);
 }
@@ -50,7 +67,8 @@ bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 
 void emusync::osd_deinit()
 {
-	close(fd);
+	if (must_close_fd)
+		close(fd);
 }
 
 //============================================================
@@ -174,91 +192,3 @@ static int drm_open(const char *dri_device, int monitor_handle)
 	osd_printf_verbose("drm_open: %s successfully opened\n", node);
 	return fd;
 }
-
-/*
-//============================================================
-//  drm_get_crtc
-//============================================================
-
-static int drm_get_crtc(int fd, int crtc)
-{
-	drmModeRes *resources = drmModeGetResources(fd);
-	int crtc_id = 0;
-
-	if (!resources)
-	{
-		printf("drm_get_crtc_id: couldn't find resources.\n");
-		return 0;
-	}
-
-	if (resources->count_crtcs < 1)
-	{
-		printf("drm_get_crtc_id: couldn't find crtcs.\n");
-		drmModeFreeResources(resources);
-		return 0;
-	}
-
-	if (crtc > resources->count_crtcs)
-	{
-		printf("drm_get_crtc_id: crtc %d not found.\n", crtc);
-		drmModeFreeResources(resources);
-		return 0;
-	}
-
-	crtc_id = resources->crtcs[crtc];
-	drmModeFreeResources(resources);
-
-	return crtc_id;
-}
-
-
-//============================================================
-//  drm_waitvblank
-//============================================================
-
-static bool drm_waitvblank(int fd, int crtc)
-{
-
-	drmVBlank vbl;
-	memset(&vbl, 0, sizeof(vbl));
-	vbl.request.sequence = 1;
-
-	// handle vblank for all SR managed crtc
-	// this is a hack based on SDL reported screen index
-	// it won't work on multi-gpu
-	// TO DO: find a correct way to map screen to crtc
-
-	// single screen (default)
-	vbl.request.type = DRM_VBLANK_RELATIVE;
-
-	// two screens
-	if (crtc == 1) vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
-
-	// multi-screen
-	else if (crtc > 1)
-	{
-		static uint64_t caps;
-		static bool caps_checked = false;
-
-		if (!caps_checked)
-		{
-			caps_checked = true;
-			if (drmGetCap(fd, DRM_CAP_VBLANK_HIGH_CRTC, &caps))
-			{
-				osd_printf_error("A newer kernel is needed for vblank syncing on multi screen\n");
-				return false;
-			}
-		}
-		if (caps)
-			vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | ((crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
-	}
-
-	if (drmWaitVBlank(fd, &vbl) != 0)
-	{
-		osd_printf_verbose("drmWaitVBlank failed\n");
-		return false;
-	}
-
-	return true;
-}
-*/
