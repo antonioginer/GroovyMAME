@@ -119,19 +119,33 @@ int renderer_kmsraw::draw(const int update)
 	int const width = m_display->width();
 	int const height = m_display->height();
 	int *kms_pitch = (int*)m_display->video()->get_resource(SR_RES_KMS_PITCH);
-	int const pitch = *kms_pitch / 4;
+	int *kms_bpp = (int*)m_display->video()->get_resource(SR_RES_KMS_BPP);
+
+	if (!(*kms_bpp == 32 || *kms_bpp == 16))
+	{
+		osd_printf_error("kmsraw: invalid bpp: %d\n", *kms_bpp);
+		return -1;
+	}
+
+	// bytes per pixel
+	int bpp = *kms_bpp / 8;
+
+	int const pitch = *kms_pitch / bpp;
 
 	// make sure our temporary bitmap is big enough
-	if ((pitch * height * 4) > m_bmsize)
+	if ((pitch * height * bpp) > m_bmsize)
 	{
-		m_bmsize = pitch * height * 4 * 2;
+		m_bmsize = pitch * height * bpp * 2;
 		m_bmdata.reset();
 		m_bmdata = std::make_unique<uint8_t []>(m_bmsize);
 	}
 
 	// draw the primitives to the bitmap
 	win.m_primlist->acquire_lock();
-	software_renderer<uint32_t, 0,0,0, 16,8,0>::draw_primitives(*win.m_primlist, m_bmdata.get(), width, height, pitch);
+	if (*kms_bpp == 32)
+		software_renderer<uint32_t, 0,0,0, 16,8,0>::draw_primitives(*win.m_primlist, m_bmdata.get(), width, height, pitch);
+	else
+		software_renderer<uint16_t, 3,3,3, 11,6,0>::draw_primitives(*win.m_primlist, m_bmdata.get(), width, height, pitch);
 	win.m_primlist->release_lock();
 
 	// get to dumb buffer
@@ -145,7 +159,7 @@ int renderer_kmsraw::draw(const int update)
 	m_sync.predraw_sync();
 
 	// blit frame
-	memcpy(map, m_bmdata.get(), pitch * height * 4);
+	memcpy(map, m_bmdata.get(), pitch * height * bpp);
 
 	m_sync.postdraw_sync();
 
