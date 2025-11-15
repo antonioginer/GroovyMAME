@@ -43,3 +43,6 @@
 
 #define  SR_RES_KMS_BUFFER              "kms_buffer"
 #define  SR_RES_KMS_PITCH               "kms_pitch"
+#define  SR_RES_KMS_BPP                 "kms_bpp"
+#define  SR_RES_KMS_FD                  "kms_fd"
+#define  SR_RES_KMS_CRTC_ID             "kms_crtc_id"
