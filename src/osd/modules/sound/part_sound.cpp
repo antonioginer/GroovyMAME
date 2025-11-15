@@ -112,11 +112,8 @@ public:
 	void push(const int16_t *data, uint32_t samples);
 
 private:
-	size_t m_sample_rate;
+	int m_sample_rate;
 	uint32_t m_channels;
-	u64 m_callback_ct;
-	u64 m_samples_in;
-	u64 m_samples_out;
 	int m_buffer_min_ct;
 	int m_skip_threshold;
 	bool m_underflow;
@@ -130,9 +127,6 @@ private:
 rtbuf::rtbuf(uint32_t channels, int rate, float audio_latency, bool log) noexcept :
 	m_sample_rate(rate),
 	m_channels(channels),
-	m_callback_ct(0),
-	m_samples_in(0),
-	m_samples_out(0),
 	m_buffer_min_ct(0),
 	m_skip_threshold(((1.5 + audio_latency * 3.0) / 1000.0) * rate + 0.5f),
 	m_underflow(false),
@@ -148,9 +142,6 @@ rtbuf::rtbuf(uint32_t channels, int rate, float audio_latency, bool log) noexcep
 rtbuf::rtbuf(rtbuf&& obj) :
 	m_sample_rate(obj.m_sample_rate),
 	m_channels(obj.m_channels),
-	m_callback_ct(obj.m_callback_ct),
-	m_samples_in(obj.m_samples_in),
-	m_samples_out(obj.m_samples_out),
 	m_buffer_min_ct(obj.m_buffer_min_ct),
 	m_skip_threshold(obj.m_skip_threshold),
 	m_underflow(obj.m_underflow),
@@ -215,15 +206,10 @@ void rtbuf::get(int16_t *data, uint32_t samples) noexcept
 
 		m_skip_threshold_ticks = m_osd_ticks;
 	}
-
-	m_samples_out += samples;
-	m_callback_ct = samples;
 }
 
 void rtbuf::push(const int16_t *data, uint32_t samples)
 {
-	m_samples_in += samples;
-
 	int stat = m_overflow ? 1 : m_underflow ? -1 : 0;
 	int ct = m_ab->count();
 
@@ -248,9 +234,7 @@ void rtbuf::push(const int16_t *data, uint32_t samples)
 	diff = m_osd_ticks - diff;
 
 	if (m_log)
-		osd_printf_verbose("123456.123456, %lu, %lu, %lu, %ld, %f\n",
-		                   m_samples_out,
-		                   m_samples_in,
+		osd_printf_verbose("123456.123456, %lu, %ld, %f\n",
 		                   ct,
 		                   stat,
 		                   (double) diff / osd_ticks_per_second());
