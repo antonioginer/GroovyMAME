@@ -962,6 +962,10 @@ bool drmkms_timing::set_timing(modeline *mode)
 	if (!drmIsMaster(m_drm_fd))
 		return false;
 
+	// If no valid mode, exit
+	if (mode->hactive == 0 || mode->vactive == 0)
+		return false;
+
 	// Setup the DRM mode structure
 	drmModeModeInfo dmode = {};
 
@@ -1010,6 +1014,18 @@ bool drmkms_timing::set_timing(modeline *mode)
 		unsigned int old_dumb_handle = m_dumb_handle;
 
 		drmModeFB *pframebuffer = drmModeGetFB(m_drm_fd, mp_crtc_desktop->buffer_id);
+
+		// This condition happens when the console is not active on the output, use a dummy buffer instead
+		if (pframebuffer == nullptr)
+		{
+			log_verbose("DRM/KMS: <%d> (set_timing) <debug> can't get framebuffer, using dummy size\n", m_id);
+			pframebuffer = new drmModeFB;
+			pframebuffer->width = 640;
+			pframebuffer->height = 480;
+			pframebuffer->depth = 24;
+			pframebuffer->bpp = 32;
+		}
+
 		log_verbose("DRM/KMS: <%d> (set_timing) <debug> existing frame buffer id %d size %dx%d bpp %d\n", m_id, mp_crtc_desktop->buffer_id, pframebuffer->width, pframebuffer->height, pframebuffer->bpp);
 		//drmModePlaneRes *pplanes = drmModeGetPlaneResources(m_drm_fd);
 		//log_verbose("DRM/KMS: <%d> (add_mode) <debug> total planes %d\n", m_id, pplanes->count_planes);
