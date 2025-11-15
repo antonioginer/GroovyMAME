@@ -95,7 +95,7 @@ public:
 			m_update_ts(timestamp),
 			m_update_interval(0.050), // 20 Hz
 			m_samples_out(samples_out),
-			m_ef(exp_fit(0.050, timestamp, samples_out)) { }
+			m_ef(exp_fit(0.025, timestamp, samples_out)) { }
 	};
 
 private:
