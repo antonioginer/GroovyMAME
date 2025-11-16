@@ -137,6 +137,7 @@ void emusync::register_tag(enum emusync::event_tag tag)
 				emusync_printf_verbose("\n");
 
 			update_stats();
+			log_register_work_items();
 			break;
 		}
 	}
@@ -229,6 +230,35 @@ double emusync::get_sink_rate(int id)
 	return sink_st->second.m_ef.slope_out();
 }
 
+void emusync::log(std::string tag, log_type type, double value) {
+	double timestamp = time_now() / 1e3;
+	auto work_item = m_log_work_items.find(tag);
+
+	if (work_item == m_log_work_items.end()) {
+		m_log_work_items.emplace(tag, log_work_item(timestamp, value, type));
+		m_log_out_vectors.emplace(tag, log_out_vector(1e6));
+		return;
+	}
+
+	work_item->second.update(timestamp, value);
+}
+
+void emusync::log_register_work_items() {
+	for (auto &work_pair : m_log_work_items) {
+		auto out_vector = m_log_out_vectors.find(work_pair.first);
+		out_vector->second.save(work_pair.second.get_result());
+	}
+}
+
+void emusync::log_dump() {
+	for (const auto &out_pair : m_log_out_vectors) {
+		osd_printf_verbose("EMUSYNC LOG (%d items): %s\n", out_pair.second.m_count, out_pair.first);
+		for (int i = 0; i < out_pair.second.m_count; i++)
+			osd_printf_verbose("%.16f,%.16f\n", out_pair.second.m_out_items[i].m_timestamp, out_pair.second.m_out_items[i].m_value);
+		osd_printf_verbose("\n");
+	}
+}
+
 //============================================================
 //  emusync::register_vblank_in_ticks
 //============================================================
@@ -247,6 +277,9 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 {
 	int64_t delta;
 	int count_delta = 0;
+
+	if (m_last_timestamp)
+		log("vblank diff", NOW, (double)(timestamp - m_last_timestamp) / 1e9);
 
 	emusync_printf_verbose("[%.3f] register vblank: ", time_now());
 
@@ -300,6 +333,8 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		m_mean += delta / m_vblank_count;
 		emusync_printf_verbose("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms",
 			get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
+		if (m_vblank_count > 10)
+			log("kalman period", NOW, (double)(kf.get_period()) / 1e9);
 	}
 
 	if (!m_initialized)
