@@ -40,6 +40,8 @@ bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 
 	get_frame_counter = get_frame_counter_external;
 
+	m_count_div = dynamic_cast<sdl_options const &>(machine().options()).interlace_force_even();
+
 	display_manager *display = downcast<sdl_osd_interface&>(machine().osd()).switchres()->switchres().display(0);
 	if (display != nullptr)
 	{
@@ -89,7 +91,7 @@ bool emusync::get_vblank_timestamp_default()
 
 	// Sync counts increase by 2 on interlaced modes. Normalize
 	if (interlaced())
-		sequence /= 2;
+		sequence = sequence >> m_count_div;
 
 	register_vblank_in_ns(sequence, ns);
 
