@@ -138,6 +138,7 @@ function osdmodulesbuild()
 		MAME_DIR .. "src/osd/modules/sound/mmdevice_helpers.h",
 		MAME_DIR .. "src/osd/modules/sound/none.cpp",
 		MAME_DIR .. "src/osd/modules/sound/pa_sound.cpp",
+		MAME_DIR .. "src/osd/modules/sound/part_sound.cpp",
 		MAME_DIR .. "src/osd/modules/sound/pulse_sound.cpp",
 		MAME_DIR .. "src/osd/modules/sound/pipewire_sound.cpp",
 		MAME_DIR .. "src/osd/modules/sound/sdl_sound.cpp",
