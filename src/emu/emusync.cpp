@@ -68,6 +68,7 @@ void emusync::reset()
 	m_last_sync_count = 0;
 	m_last_timestamp = 0;
 	m_last_count = 0;
+	m_count_div = 0;
 
 	m_vblank_count = 0;
 	m_current_period = 0;
