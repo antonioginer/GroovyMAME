@@ -104,6 +104,8 @@ struct audio_buffer {
 };
 
 class rtbuf {
+friend class sound_part;
+
 public:
 	rtbuf(uint32_t channels, int rate, float audio_latency, bool log) noexcept;
 	rtbuf(rtbuf&& obj);
@@ -111,7 +113,7 @@ public:
 	void get(int16_t *data, uint32_t samples) noexcept;
 	void push(const int16_t *data, uint32_t samples);
 
-private:
+protected:
 	int m_sample_rate;
 	uint32_t m_channels;
 	int m_buffer_min_ct;
@@ -473,7 +475,9 @@ void sound_part::stream_sink_update(uint32_t id, const int16_t *buffer, int samp
 	auto si = m_streams.find(id);
 	if(si == m_streams.end())
 		return;
+	size_t count = si->second.m_buffer.m_ab->count();
 	si->second.m_buffer.push(buffer, samples_this_frame);
+	m_emusync->log("part buffer count before update", m_emusync->MIN, (double)count);
 }
 
 void sound_part::stream_source_update(uint32_t id, int16_t *buffer, int samples_this_frame)
