@@ -117,6 +117,7 @@ private:
 	uint64_t m_last_sync_count = 0;
 	uint64_t m_last_timestamp = 0;
 	uint64_t m_last_count = 0;
+	uint64_t m_count_div = 0;
 
 	uint64_t m_current_emulation_time;
 	uint64_t m_emulation_time[16] = {};
