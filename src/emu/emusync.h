@@ -151,7 +151,7 @@ private:
 	int ticks_to_ns = 0;
 	uint64_t sleep_time = 1e6; // 1 ms
 
-	std::function<void(void)> get_vblank_timestamp;
+	std::function<bool(void)> get_vblank_timestamp;
 	std::function<uint64_t(void)> get_frame_counter;
 
 	std::map<uint32_t, struct sink_status> m_sinks;
