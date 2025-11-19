@@ -256,11 +256,16 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 	{
 		count_delta = sync_count - m_last_sync_count;
 
-		// Skip sample if it's not newer. Big deltas may be inaccurate, discard.
+		// Skip sample if it's not newer.
 		if (count_delta == 0)
-		{
-			//emusync_printf_verbose("count delta: %d\n", count_delta);
 			goto register_and_exit;
+
+		// Sanity check for jumps in count_delta. These unfortunately happen.
+		if (count_delta < 0 || count_delta > 10)
+		{
+			emusync_printf_verbose("count delta: %d -> reset!\n", count_delta);
+			reset();
+			return false;
 		}
 
 		// Sometimes the received counter is not properly incremented.
@@ -412,7 +417,11 @@ void emusync::predraw_sync()
 	if (m_frame == 0)
 		goto exit;
 
-	get_vblank_timestamp();
+	if (!get_vblank_timestamp())
+	{
+		osd_printf_verbose("emusync: get_vblank_timestamp() error!\n");
+		goto exit;
+	}
 
 	get_raster(&raster);
 	emusync_printf_verbose("[%.3f] get raster->[%d][%.3f] ", time_now(), raster.count, raster.scan);
