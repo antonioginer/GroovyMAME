@@ -12,26 +12,22 @@
 #include "emusync.h"
 #include "screen.h"
 
-#include "kalman.h"
-/*
-#define GPU_IS_DCN 1
-#if defined(__linux__) && GPU_IS_DCN
-	#define VBLANK_OFFSET 1.0e6 // hack
+#define LOG_VBLANK 0
+#define LOG_SINKS 0
+
+#if LOG_VBLANK
+	#define emusync_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
+	#define emusync_printf_info(...) osd_printf_info(__VA_ARGS__)
 #else
-	#define VBLANK_OFFSET -0.4e6
+	#define emusync_printf_verbose(...)
+	#define emusync_printf_info(...)
 #endif
-*/
 
-static kalman_filter kf;
-
-//#define emusync_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
-#define emusync_printf_verbose(...)
-
-//#define emusync_printf_info(...) osd_printf_info(__VA_ARGS__)
-#define emusync_printf_info(...)
-
-//#define emusync_sinks_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
-#define emusync_sinks_printf_verbose(...)
+#if LOG_SINKS
+	#define emusync_sinks_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
+#else
+	#define emusync_sinks_printf_verbose(...)
+#endif
 
 //============================================================
 //  emusync::emusync
@@ -72,13 +68,13 @@ void emusync::reset()
 	m_vblank_count = 0;
 	m_current_period = 0;
 	m_mean = 0;
-	kf.reset();
+	m_kf.reset();
 }
 
 
 uint64_t emusync::period()
 {
-	return m_vblank_count > 10 ? kf.get_period() : 1e9 / 60;
+	return m_vblank_count > 10 ? m_kf.get_period() : 1e9 / 60;
 };
 
 
@@ -272,13 +268,20 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		if (m_mean > 0)
 			count_delta = round(double(timestamp - m_last_timestamp) / (double)m_mean);
 
+		// Computed delta zero likely means corrupted timestamps (e.g. by some overlay)
+		if (count_delta == 0)
+		{
+			osd_printf_verbose("count delta error!\n");
+			return false;
+		}
+
 		m_current_period = (timestamp - m_last_timestamp) / count_delta;
 
 		// Filter timestamp. If needed, compute intermediate timestamps to feed the filter.
-		for (int i = count_delta; i > 0; --i) kf.update(timestamp - i * m_current_period);
+		for (int i = count_delta; i > 0; --i) m_kf.update(timestamp - i * m_current_period);
 
-		//emusync_printf_verbose("raw: %lld filtered: %lld diff: %+d period: %f\n", timestamp, kf.get_filtered_timestamp(),
-		//					(int64_t)(timestamp - kf.get_filtered_timestamp()), get_ms(kf.get_period()));
+		//emusync_printf_verbose("raw: %lld filtered: %lld diff: %+d period: %f\n", timestamp, m_kf.get_filtered_timestamp(),
+		//					(int64_t)(timestamp - m_kf.get_filtered_timestamp()), get_ms(m_kf.get_period()));
 
 		delta = m_current_period - m_mean;
 
@@ -319,7 +322,7 @@ uint64_t emusync::wait_raster(uint64_t count, double scan)
 {
 	//uint64_t sync_target = m_last_timestamp - VBLANK_OFFSET + (count - m_last_count) * period();
 	//uint64_t sync_target = m_last_timestamp + vsync_offset() * line_period() + (count - m_last_count) * period();
-	uint64_t sync_target = kf.get_filtered_timestamp() + vsync_offset() * line_period() + (count - m_last_count) * period();
+	uint64_t sync_target = m_kf.get_filtered_timestamp() + vsync_offset() * line_period() + (count - m_last_count) * period();
 	uint64_t time_target = sync_target + (uint64_t)(scan * period());
 
 	uint64_t time_entry = time_in_ns();
@@ -364,7 +367,7 @@ void emusync::get_raster(raster_status *status)
 
 	//uint64_t adjusted_prev_timestamp = m_last_timestamp - VBLANK_OFFSET;
 	//uint64_t adjusted_prev_timestamp = m_last_timestamp + vsync_offset() * line_period();
-	uint64_t adjusted_prev_timestamp = kf.get_filtered_timestamp() + vsync_offset() * line_period();
+	uint64_t adjusted_prev_timestamp = m_kf.get_filtered_timestamp() + vsync_offset() * line_period();
 
 	int64_t delta_time = time_in_ns() - adjusted_prev_timestamp;
 
