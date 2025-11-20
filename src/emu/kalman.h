@@ -68,6 +68,9 @@ struct kalman_filter
 	// Get the current filtered timestamp
 	uint64_t get_filtered_timestamp() const { return (uint64_t)t; }
 
+	// Predict next timestamp
+	uint64_t predict_next_timestamp() const { return initialized ? (uint64_t) t + P : 0; }
+
 	// Reset filter
 	void reset()
 	{
