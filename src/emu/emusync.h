@@ -10,6 +10,7 @@
 #define MAME_EMU_SYNC_H
 
 #include "expfit.h"
+#include "kalman.h"
 
 class emusync
 {
@@ -105,6 +106,8 @@ private:
 	uint64_t time_in_ns();
 	inline double get_ms(int64_t time) { return (double)time / 1e6; };
 	inline double time_now() { return get_ms(time_in_ns() - m_time_start); };
+
+	kalman_filter m_kf;
 
 	bool m_initialized = false;
 
