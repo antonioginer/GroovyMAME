@@ -85,20 +85,6 @@ public:
 	void set_vtotal(int vtotal) { m_vtotal = vtotal; }
 	void set_interlace(bool interlace) { m_interlaced = interlace; }
 
-	struct sink_status
-	{
-		double m_update_ts;
-		double m_update_interval;
-		uint64_t m_samples_out;
-		exp_fit m_ef;
-
-		sink_status(double timestamp, uint64_t samples_out) :
-			m_update_ts(timestamp),
-			m_update_interval(0.050), // 20 Hz
-			m_samples_out(samples_out),
-			m_ef(exp_fit(0.025, timestamp, samples_out)) { }
-	};
-
 	enum log_type {
 		NOW
 	};
@@ -161,6 +147,22 @@ private:
 
 	std::function<bool(void)> get_vblank_timestamp;
 	std::function<uint64_t(void)> get_frame_counter;
+
+	bool     m_emusync_log;
+
+	struct sink_status
+	{
+		double m_update_ts;
+		double m_update_interval;
+		uint64_t m_samples_out;
+		exp_fit m_ef;
+
+		sink_status(double timestamp, uint64_t samples_out) :
+			m_update_ts(timestamp),
+			m_update_interval(0.050), // 20 Hz
+			m_samples_out(samples_out),
+			m_ef(exp_fit(0.025, timestamp, samples_out)) { }
+	};
 
 	std::map<uint32_t, struct sink_status> m_sinks;
 

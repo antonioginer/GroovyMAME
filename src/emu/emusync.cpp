@@ -50,6 +50,7 @@ emusync::emusync(running_machine &machine)
 	, m_bfi(machine.options().black_frame_insertion())
 	, ticks_to_ns(1e9 / osd_ticks_per_second())
 	, sleep_time (1 * osd_ticks_per_second() / 1000.0) // 1 ms
+	, m_emusync_log(machine.options().emusynclog())
 {
 };
 
@@ -504,6 +505,9 @@ void emusync::postdraw_sync()
 //============================================================
 
 void emusync::log(std::string tag, log_type type, double value) {
+	if (!(m_emusync_log && m_machine.options().seconds_to_run()))
+		return;
+
 	double timestamp = time_now() / 1e3;
 	auto work_item = m_log_work_items.find(tag);
 
@@ -533,9 +537,9 @@ void emusync::log_register_work_items() {
 
 void emusync::log_dump() {
 	for (const auto &out_pair : m_log_out_vectors) {
-		osd_printf_verbose("EMUSYNC LOG (%d items): %s\n", out_pair.second.m_count, out_pair.first);
+		osd_printf_info("EMUSYNC LOG (%d items): %s\n", out_pair.second.m_count, out_pair.first);
 		for (int i = 0; i < out_pair.second.m_count; i++)
-			osd_printf_verbose("%.16f,%.16f\n", out_pair.second.m_out_items[i].m_timestamp, out_pair.second.m_out_items[i].m_value);
-		osd_printf_verbose("\n");
+			osd_printf_info("%.16f,%.16f\n", out_pair.second.m_out_items[i].m_timestamp, out_pair.second.m_out_items[i].m_value);
+		osd_printf_info("\n");
 	}
 }
