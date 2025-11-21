@@ -819,7 +819,7 @@ void sound_pipewire::stream_sink_update(uint32_t id, const int16_t *buffer, int 
 		pw_thread_loop_unlock(m_loop);
 		return;
 	}
-	m_emusync->log("pipewire buffer count before update", m_emusync->MIN, (double)si->second.m_buffer.available());
+	m_emusync->log("PipeWire buffer count before update", m_emusync->NOW, (double)si->second.m_buffer.available());
 	si->second.m_buffer.push(buffer, samples_this_frame);
 	pw_thread_loop_unlock(m_loop);
 }
