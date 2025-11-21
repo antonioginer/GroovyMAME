@@ -100,90 +100,10 @@ public:
 	};
 
 	enum log_type {
-		NOW,
-		MIN,
-		MAX,
-		AVG
-	};
-
-	struct log_out_item {
-		double m_timestamp;
-		double m_value;
-
-		log_out_item(double timestamp, double value) :
-			m_timestamp(timestamp), m_value(value) { };
-	};
-
-	struct log_work_item {
-		log_type m_type;
-		log_out_item m_item;
-		int m_n;
-
-		void update(double timestamp, double value) {
-			m_item.m_timestamp = timestamp;
-
-			if (m_n == 0)
-				m_item.m_value = value;
-			else
-				switch(m_type) {
-				case NOW:
-					m_item.m_value = value;
-					break;
-				case MIN:
-					m_item.m_value = value < m_item.m_value ? value : m_item.m_value;
-					break;
-				case MAX:
-					m_item.m_value = value > m_item.m_value ? value : m_item.m_value;
-					break;
-				case AVG:
-					m_item.m_value += value;
-					break;
-				}
-
-			m_n++;
-		}
-
-		log_out_item& get_result() {
-			switch(m_type)
-			{
-			case AVG:
-				m_item.m_value /= m_n;
-				m_n = 0;
-				return m_item;
-			default:
-			case NOW:
-			case MIN:
-			case MAX:
-				m_n = 0;
-				return m_item;
-			}
-		}
-
-		log_work_item(double timestamp, double value, log_type type) :
-			m_type(type), m_item(timestamp, value), m_n(0) { };
-	};
-
-	struct log_out_vector {
-		int m_max_count;
-		int m_count;
-		std::vector<log_out_item> m_out_items;
-
-		void save(const log_out_item& i) {
-			if (m_count < m_max_count) {
-				log_out_item& item = m_out_items[m_count++];
-				item.m_timestamp = i.m_timestamp;
-				item.m_value = i.m_value;
-			}
-		}
-
-		log_out_vector(int max_count) : m_max_count(max_count), m_count(0) {
-			m_out_items.reserve(max_count);
-		}
+		NOW
 	};
 
 	void log(std::string tag, log_type type, double value);
-	void log_register_work_items();
-	void log_dump();
 
 private:
 	running_machine &m_machine;
@@ -243,7 +163,72 @@ private:
 	std::function<uint64_t(void)> get_frame_counter;
 
 	std::map<uint32_t, struct sink_status> m_sinks;
+
+	struct log_out_item {
+		double m_timestamp;
+		double m_value;
+
+		log_out_item(double timestamp, double value) :
+			m_timestamp(timestamp), m_value(value) { };
+	};
+
+	struct log_work_item {
+		log_type m_type;
+		log_out_item m_item;
+		int m_n;
+
+		void update(double timestamp, double value) {
+			m_item.m_timestamp = timestamp;
+
+			if (m_n == 0)
+				m_item.m_value = value;
+			else
+				switch(m_type) {
+				case NOW:
+				default:
+					m_item.m_value = value;
+					break;
+				}
+
+			m_n++;
+		}
+
+		log_out_item& get_result() {
+			switch(m_type)
+			{
+			case NOW:
+			default:
+				m_n = 0;
+				return m_item;
+			}
+		}
+
+		log_work_item(double timestamp, double value, log_type type) :
+			m_type(type), m_item(timestamp, value), m_n(0) { };
+	};
+
+	struct log_out_vector {
+		int m_max_count;
+		int m_count;
+		std::vector<log_out_item> m_out_items;
+
+		void save(const log_out_item& i) {
+			if (m_count < m_max_count) {
+				log_out_item& item = m_out_items[m_count++];
+				item.m_timestamp = i.m_timestamp;
+				item.m_value = i.m_value;
+			}
+		}
+
+		log_out_vector(int max_count) : m_max_count(max_count), m_count(0) {
+			m_out_items.reserve(max_count);
+		}
+	};
+
 	std::map<std::string, log_work_item> m_log_work_items;
 	std::map<std::string, log_out_vector> m_log_out_vectors;
+
+	void log_register_work_items();
+	void log_dump();
 };
 #endif
