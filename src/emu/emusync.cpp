@@ -29,6 +29,9 @@
 	#define emusync_sinks_printf_verbose(...)
 #endif
 
+#define MAX_PERIOD (1.0 / 49.0) * 1e9
+#define MIN_PERIOD (1.0 / 240.0) * 1e9
+
 //============================================================
 //  emusync::emusync
 //============================================================
@@ -268,14 +271,22 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		if (m_mean > 0)
 			count_delta = round(double(timestamp - m_last_timestamp) / (double)m_mean);
 
-		// Computed delta zero likely means corrupted timestamps (e.g. by some overlay)
-		if (count_delta == 0)
+		// Computed delta below 1 here means corrupted timestamps (e.g. by some overlay)
+		if (count_delta < 1)
 		{
 			osd_printf_verbose("count delta error!\n");
 			return false;
 		}
 
+		// Compute current period
 		m_current_period = (timestamp - m_last_timestamp) / count_delta;
+
+		// Final sanity check for computed period
+		if (m_current_period < MIN_PERIOD || m_current_period > MAX_PERIOD)
+		{
+			emusync_printf_verbose("period out of range: %f ms\n", get_ms(m_current_period));
+			return false;
+		}
 
 		// Filter timestamp. If needed, compute intermediate timestamps to feed the filter.
 		for (int i = count_delta; i > 0; --i) m_kf.update(timestamp - i * m_current_period);
