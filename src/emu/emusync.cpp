@@ -160,6 +160,8 @@ void emusync::register_emutime(uint64_t emutime)
 	if (emutime <= 0)
 		return;
 
+	log("emusync::register_emutime [ylim(0.0:0.024)]", NOW, (double)emutime / 1e9);
+
 	// Register value and compute current average
 	m_current_emulation_time = emutime;
 	m_emulation_time[i] = emutime;
@@ -277,9 +279,6 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 {
 	int64_t delta;
 	int count_delta = 0;
-
-	if (m_last_timestamp)
-		log("vblank diff", NOW, (double)(timestamp - m_last_timestamp) / 1e9);
 
 	emusync_printf_verbose("[%.3f] register vblank: ", time_now());
 
@@ -512,6 +511,8 @@ void emusync::postdraw_sync()
 	else
 		// user defined
 		fd = (double)(m_framedelay) / 10.0;
+
+	log("Frame delay", NOW, (double) fd * 10.0);
 
 	m_next_sync_frame = m_this_sync_frame + (m_missed_previous_retrace? 0 : 1);
 

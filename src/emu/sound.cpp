@@ -1154,8 +1154,8 @@ void sound_manager::run_effects()
 
 				machine().osd().sound_stream_sink_update(stream.m_id, stream.m_output_buffer.data(), output_frames);
 
-				machine().sync().log("audio rate", machine().sync().NOW, rate);
-				machine().sync().log("sink rate", machine().sync().NOW, (sink_rate == 0.0 ? 1.0 : sink_rate) * stream.m_rate);
+				machine().sync().log("Final audio rate [median(-0.0003:0.0003)]", machine().sync().NOW, rate);
+				machine().sync().log("Stream sink rate", machine().sync().NOW, (sink_rate == 0.0 ? 1.0 : sink_rate) * stream.m_rate);
 			}
 
 		machine().osd().sound_end_update();
