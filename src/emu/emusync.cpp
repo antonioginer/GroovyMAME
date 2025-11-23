@@ -293,7 +293,18 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		}
 
 		// Filter timestamp. If needed, compute intermediate timestamps to feed the filter.
-		for (int i = count_delta; i > 0; --i) m_kf.update(timestamp - i * m_current_period);
+		if (m_kf.initialized) {
+			// Filter timestamp. If needed, compute intermediate timestamps to feed the filter.
+			for (int i = count_delta; i > 0; --i)
+				m_kf.predict();
+
+			m_kf.update(timestamp);
+
+			//emusync_printf_verbose("raw: %lld filtered: %lld diff: %+d period: %f\n", timestamp, kf.get_filtered_timestamp(),
+			//                                      (int64_t)(timestamp - kf.get_filtered_timestamp()), get_ms(kf.get_period()));
+		} else {
+			m_kf.init(timestamp, (1.0 / 60.0) * 1e9);
+		}
 
 		//emusync_printf_verbose("raw: %lld filtered: %lld diff: %+d period: %f\n", timestamp, m_kf.get_filtered_timestamp(),
 		//					(int64_t)(timestamp - m_kf.get_filtered_timestamp()), get_ms(m_kf.get_period()));
@@ -304,8 +315,8 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		m_mean += delta / m_vblank_count;
 		emusync_printf_verbose("[%.3f] sync: %d, period: %f, diff: %+f ms, mean: %f ms",
 			get_ms(timestamp - m_first_timestamp), sync_count - m_first_sync_count, get_ms(m_current_period), get_ms(delta), get_ms(m_mean));
-		if (m_vblank_count > 10)
-			log("kalman period", NOW, (double)(kf.get_period()) / 1e9);
+
+		log("Kalman filter period [median(-8e-6:8e-6)]", NOW, (double)(m_kf.get_period()) / 1e9);
 	}
 
 	if (!m_initialized)
