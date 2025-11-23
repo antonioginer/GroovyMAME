@@ -477,7 +477,7 @@ void sound_part::stream_sink_update(uint32_t id, const int16_t *buffer, int samp
 		return;
 	size_t count = si->second.m_buffer.m_ab->count();
 	si->second.m_buffer.push(buffer, samples_this_frame);
-	m_emusync->log("part buffer count before update", m_emusync->MIN, (double)count);
+	m_emusync->log("PART buffer count before update", m_emusync->MIN, (double)count);
 }
 
 void sound_part::stream_source_update(uint32_t id, int16_t *buffer, int samples_this_frame)
