@@ -51,7 +51,7 @@ D3DKMT_OPEN_ADAPTER_FROM_HDC OpenAdapterFromHdc;
 D3DKMT_WAIT_FOR_VERTICAL_BLANK_EVENT WaitForVerticalBlankEvent;
 
 // static variables
-static D3DKMT_OPENADAPTERFROMHDC adapter_data;
+static D3DKMT_OPENADAPTERFROMHDC adapter_data = {};
 static std::thread scan_poll;
 static uint64_t vblank_timestamp = 0;
 static uint64_t vblank_counter = 0;
@@ -59,6 +59,7 @@ static bool is_active = false;
 static bool is_initialized = false;
 
 static bool scanline_init(uint64_t monitor_handle, bool polling_thread);
+static int get_vtotal();
 
 
 //============================================================
@@ -148,6 +149,8 @@ bool scanline_init(uint64_t monitor_handle, bool polling_thread)
 	}
 	DeleteDC(hdc);
 
+	get_vtotal();
+
 	if (!polling_thread)
 		return true;
 
@@ -199,3 +202,57 @@ void emusync::get_scanline(uint32_t *scanline, bool *in_vblank)
 	}
 }
 
+//============================================================
+//  get_vtotal
+//============================================================
+
+int get_vtotal()
+{
+	std::vector<DISPLAYCONFIG_PATH_INFO> paths;
+	std::vector<DISPLAYCONFIG_MODE_INFO> modes;
+	UINT32 flags = QDC_ONLY_ACTIVE_PATHS | QDC_VIRTUAL_MODE_AWARE;
+	LONG result = ERROR_SUCCESS;
+
+	do
+	{
+		// Determine how many path and mode structures to allocate
+		UINT32 pathCount, modeCount;
+		result = GetDisplayConfigBufferSizes(flags, &pathCount, &modeCount);
+
+		if (result != ERROR_SUCCESS)
+			return HRESULT_FROM_WIN32(result);
+
+		// Allocate the path and mode arrays
+		paths.resize(pathCount);
+		modes.resize(modeCount);
+
+		result = QueryDisplayConfig(flags, &pathCount, paths.data(), &modeCount, modes.data(), nullptr);
+
+		// The function may have returned fewer paths/modes than estimated
+		paths.resize(pathCount);
+		modes.resize(modeCount);
+	} while (result == ERROR_INSUFFICIENT_BUFFER);
+
+	// Find mode for out target adapter
+	const LUID target = adapter_data.AdapterLuid;
+	for (const auto& mode : modes)
+	{
+		if (mode.infoType == DISPLAYCONFIG_MODE_INFO_TYPE_TARGET &&
+			(mode.adapterId.HighPart == target.HighPart && mode.adapterId.LowPart == target.LowPart))
+		{
+			const auto& signalInfo = mode.targetMode.targetVideoSignalInfo;
+			if (signalInfo.hSyncFreq.Denominator != 0)
+			{
+				double hfreq = (double)signalInfo.hSyncFreq.Numerator / (double)signalInfo.hSyncFreq.Denominator;
+				if (signalInfo.vSyncFreq.Denominator != 0)
+				{
+					double vfreq = (double)signalInfo.vSyncFreq.Numerator / (double)signalInfo.vSyncFreq.Denominator;
+					int vtotal = round(hfreq / vfreq);
+					osd_printf_verbose("emusync: get_vtotal(): hfreq: %.3f vfreq: %.3f vtotal: %d\n", hfreq, vfreq, vtotal);
+					return vtotal;
+				}
+			}
+		}
+	}
+	return 0;
+}
