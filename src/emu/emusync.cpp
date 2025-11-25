@@ -293,18 +293,13 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 		}
 
 		// Filter timestamp. If needed, compute intermediate timestamps to feed the filter.
-		if (m_kf.initialized) {
-			// Filter timestamp. If needed, compute intermediate timestamps to feed the filter.
-			for (int i = count_delta; i > 0; --i)
-				m_kf.predict();
-
+		if (m_kf.initialized)
+		{
+			for (int i = count_delta; i > 0; --i) m_kf.predict();
 			m_kf.update(timestamp);
-
-			//emusync_printf_verbose("raw: %lld filtered: %lld diff: %+d period: %f\n", timestamp, kf.get_filtered_timestamp(),
-			//                                      (int64_t)(timestamp - kf.get_filtered_timestamp()), get_ms(kf.get_period()));
-		} else {
-			m_kf.init(timestamp, (1.0 / 60.0) * 1e9);
 		}
+		else
+			m_kf.init(timestamp, (1.0 / 60.0) * 1e9);
 
 		//emusync_printf_verbose("raw: %lld filtered: %lld diff: %+d period: %f\n", timestamp, m_kf.get_filtered_timestamp(),
 		//					(int64_t)(timestamp - m_kf.get_filtered_timestamp()), get_ms(m_kf.get_period()));
@@ -348,7 +343,6 @@ register_and_exit:
 
 uint64_t emusync::wait_raster(uint64_t count, double scan)
 {
-	//uint64_t sync_target = m_last_timestamp - VBLANK_OFFSET + (count - m_last_count) * period();
 	//uint64_t sync_target = m_last_timestamp + vsync_offset() * line_period() + (count - m_last_count) * period();
 	uint64_t sync_target = m_kf.get_filtered_timestamp() + vsync_offset() * line_period() + (count - m_last_count) * period();
 	uint64_t time_target = sync_target + (uint64_t)(scan * period());
@@ -393,7 +387,6 @@ void emusync::get_raster(raster_status *status)
 	if (status == nullptr)
 		return;
 
-	//uint64_t adjusted_prev_timestamp = m_last_timestamp - VBLANK_OFFSET;
 	//uint64_t adjusted_prev_timestamp = m_last_timestamp + vsync_offset() * line_period();
 	uint64_t adjusted_prev_timestamp = m_kf.get_filtered_timestamp() + vsync_offset() * line_period();
 
@@ -515,14 +508,16 @@ void emusync::postdraw_sync()
 //  emusync::log
 //============================================================
 
-void emusync::log(std::string tag, log_type type, double value) {
+void emusync::log(std::string tag, log_type type, double value)
+{
 	if (!(m_emusync_log && m_machine.options().seconds_to_run()))
 		return;
 
 	double timestamp = time_now() / 1e3;
 	auto work_item = m_log_work_items.find(tag);
 
-	if (work_item == m_log_work_items.end()) {
+	if (work_item == m_log_work_items.end())
+	{
 		m_log_work_items.emplace(tag, log_work_item(timestamp, value, type));
 		m_log_out_vectors.emplace(tag, log_out_vector(m_machine.options().seconds_to_run() * 60));
 		return;
@@ -535,8 +530,10 @@ void emusync::log(std::string tag, log_type type, double value) {
 //  emusync::log_register_work_items
 //============================================================
 
-void emusync::log_register_work_items() {
-	for (auto &work_pair : m_log_work_items) {
+void emusync::log_register_work_items()
+{
+	for (auto &work_pair : m_log_work_items)
+	{
 		auto out_vector = m_log_out_vectors.find(work_pair.first);
 		out_vector->second.save(work_pair.second.get_result());
 	}
@@ -546,8 +543,10 @@ void emusync::log_register_work_items() {
 //  emusync::log_dump
 //============================================================
 
-void emusync::log_dump() {
-	for (const auto &out_pair : m_log_out_vectors) {
+void emusync::log_dump()
+{
+	for (const auto &out_pair : m_log_out_vectors)
+	{
 		osd_printf_info("EMUSYNC LOG (%d items): %s\n", out_pair.second.m_count, out_pair.first);
 		for (int i = 0; i < out_pair.second.m_count; i++)
 			osd_printf_info("%.16f,%.16f\n", out_pair.second.m_out_items[i].m_timestamp, out_pair.second.m_out_items[i].m_value);
