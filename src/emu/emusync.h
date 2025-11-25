@@ -166,7 +166,8 @@ private:
 
 	std::map<uint32_t, struct sink_status> m_sinks;
 
-	struct log_out_item {
+	struct log_out_item
+	{
 		double m_timestamp;
 		double m_value;
 
@@ -174,18 +175,21 @@ private:
 			m_timestamp(timestamp), m_value(value) { };
 	};
 
-	struct log_work_item {
+	struct log_work_item
+	{
 		log_type m_type;
 		log_out_item m_item;
 		int m_n;
 
-		void update(double timestamp, double value) {
+		void update(double timestamp, double value)
+		{
 			m_item.m_timestamp = timestamp;
 
 			if (m_n == 0)
 				m_item.m_value = value;
 			else
-				switch(m_type) {
+				switch(m_type)
+				{
 				case NOW:
 				default:
 					m_item.m_value = value;
@@ -195,7 +199,8 @@ private:
 			m_n++;
 		}
 
-		log_out_item& get_result() {
+		log_out_item& get_result()
+		{
 			switch(m_type)
 			{
 			case NOW:
@@ -209,20 +214,24 @@ private:
 			m_type(type), m_item(timestamp, value), m_n(0) { };
 	};
 
-	struct log_out_vector {
+	struct log_out_vector
+	{
 		int m_max_count;
 		int m_count;
 		std::vector<log_out_item> m_out_items;
 
-		void save(const log_out_item& i) {
-			if (m_count < m_max_count) {
+		void save(const log_out_item& i)
+		{
+			if (m_count < m_max_count)
+			{
 				log_out_item& item = m_out_items[m_count++];
 				item.m_timestamp = i.m_timestamp;
 				item.m_value = i.m_value;
 			}
 		}
 
-		log_out_vector(int max_count) : m_max_count(max_count), m_count(0) {
+		log_out_vector(int max_count) : m_max_count(max_count), m_count(0)
+		{
 			m_out_items.reserve(max_count);
 		}
 	};
