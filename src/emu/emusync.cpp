@@ -12,7 +12,7 @@
 #include "emusync.h"
 #include "screen.h"
 
-#define LOG_VBLANK 0
+#define LOG_VBLANK 1
 #define LOG_SINKS 0
 
 #if LOG_VBLANK
@@ -32,6 +32,9 @@
 #define MAX_PERIOD (1.0 / 49.0) * 1e9
 #define MIN_PERIOD (1.0 / 240.0) * 1e9
 
+#define VACTIVE_RATIO_VGA (480.0 / 525.0)
+#define VACTIVE_RATIO_CEA (720.0 / 750.0)
+
 //============================================================
 //  emusync::emusync
 //============================================================
@@ -48,9 +51,10 @@ emusync::emusync(running_machine &machine)
 	, m_fd_margin(machine.options().fd_margin() * 1e6) // ms->ns
 	, m_vsync_offset(machine.options().vsync_offset())
 	, m_bfi(machine.options().black_frame_insertion())
+	, m_emusync_log(machine.options().emusynclog())
+	, m_vactive_ratio(VACTIVE_RATIO_VGA)
 	, ticks_to_ns(1e9 / osd_ticks_per_second())
 	, sleep_time (1 * osd_ticks_per_second() / 1000.0) // 1 ms
-	, m_emusync_log(machine.options().emusynclog())
 {
 };
 
@@ -76,10 +80,36 @@ void emusync::reset()
 }
 
 
+//============================================================
+//  emusync::period
+//============================================================
+
 uint64_t emusync::period()
 {
 	return m_vblank_count > 10 ? m_kf.get_period() : 1e9 / 60;
-};
+}
+
+
+//============================================================
+//  emusync::compute_vactive_ratio
+//============================================================
+
+void emusync::compute_vactive_ratio()
+{
+	uint32_t vtotal = m_vtotal != 0 ? m_vtotal : m_vtotal_osd;
+
+	// We don't have active video information, pick a reasonable default
+	if (m_vactive == 0)
+		m_vactive_ratio = VACTIVE_RATIO_VGA;
+
+	// We have active video information but no vtotal, pick an usual ratio
+	else if (vtotal == 0)
+		m_vactive_ratio = m_vactive > 480 ? VACTIVE_RATIO_CEA : VACTIVE_RATIO_VGA;
+
+	// We have full information (this should be the case)
+	else
+		m_vactive_ratio = (double)m_vactive / (double)m_vtotal;
+}
 
 
 //============================================================
@@ -453,7 +483,7 @@ void emusync::predraw_sync()
 	m_missed_previous_retrace = m_this_sync_frame > m_next_sync_frame;
 
 	if (handle_throttle() && machine().video().throttled() && !m_missed_previous_retrace)
-		m_predraw_sync_wait = wait_raster(raster.count, 0.90);
+		m_predraw_sync_wait = wait_raster(raster.count, m_vactive_ratio);
 	else
 		emusync_printf_verbose("missed retrace\n");
 

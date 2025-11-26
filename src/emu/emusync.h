@@ -82,7 +82,7 @@ public:
 	void set_fd_margin(float fd_margin) { m_fd_margin = fd_margin * 1e6; } // ms->ns
 	void set_auto_framedelay(bool autoframedelay) { m_auto_framedelay = autoframedelay; }
 	void set_vsync_offset(int vsync_offset) { m_vsync_offset = vsync_offset; }
-	void set_vtotal(int vtotal) { m_vtotal = vtotal; }
+	void set_vratio(int vactive, int vtotal) { m_vactive = vactive; m_vtotal = vtotal; compute_vactive_ratio(); }
 	void set_interlace(bool interlace) { m_interlaced = interlace; }
 
 	enum log_type {
@@ -95,6 +95,7 @@ private:
 	running_machine &m_machine;
 
 	void update_stats();
+	void compute_vactive_ratio();
 	uint64_t time_in_ns();
 	inline double get_ms(int64_t time) { return (double)time / 1e6; };
 	inline double time_now() { return get_ms(time_in_ns() - m_time_start); };
@@ -139,16 +140,18 @@ private:
 	uint64_t m_fd_margin;                //
 	int32_t  m_vsync_offset;             // offset vsync position by this many lines
 	int32_t  m_bfi;
+	bool     m_emusync_log;
+	uint32_t m_vactive;
 	uint32_t m_vtotal;
+	uint32_t m_vtotal_osd;
 	bool     m_interlaced;
+	double   m_vactive_ratio;
 
 	int ticks_to_ns = 0;
 	uint64_t sleep_time = 1e6; // 1 ms
 
 	std::function<bool(void)> get_vblank_timestamp;
 	std::function<uint64_t(void)> get_frame_counter;
-
-	bool     m_emusync_log;
 
 	struct sink_status
 	{
