@@ -81,34 +81,24 @@ void emusync::reset()
 
 
 //============================================================
-//  emusync::period
-//============================================================
-
-uint64_t emusync::period()
-{
-	return m_vblank_count > 10 ? m_kf.get_period() : 1e9 / 60;
-}
-
-
-//============================================================
 //  emusync::compute_vactive_ratio
 //============================================================
 
 void emusync::compute_vactive_ratio()
 {
-	uint32_t vtotal = m_vtotal != 0 ? m_vtotal : m_vtotal_osd;
-
 	// We don't have active video information, pick a reasonable default
-	if (m_vactive == 0)
+	if (vactive() == 0)
 		m_vactive_ratio = VACTIVE_RATIO_VGA;
 
 	// We have active video information but no vtotal, pick an usual ratio
-	else if (vtotal == 0)
-		m_vactive_ratio = m_vactive > 480 ? VACTIVE_RATIO_CEA : VACTIVE_RATIO_VGA;
+	else if (vtotal() == 0)
+		m_vactive_ratio = vactive() > 480 ? VACTIVE_RATIO_CEA : VACTIVE_RATIO_VGA;
 
 	// We have full information (this should be the case)
 	else
-		m_vactive_ratio = (double)m_vactive / (double)m_vtotal;
+		m_vactive_ratio = (double)vactive() / (double)vtotal();
+
+	osd_printf_verbose("emusync: vactive: %d vtotal: %d m_vactive_ratio: %f\n", vactive(), vtotal(), m_vactive_ratio);
 }
 
 
