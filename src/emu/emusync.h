@@ -50,20 +50,11 @@ public:
 	uint64_t wait_raster(uint64_t count, double scan);
 	void get_raster(raster_status *status);
 	void get_scanline(uint32_t *scanline, bool *in_vblank);
-	uint64_t period();
-	double period_in_ms() { return get_ms(period()); };
-	double fd_margin_in_ms() { return get_ms(m_fd_margin); };
-	double frame_time_in_ms() { return get_ms(m_frame_time); };
-	double current_framedelay();
-	uint64_t line_period() { return m_vtotal ? period() / m_vtotal * (m_interlaced ? 2.0 : 1.0) : 0; };
-	uint64_t emu_period() { return m_emu_period; };
-	double speed_factor() { return handle_throttle() ? (double)m_emu_period / (period() * (1 + m_bfi)) : 1.0; };
 	void predraw_sync();
 	void postdraw_sync();
 
 	// getters
 	running_machine &machine() const noexcept { return m_machine; }
-
 	uint64_t frame_count() const { return m_frame; }
 	uint64_t first_sync_count() const { return m_first_sync_count; }
 	bool handle_throttle() const { return m_fullscreen && m_syncrefresh; }
@@ -73,6 +64,16 @@ public:
 	int32_t framedelay() const { return m_framedelay; }
 	int32_t vsync_offset() const { return m_vsync_offset; }
 	bool interlaced() const { return m_interlaced; }
+	uint64_t period() {	return m_vblank_count > 10 ? m_kf.get_period() : 1e9 / 60; }
+	double period_in_ms() { return get_ms(period()); };
+	double fd_margin_in_ms() { return get_ms(m_fd_margin); };
+	double frame_time_in_ms() { return get_ms(m_frame_time); };
+	double current_framedelay();
+	uint32_t vactive() { return m_vactive != 0 ? m_vactive : m_vactive_osd; };	// Priorize values are set directly through set_vratio.
+	uint32_t vtotal() { return m_vtotal != 0 ? m_vtotal : m_vtotal_osd; }		// Otherwise use data from osd when available.
+	uint64_t line_period() { return vtotal() != 0 ? period() / vtotal() * (m_interlaced ? 2.0 : 1.0) : 0; };
+	uint64_t emu_period() { return m_emu_period; };
+	double speed_factor() { return handle_throttle() ? (double)m_emu_period / (period() * (1 + m_bfi)) : 1.0; };
 
 	// setters
 	void set_fullscreen(bool fullscreen) { m_fullscreen = fullscreen; }
@@ -141,9 +142,10 @@ private:
 	int32_t  m_vsync_offset;             // offset vsync position by this many lines
 	int32_t  m_bfi;
 	bool     m_emusync_log;
-	uint32_t m_vactive;
-	uint32_t m_vtotal;
-	uint32_t m_vtotal_osd;
+	uint32_t m_vactive = 0;
+	uint32_t m_vactive_osd = 0;
+	uint32_t m_vtotal = 0;
+	uint32_t m_vtotal_osd = 0;
 	bool     m_interlaced;
 	double   m_vactive_ratio;
 

@@ -58,8 +58,8 @@ static uint64_t vblank_counter = 0;
 static bool is_active = false;
 static bool is_initialized = false;
 
-static bool scanline_init(uint64_t monitor_handle, bool polling_thread, uint32_t *vtotal);
-static int get_vtotal();
+static bool scanline_init(uint64_t monitor_handle, bool polling_thread);
+static bool get_video_data(uint32_t *vactive, uint32_t *vtotal);
 
 
 //============================================================
@@ -77,7 +77,15 @@ bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 	// If the renderer doesn't have a timestamp method, use Windows to get timestamps
 	bool use_polling_thread = (get_vblank_timestamp_external == nullptr);
 
-	return scanline_init(monitor_handle, use_polling_thread, &m_vtotal);
+	bool valid_adapter = scanline_init(monitor_handle, use_polling_thread);
+	if (valid_adapter)
+	{
+		// Get vactive/vtotal from Windows API
+		get_video_data(&m_vactive_osd, &m_vtotal_osd);
+		compute_vactive_ratio();
+	}
+
+	return valid_adapter;
 }
 
 
@@ -112,7 +120,7 @@ bool emusync::get_vblank_timestamp_default()
 //  scanline_init
 //============================================================
 
-bool scanline_init(uint64_t monitor_handle, bool polling_thread, uint32_t *vtotal)
+bool scanline_init(uint64_t monitor_handle, bool polling_thread)
 {
 	// Get api function hooks
 	HINSTANCE hDLL;
@@ -148,9 +156,6 @@ bool scanline_init(uint64_t monitor_handle, bool polling_thread, uint32_t *vtota
 		return false;
 	}
 	DeleteDC(hdc);
-
-	// Get vtotal from Windows API
-	*vtotal = get_vtotal();
 
 	if (!polling_thread)
 		return true;
@@ -207,7 +212,7 @@ void emusync::get_scanline(uint32_t *scanline, bool *in_vblank)
 //  get_vtotal
 //============================================================
 
-int get_vtotal()
+bool get_video_data(uint32_t *vactive, uint32_t *vtotal)
 {
 	std::vector<DISPLAYCONFIG_PATH_INFO> paths;
 	std::vector<DISPLAYCONFIG_MODE_INFO> modes;
@@ -221,7 +226,7 @@ int get_vtotal()
 		result = GetDisplayConfigBufferSizes(flags, &pathCount, &modeCount);
 
 		if (result != ERROR_SUCCESS)
-			return 0;
+			return false;
 
 		// Allocate the path and mode arrays
 		paths.resize(pathCount);
@@ -260,12 +265,15 @@ int get_vtotal()
 			const auto& signalInfo = mode.targetMode.targetVideoSignalInfo;
 
 			uint64_t pixel_clock = signalInfo.pixelRate;
+			auto active_size = signalInfo.activeSize;
 			auto total_size = signalInfo.totalSize;
 
-			if (total_size.cx != 0)
+			if (active_size.cy != 0 && total_size.cy != 0)
 			{
-				osd_printf_verbose("emusync: get_vtotal: pixel_clock: %lld htotal: %d vtotal: %d\n", pixel_clock, total_size.cx, total_size.cy);
-				return total_size.cy;
+				osd_printf_verbose("emusync->get_video_data: pixel_clock: %lld htotal: %d vtotal: %d\n", pixel_clock, total_size.cx, total_size.cy);
+				*vactive = active_size.cy;
+				*vtotal = total_size.cy;
+				return true;
 			}
 
 			if (signalInfo.hSyncFreq.Denominator != 0)
@@ -274,12 +282,12 @@ int get_vtotal()
 				if (signalInfo.vSyncFreq.Denominator != 0)
 				{
 					double vfreq = (double)signalInfo.vSyncFreq.Numerator / (double)signalInfo.vSyncFreq.Denominator;
-					int vtotal = round(hfreq / vfreq);
-					osd_printf_verbose("emusync: get_vtotal: hfreq: %.3f vfreq: %.3f vtotal: %d\n", hfreq, vfreq, vtotal);
-					return vtotal;
+					*vtotal = round(hfreq / vfreq);
+					osd_printf_verbose("emusync->get_video_data: hfreq: %.3f vfreq: %.3f vtotal: %d\n", hfreq, vfreq, *vtotal);
+					return true;
 				}
 			}
 		}
 	}
-	return 0;
+	return false;
 }
