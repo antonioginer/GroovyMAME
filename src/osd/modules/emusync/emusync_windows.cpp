@@ -58,7 +58,7 @@ static uint64_t vblank_counter = 0;
 static bool is_active = false;
 static bool is_initialized = false;
 
-static bool scanline_init(uint64_t monitor_handle, bool polling_thread);
+static bool scanline_init(uint64_t monitor_handle, bool polling_thread, uint32_t *vtotal);
 static int get_vtotal();
 
 
@@ -77,7 +77,7 @@ bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 	// If the renderer doesn't have a timestamp method, use Windows to get timestamps
 	bool use_polling_thread = (get_vblank_timestamp_external == nullptr);
 
-	return scanline_init(monitor_handle, use_polling_thread);
+	return scanline_init(monitor_handle, use_polling_thread, &m_vtotal);
 }
 
 
@@ -112,7 +112,7 @@ bool emusync::get_vblank_timestamp_default()
 //  scanline_init
 //============================================================
 
-bool scanline_init(uint64_t monitor_handle, bool polling_thread)
+bool scanline_init(uint64_t monitor_handle, bool polling_thread, uint32_t *vtotal)
 {
 	// Get api function hooks
 	HINSTANCE hDLL;
@@ -149,7 +149,8 @@ bool scanline_init(uint64_t monitor_handle, bool polling_thread)
 	}
 	DeleteDC(hdc);
 
-	get_vtotal();
+	// Get vtotal from Windows API
+	*vtotal = get_vtotal();
 
 	if (!polling_thread)
 		return true;
@@ -220,7 +221,7 @@ int get_vtotal()
 		result = GetDisplayConfigBufferSizes(flags, &pathCount, &modeCount);
 
 		if (result != ERROR_SUCCESS)
-			return HRESULT_FROM_WIN32(result);
+			return 0;
 
 		// Allocate the path and mode arrays
 		paths.resize(pathCount);
@@ -235,12 +236,38 @@ int get_vtotal()
 
 	// Find mode for out target adapter
 	const LUID target = adapter_data.AdapterLuid;
+	int target_idx = 0;
+	int target_id = 0;
+
+	for (const auto& path: paths)
+	{
+		if (path.targetInfo.adapterId.HighPart == target.HighPart && path.targetInfo.adapterId.LowPart == target.LowPart)
+		{
+			if (target_idx == adapter_data.VidPnSourceId)
+			{
+				target_id = path.targetInfo.id;
+				break;
+			}
+			target_idx++;
+		}
+	}
+
 	for (const auto& mode : modes)
 	{
-		if (mode.infoType == DISPLAYCONFIG_MODE_INFO_TYPE_TARGET &&
+		if (mode.infoType == DISPLAYCONFIG_MODE_INFO_TYPE_TARGET && mode.id == target_id &&
 			(mode.adapterId.HighPart == target.HighPart && mode.adapterId.LowPart == target.LowPart))
 		{
 			const auto& signalInfo = mode.targetMode.targetVideoSignalInfo;
+
+			uint64_t pixel_clock = signalInfo.pixelRate;
+			auto total_size = signalInfo.totalSize;
+
+			if (total_size.cx != 0)
+			{
+				osd_printf_verbose("emusync: get_vtotal: pixel_clock: %lld htotal: %d vtotal: %d\n", pixel_clock, total_size.cx, total_size.cy);
+				return total_size.cy;
+			}
+
 			if (signalInfo.hSyncFreq.Denominator != 0)
 			{
 				double hfreq = (double)signalInfo.hSyncFreq.Numerator / (double)signalInfo.hSyncFreq.Denominator;
@@ -248,7 +275,7 @@ int get_vtotal()
 				{
 					double vfreq = (double)signalInfo.vSyncFreq.Numerator / (double)signalInfo.vSyncFreq.Denominator;
 					int vtotal = round(hfreq / vfreq);
-					osd_printf_verbose("emusync: get_vtotal(): hfreq: %.3f vfreq: %.3f vtotal: %d\n", hfreq, vfreq, vtotal);
+					osd_printf_verbose("emusync: get_vtotal: hfreq: %.3f vfreq: %.3f vtotal: %d\n", hfreq, vfreq, vtotal);
 					return vtotal;
 				}
 			}
