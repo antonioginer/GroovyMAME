@@ -26,6 +26,10 @@
 #include <mutex>
 #include <map>
 
+#ifdef _WIN32
+#include "pa_win_wasapi.h"
+#endif
+
 namespace osd {
 
 namespace {
@@ -309,19 +313,9 @@ private:
 PaDeviceIndex sound_part::list_get_devidx(const char *api_str, const char *device_str)
 {
 	PaDeviceIndex selected_devidx = -1;
-	const char *apis[] = { "ALSA", "Windows WDM-KS", "Windows WASAPI" };
 
 	for (PaHostApiIndex api_idx = 0; api_idx < Pa_GetHostApiCount(); api_idx++) {
 		const PaHostApiInfo *api_info = Pa_GetHostApiInfo(api_idx);
-
-		bool skip = true;
-
-		for (int check = 0; check < sizeof(apis) / sizeof(apis[0]); check++)
-			if (!strcmp(api_info->name, apis[check]))
-				skip = false;
-
-		if (skip)
-			continue;
 
 		osd_printf_info("PART: API %s has %d devices\n", api_info->name, api_info->deviceCount);
 
@@ -483,23 +477,54 @@ uint32_t sound_part::stream_sink_open(uint32_t node, std::string name, uint32_t 
 	uint32_t id = m_stream_id++;
 	auto si = m_streams.emplace(id, stream_info(this, m_info.m_nodes[node - 1].m_sinks, m_sample_rate, m_audio_latency, id, node)).first;
 
+	PaStreamInfo *stream_info;
 	PaStreamParameters op;
+
+	unsigned long frames_per_callback = paFramesPerBufferUnspecified;
 	op.device = pa_idx;
 	op.channelCount = m_info.m_nodes[node - 1].m_sinks;
 	op.sampleFormat = paInt16;
 	op.suggestedLatency = (m_pa_latency > 0.0f) ? m_pa_latency : Pa_GetDeviceInfo(pa_idx)->defaultLowOutputLatency;
 	op.hostApiSpecificStreamInfo = nullptr;
 
+#ifdef _WIN32
+	const PaDeviceInfo *device_info = Pa_GetDeviceInfo(pa_idx);
+	PaWasapiStreamInfo wasapi_stream_info;
+
+	// if requested latency is less than 20 ms, we need to use exclusive mode
+	if (Pa_GetHostApiInfo(device_info->hostApi)->type == paWASAPI && op.suggestedLatency < 0.020)
+	{
+		wasapi_stream_info.size = sizeof(PaWasapiStreamInfo);
+		wasapi_stream_info.hostApiType = paWASAPI;
+		wasapi_stream_info.flags = paWinWasapiExclusive;
+		wasapi_stream_info.version = 1;
+
+		op.hostApiSpecificStreamInfo = &wasapi_stream_info;
+
+		// for latencies lower than ~16 ms, we need to use event mode
+		if (op.suggestedLatency < 0.016)
+		{
+			// only way to control output latency with event mode
+			frames_per_callback = op.suggestedLatency * m_sample_rate;
+
+			// needed for event mode to work
+			op.suggestedLatency = 0;
+		}
+	}
+#endif
+
 	PaError err = Pa_OpenStream(&si->second.m_stream,
 	                            nullptr,
 	                            &op,
 	                            rate,
-	                            paFramesPerBufferUnspecified,
+	                            frames_per_callback,
 	                            0,
 	                            s_stream_callback,
 	                            &si->second);
 
-	const PaStreamInfo *stream_info = Pa_GetStreamInfo(si->second.m_stream);
+	if (err) goto error;
+
+	stream_info = (PaStreamInfo*) Pa_GetStreamInfo(si->second.m_stream);
 
 	osd_printf_verbose("PART: Opening device \"%s\"\n", m_info.m_nodes[node - 1].m_display_name);
 	osd_printf_verbose("PART: Sample rate is %0.0f Hz, device output latency is %0.2f ms\n",
@@ -507,17 +532,19 @@ uint32_t sound_part::stream_sink_open(uint32_t node, std::string name, uint32_t 
 	osd_printf_verbose("PART: Allowed additional buffering latency is %0.2f ms/%d frames\n",
 		si->second.m_buffer.m_skip_threshold / (m_sample_rate / 1000.0), si->second.m_buffer.m_skip_threshold);
 
-	if (!err)
-		err = Pa_SetStreamFinishedCallback(si->second.m_stream, s_stream_finished_callback);
-	if (!err)
-		err = Pa_StartStream(si->second.m_stream);
-	if (err) {
-		osd_printf_error("PART error: %s: %s\n", m_info.m_nodes[node - 1].m_display_name, Pa_GetErrorText(err));
-		lock.unlock();
-		stream_close(id);
-		return 0;
-	}
+	err = Pa_SetStreamFinishedCallback(si->second.m_stream, s_stream_finished_callback);
+	if (err) goto error;
+
+	err = Pa_StartStream(si->second.m_stream);
+	if (err) goto error;
+
 	return id;
+
+error:
+	osd_printf_error("PART error: %s: %s\n", m_info.m_nodes[node - 1].m_display_name, Pa_GetErrorText(err));
+	lock.unlock();
+	stream_close(id);
+	return 0;
 }
 
 uint32_t sound_part::stream_source_open(uint32_t node, std::string name, uint32_t rate)
