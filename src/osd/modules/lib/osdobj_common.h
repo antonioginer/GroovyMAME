@@ -82,8 +82,9 @@
 #define OSDOPTION_SOUND                 "sound"
 #define OSDOPTION_AUDIO_LATENCY         "audio_latency"
 
+#define OSDOPTION_PART_API              "part_api"
+#define OSDOPTION_PART_DEVICE           "part_device"
 #define OSDOPTION_PART_LATENCY          "part_latency"
-#define OSDOPTION_PART_LOG              "part_log"
 
 #define OSDOPTION_AUDIO_OUTPUT          "audio_output"
 #define OSDOPTION_AUDIO_EFFECT          "audio_effect"
@@ -243,8 +244,9 @@ public:
 	// sound options
 	const char *sound() const { return value(OSDOPTION_SOUND); }
 	float audio_latency() const { return float_value(OSDOPTION_AUDIO_LATENCY); }
+	const char *part_api() const { return value(OSDOPTION_PART_API); }
+	const char *part_device() const { return value(OSDOPTION_PART_DEVICE); }
 	float part_latency() const { return float_value(OSDOPTION_PART_LATENCY); }
-	bool part_log() const { return bool_value(OSDOPTION_PART_LOG); }
 
 	// CoreAudio specific options
 	const char *audio_output() const { return value(OSDOPTION_AUDIO_OUTPUT); }
