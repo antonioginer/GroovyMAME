@@ -211,7 +211,7 @@ void rtbuf::get(int16_t *data, uint32_t samples) noexcept
 	} else {
 		m_ab->read(data, buf_ct * m_channels);
 		std::memset(data + (buf_ct * m_channels), 0,
-				(samples - buf_ct) * m_channels);
+				(samples - buf_ct) * m_channels * sizeof(int16_t));
 
 		// if update_audio_stream has been called, note the underflow
 		if (m_osd_ticks)
