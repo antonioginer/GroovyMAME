@@ -128,6 +128,7 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_SYNC_REFRESH_TOLERANCE ";srt",   "2.0",            core_options::option_type::FLOAT,     "Maximum refresh difference, in Hz, allowed in order to synchronize" },
 	{ OSDOPTION_INTERLACE_FORCE_EVEN,            "0",              core_options::option_type::BOOLEAN,   "Calculate all vertical values of interlaced modes as even numbers. Required by AMD APU hardware on Linux" },
 	{ OSDOPTION_AUTOSYNC,                        "1",              core_options::option_type::BOOLEAN,   "automatically enable syncrefresh if refresh difference is below syncrefresh_tolerance" },
+	{ OSDOPTION_WVBLSYNC,                        "0",              core_options::option_type::BOOLEAN,   "use thread + wait for vblank mechanic to synchronize vertical retrace, use only if defaults don't work" },
 	{ OSDOPTION_AUTOFILTER,                      "1",              core_options::option_type::BOOLEAN,   "automatically set bilinear filtering with fractional stretching or interlaced " },
 	{ OSDOPTION_AUTOSTRETCH,                     "1",              core_options::option_type::BOOLEAN,   "automatically set scaling mode (integer or fractional) based on the selected video mode " },
 	{ OSDOPTION_SCALE_PROPORTIONAL,              "1",              core_options::option_type::BOOLEAN,   "Scale both axes by the same factor, when integer scaling is applied" },
