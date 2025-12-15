@@ -55,8 +55,52 @@ emusync::emusync(running_machine &machine)
 	, m_vactive_ratio(VACTIVE_RATIO_VGA)
 	, ticks_to_ns(1e9 / osd_ticks_per_second())
 	, sleep_time (1 * osd_ticks_per_second() / 1000.0) // 1 ms
+	, io(asio::io_service())
+	, serial(io)
 {
+	if (machine.options().emusyncserial())
+	{
+		try
+		{
+			serial.open(machine.options().emusyncserial());
+			serial.set_option(asio::serial_port_base::baud_rate(115200));
+		}
+		catch (const std::exception &e)
+		{
+			osd_printf_error("Error configuring emusync serial port: %s\n", e.what());
+		}
+	}
 };
+
+//============================================================
+//  emusync::~emusync
+//============================================================
+
+emusync::~emusync()
+{
+	log_dump();
+
+	if (serial.is_open())
+		serial.close();
+};
+
+//============================================================
+//  emusync::serial_sync_msg
+//============================================================
+
+void emusync::serial_msg(char msg)
+{
+	if (serial.is_open())
+	{
+		const char send[1] = { (char) msg };
+		asio::error_code ec;
+
+		asio::write(serial, asio::buffer(send), ec);
+
+		if (ec)
+			osd_printf_error("Error writing to emusync serial port: %s\n", ec.message());
+	}
+}
 
 
 //============================================================
@@ -311,6 +355,8 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 			emusync_printf_verbose("period out of range: %f ms\n", get_ms(m_current_period));
 			return false;
 		}
+
+		log("emusync::register_vblank_in_ns [diff]", NOW, (double)(timestamp) / 1e9);
 
 		// Filter timestamp. If needed, compute intermediate timestamps to feed the filter.
 		if (m_kf.initialized)
