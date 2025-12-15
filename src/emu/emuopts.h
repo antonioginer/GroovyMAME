@@ -165,6 +165,7 @@
 #define OPTION_DEBUGSCRIPT          "debugscript"
 #define OPTION_DEBUGLOG             "debuglog"
 #define OPTION_EMUSYNCLOG           "emusynclog"
+#define OPTION_EMUSYNCSERIAL        "emusyncserial"
 
 // core misc options
 #define OPTION_DRC                  "drc"
@@ -455,6 +456,7 @@ public:
 	bool update_in_pause() const { return bool_value(OPTION_UPDATEINPAUSE); }
 	bool debuglog() const { return bool_value(OPTION_DEBUGLOG); }
 	bool emusynclog() const { return bool_value(OPTION_EMUSYNCLOG); }
+	const char* emusyncserial() const { return value(OPTION_EMUSYNCSERIAL); }
 
 	// core misc options
 	bool drc() const { return bool_value(OPTION_DRC); }
