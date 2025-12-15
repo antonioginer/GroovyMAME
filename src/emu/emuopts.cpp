@@ -194,6 +194,7 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_DEBUGSCRIPT,                                nullptr,     core_options::option_type::PATH,       "script for debugger" },
 	{ OPTION_DEBUGLOG,                                   "0",         core_options::option_type::BOOLEAN,    "write debug console output to debug.log" },
 	{ OPTION_EMUSYNCLOG,                                 "0",         core_options::option_type::BOOLEAN,    "output emusync logging information" },
+	{ OPTION_EMUSYNCSERIAL,                              nullptr,     core_options::option_type::STRING,     "send emusync messages on this serial port" },
 
 	// comm options
 	{ nullptr,                                           nullptr,     core_options::option_type::HEADER,     "CORE COMM OPTIONS" },

@@ -9,6 +9,8 @@
 #ifndef MAME_EMU_SYNC_H
 #define MAME_EMU_SYNC_H
 
+#include <asio.h>
+
 #include "expfit.h"
 #include "kalman.h"
 
@@ -17,7 +19,7 @@ class emusync
 public:
 
 	emusync(running_machine &machine);
-	~emusync() { log_dump(); };
+	~emusync();
 
 	enum event_tag
 	{
@@ -91,6 +93,7 @@ public:
 	};
 
 	void log(std::string tag, log_type type, double value);
+	void serial_msg(char msg);
 
 private:
 	running_machine &m_machine;
@@ -246,5 +249,8 @@ private:
 
 	void log_register_work_items();
 	void log_dump();
+
+	asio::io_service  io;
+	asio::serial_port serial;
 };
 #endif
