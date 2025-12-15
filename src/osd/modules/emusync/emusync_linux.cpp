@@ -22,11 +22,93 @@
 #include <switchres/switchres.h>
 #include <switchres/switchres_defines.h>
 
+#include "modules/lib/osdobj_common.h"
+
+#include <atomic>
+#include <thread>
+#include <mutex>
+
+using namespace osd;
+
+class drm_vblank_handler {
+public:
+	drm_vblank_handler(emusync& sync, int fd, int crtc);
+	~drm_vblank_handler();
+	bool get_vblank_timestamp();
+private:
+	emusync& m_sync;
+	int m_dri_fd;
+
+	uint64_t m_sequence;
+	uint64_t m_ns;
+
+	std::atomic<bool> m_kill_vbl_thread;
+	std::thread m_vblthread;
+	std::mutex m_mutex;
+
+	void vbl_thread_func(const int crtc);
+};
+
+drm_vblank_handler::drm_vblank_handler(emusync& sync, int fd, int crtc)
+	: m_sync(sync)
+	, m_dri_fd(fd)
+	, m_sequence(0)
+	, m_ns(0)
+	, m_kill_vbl_thread(false)
+	, m_vblthread([this, crtc]() { vbl_thread_func(crtc); })
+{
+}
+
+drm_vblank_handler::~drm_vblank_handler()
+{
+	m_kill_vbl_thread = true;
+	m_vblthread.join();
+}
+
+void drm_vblank_handler::vbl_thread_func(const int crtc)
+{
+	drmVBlank vbl;
+
+	while (!m_kill_vbl_thread)
+	{
+		struct timespec ts;
+
+		memset(&vbl, 0, sizeof(vbl));
+
+		vbl.request.sequence = 1;
+		vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | ((crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
+
+		if (drmWaitVBlank(m_dri_fd, &vbl))
+			perror("drmWaitVBlank failed\n");
+
+		if (clock_gettime(CLOCK_MONOTONIC, &ts))
+			perror("clock_gettime failed\n");
+
+		uint64_t vbl_seq = vbl.reply.sequence;
+		uint64_t vbl_ns = ts.tv_sec * 1e9 + ts.tv_nsec;
+		//uint64_t vbl_ns = (vbl.reply.tval_sec * 1e6 + vbl.reply.tval_usec) * 1e3;
+
+		{
+			std::lock_guard<std::mutex> lock(m_mutex);
+			m_sequence = vbl_seq;
+			m_ns = vbl_ns;
+		}
+	}
+}
+
+bool drm_vblank_handler::get_vblank_timestamp()
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	m_sync.register_vblank_in_ns(m_sequence, m_ns);
+	return true;
+}
+
 static int drm_open(const char *dri_device, int monitor_handle);
 static int fd = 0;
 static int crtc_id = 0;
+static int crtc_idx = -1;
 static bool must_close_fd = false;
-
+static drm_vblank_handler* drmvbl = nullptr;
 
 //============================================================
 //  emusync:init_osd
@@ -48,13 +130,27 @@ bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 
 		int *sr_crtc_id = (int*)display->video()->get_resource(SR_RES_KMS_CRTC_ID);
 		if (sr_crtc_id) crtc_id = *sr_crtc_id;
+
+		int *sr_crtc_idx = (int*)display->video()->get_resource(SR_RES_KMS_CRTC_IDX);
+		if (sr_crtc_idx) crtc_idx = *sr_crtc_idx;
 	}
+
+	const sdl_options& options = dynamic_cast<sdl_options const &>(machine().options());
 
 	if (fd == 0)
 	{
-		fd = drm_open(dynamic_cast<sdl_options const &>(machine().options()).dri_device(), (int)monitor_handle);
+		fd = drm_open(options.dri_device(), (int)monitor_handle);
 		if (fd)
 			must_close_fd = true;
+	}
+
+	if (fd && options.wvblsync())
+	{
+		if (crtc_idx >= 0)
+		{
+			drmvbl = new drm_vblank_handler(*this, fd, crtc_idx);
+			get_vblank_timestamp = std::bind(&drm_vblank_handler::get_vblank_timestamp, drmvbl);
+		}
 	}
 
 	return (fd != 0);
@@ -67,6 +163,12 @@ bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 
 void emusync::osd_deinit()
 {
+	if (drmvbl != nullptr)
+	{
+		std::destroy_at(drmvbl);
+		drmvbl = nullptr;
+	}
+
 	if (must_close_fd)
 		close(fd);
 }
