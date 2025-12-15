@@ -46,3 +46,4 @@
 #define  SR_RES_KMS_BPP                 "kms_bpp"
 #define  SR_RES_KMS_FD                  "kms_fd"
 #define  SR_RES_KMS_CRTC_ID             "kms_crtc_id"
+#define  SR_RES_KMS_CRTC_IDX            "kms_crtc_idx"

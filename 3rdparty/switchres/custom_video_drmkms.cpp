@@ -615,7 +615,8 @@ bool drmkms_timing::init()
 
 							if (mp_crtc_desktop->crtc_id == p_encoder->crtc_id)
 							{
-								log_verbose("DRM/KMS: <%d> (init) desktop mode name %s crtc %d fb %d valid %d\n", m_id, mp_crtc_desktop->mode.name, mp_crtc_desktop->crtc_id, mp_crtc_desktop->buffer_id, mp_crtc_desktop->mode_valid);
+								m_crtc_idx = e;
+								log_verbose("DRM/KMS: <%d> (init) desktop mode name %s crtc %d crtc_idx %d fb %d valid %d\n", m_id, mp_crtc_desktop->mode.name, mp_crtc_desktop->crtc_id, m_crtc_idx, mp_crtc_desktop->buffer_id, mp_crtc_desktop->mode_valid);
 								break;
 							}
 							drmModeFreeCrtc(mp_crtc_desktop);
@@ -1343,6 +1344,9 @@ void *drmkms_timing::get_resource(const char *resource)
 
 	if (!strcmp(resource, SR_RES_KMS_CRTC_ID))
 		return (void*)&mp_crtc_desktop->crtc_id;
+
+	if (!strcmp(resource, SR_RES_KMS_CRTC_IDX))
+		return (void*)&m_crtc_idx;
 
 	return nullptr;
 }
