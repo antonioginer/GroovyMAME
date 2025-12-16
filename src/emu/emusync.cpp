@@ -58,7 +58,7 @@ emusync::emusync(running_machine &machine)
 	, io(asio::io_service())
 	, serial(io)
 {
-	if (machine.options().emusyncserial())
+	if (*machine.options().emusyncserial())
 	{
 		try
 		{
@@ -72,6 +72,7 @@ emusync::emusync(running_machine &machine)
 	}
 };
 
+
 //============================================================
 //  emusync::~emusync
 //============================================================
@@ -83,6 +84,7 @@ emusync::~emusync()
 	if (serial.is_open())
 		serial.close();
 };
+
 
 //============================================================
 //  emusync::serial_sync_msg
@@ -258,6 +260,7 @@ void emusync::register_emutime(uint64_t emutime)
 	m_emulation_time_dm += diff_delta;
 }
 
+
 //============================================================
 //  emusync::register_sink_samples
 //============================================================
@@ -283,6 +286,7 @@ void emusync::register_sink_samples(int id, uint64_t samples)
 	emusync_sinks_printf_verbose("[%.3f][%d][%llu][%f] register_sink_samples\n", timestamp * 1e3, id, samples, sink_st->second.m_ef.slope());
 }
 
+
 //============================================================
 //  emusync::sink_rate
 //============================================================
@@ -296,6 +300,7 @@ double emusync::get_sink_rate(int id)
 
 	return sink_st->second.m_ef.slope_out();
 }
+
 
 //============================================================
 //  emusync::register_vblank_in_ticks
@@ -570,6 +575,7 @@ void emusync::postdraw_sync()
 	register_tag(emusync::AFTER_DRAW);
 }
 
+
 //============================================================
 //  emusync::log
 //============================================================
@@ -592,6 +598,7 @@ void emusync::log(std::string tag, log_type type, double value)
 	work_item->second.update(timestamp, value);
 }
 
+
 //============================================================
 //  emusync::log_register_work_items
 //============================================================
@@ -605,6 +612,7 @@ void emusync::log_register_work_items()
 	}
 }
 
+
 //============================================================
 //  emusync::log_dump
 //============================================================
@@ -615,7 +623,7 @@ void emusync::log_dump()
 	{
 		osd_printf_info("EMUSYNC LOG (%d items): %s\n", out_pair.second.m_count, out_pair.first);
 		for (int i = 0; i < out_pair.second.m_count; i++)
-			osd_printf_info("%.16f,%.16f\n", out_pair.second.m_out_items[i].m_timestamp, out_pair.second.m_out_items[i].m_value);
+			osd_printf_info("%.9f,%.9f\n", out_pair.second.m_out_items[i].m_timestamp, out_pair.second.m_out_items[i].m_value);
 		osd_printf_info("\n");
 	}
 }
