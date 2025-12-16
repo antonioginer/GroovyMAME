@@ -1,6 +1,7 @@
 #include <cmath>
 
-struct kalman_filter {
+struct kalman_filter
+{
 	double x[2];       // state vector (2x1)
 	double P[2][2];    // covariance (2x2)
 
@@ -14,13 +15,15 @@ struct kalman_filter {
 	bool initialized = false;
 
 	// Multiply 2x2 * 2x1 = 2x1
-	void mat2x2_mul_2x1(double A[2][2], double v[2], double out[2]) {
+	void mat2x2_mul_2x1(double A[2][2], double v[2], double out[2])
+	{
 		out[0] = A[0][0] * v[0] + A[0][1] * v[1];
 		out[1] = A[1][0] * v[0] + A[1][1] * v[1];
 	}
 
 	// Multiply 2x2 * 2x2 = 2x2
-	void mat2x2_mul(double A[2][2], double B[2][2], double out[2][2]) {
+	void mat2x2_mul(double A[2][2], double B[2][2], double out[2][2])
+	{
 		out[0][0] = A[0][0] * B[0][0] + A[0][1] * B[1][0];
 		out[0][1] = A[0][0] * B[0][1] + A[0][1] * B[1][1];
 		out[1][0] = A[1][0] * B[0][0] + A[1][1] * B[1][0];
@@ -28,27 +31,32 @@ struct kalman_filter {
 	}
 
 	// Transpose 1x2 → 2x1
-	void mat1x2_T(double v[1][2], double out[2]) {
+	void mat1x2_T(double v[1][2], double out[2])
+	{
 		out[0] = v[0][0];
 		out[1] = v[0][1];
 	}
 
 	// Multiply 1x2 * 2x2 = 1x2
-	void mat1x2_mul_2x2(double A[1][2], double B[2][2], double out[1][2]) {
+	void mat1x2_mul_2x2(double A[1][2], double B[2][2], double out[1][2])
+	{
 		out[0][0] = A[0][0] * B[0][0] + A[0][1] * B[1][0];
 		out[0][1] = A[0][0] * B[0][1] + A[0][1] * B[1][1];
 	}
 
 	// Multiply 1x2 * 2x1 = scalar
-	double mat1x2_mul_2x1(double A[1][2], double v[2]) {
+	double mat1x2_mul_2x1(double A[1][2], double v[2])
+	{
 		return A[0][0] * v[0] + A[0][1] * v[1];
 	}
 
-	void reset() {
+	void reset()
+	{
 		initialized = false;
 	}
 
-	void init(double time, double period) {
+	void init(double time, double period)
+	{
 		x[0] = time;
 		x[1] = period;
 
@@ -82,7 +90,8 @@ struct kalman_filter {
 		initialized = true;
 	}
 
-	void predict() {
+	void predict()
+	{
 		// x = F x
 		double Fx[2];
 		mat2x2_mul_2x1(F, x, Fx);
@@ -106,14 +115,8 @@ struct kalman_filter {
 		P[1][1] = FPFt[1][1] + Q[1][1];
 	}
 
-	void update(double z) {
-#if 0
-		if (R == maxR) {
-			if (abs(z - x[0]) > 0.1 * x[1])
-				return;
-		}
-#endif
-
+	void update(double z)
+	{
 		// y = z - Hx
 		double Hx = mat1x2_mul_2x1(H, x);
 		double y = z - Hx;

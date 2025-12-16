@@ -60,10 +60,7 @@ private:
 				float y2 = input[in_idx_next * num_channels + ch];
 				float interpolated = y1 + (y2 - y1) * mu;
 
-				if (interpolated > 32767.0f)
-					interpolated = 32767.0f;
-				else if (interpolated < -32768.0f)
-					interpolated = -32768.0f;
+				interpolated = std::clamp<float>(interpolated, -32768.f, 32767.f);
 
 				output[out_idx * num_channels + ch] = interpolated;
 			}
