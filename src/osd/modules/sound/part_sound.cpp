@@ -122,16 +122,16 @@ struct audio_buffer
 
 class rtbuf
 {
-	friend class sound_part;
-
 public:
 	rtbuf(uint32_t channels, int rate, float audio_latency) noexcept;
 	rtbuf(rtbuf &&obj);
 	~rtbuf();
 	void get(int16_t *data, uint32_t samples) noexcept;
 	void push(const int16_t *data, uint32_t samples);
+	size_t available() { return m_ab->count(); };
+	int skip_threshold() { return m_skip_threshold; }
 
-protected:
+private:
 	int m_sample_rate;
 	uint32_t m_channels;
 	int m_buffer_min_ct;
@@ -293,9 +293,9 @@ private:
 	float m_audio_latency;
 	float m_pa_latency;
 	int m_sample_rate;
-	PaDeviceIndex pa_idx;
+	PaDeviceIndex m_pa_idx;
 
-	emusync *m_emusync;
+	emusync* m_sync;
 
 	int stream_callback(stream_info *stream, const void *input, void *output,
 			unsigned long frameCount, const PaStreamCallbackTimeInfo *timeInfo,
@@ -351,30 +351,10 @@ int sound_part::init(osd_interface &osd, osd_options const &options)
 	// Portaudio does not seem to have any information w.r.t
 	// channel positioning, so we'll use the sdl conventions.
 
-	enum {
-		FL,
-		FR,
-		FC,
-		LFE,
-		BL,
-		BR,
-		BC,
-		SL,
-		SR,
-		AUX
-	};
+	enum { FL, FR, FC, LFE, BL, BR, BC, SL, SR, AUX };
 
 	static const char *const posname[10] = {
-		"FL",
-		"FR",
-		"FC",
-		"LFE",
-		"BL",
-		"BR",
-		"BC",
-		"SL",
-		"SR",
-		"AUX"
+		"FL", "FR", "FC", "LFE", "BL", "BR", "BC", "SL", "SR", "AUX"
 	};
 
 	static const osd::channel_position pos3d[10] = {
@@ -404,11 +384,11 @@ int sound_part::init(osd_interface &osd, osd_options const &options)
 
 	PaError err = Pa_Initialize();
 	if (err) {
-		osd_printf_error("PortAudio error: %s\n", Pa_GetErrorText(err));
+		osd_printf_error("PART error: %s\n", Pa_GetErrorText(err));
 		return 1;
 	}
 
-	pa_idx = list_get_devidx(options.part_api(), options.part_device());
+	m_pa_idx = list_get_devidx(options.part_api(), options.part_device());
 
 	m_audio_latency = options.audio_latency();
 	m_pa_latency = options.part_latency();
@@ -419,7 +399,7 @@ int sound_part::init(osd_interface &osd, osd_options const &options)
 	m_info.m_default_sink = 1;
 	m_info.m_default_source = 0;
 
-	const PaDeviceInfo *di = Pa_GetDeviceInfo(pa_idx);
+	const PaDeviceInfo *di = Pa_GetDeviceInfo(m_pa_idx);
 	const PaHostApiInfo *ai = Pa_GetHostApiInfo(di->hostApi);
 
 	auto &node = m_info.m_nodes[0];
@@ -445,7 +425,7 @@ int sound_part::init(osd_interface &osd, osd_options const &options)
 
 	m_stream_id = 1;
 
-	m_emusync = &downcast<osd_common_t&>(osd).machine().sync();
+	m_sync = &downcast<osd_common_t&>(osd).machine().sync();
 
 	return 0;
 }
@@ -481,14 +461,14 @@ uint32_t sound_part::stream_sink_open(uint32_t node, std::string name, uint32_t 
 	PaStreamParameters op;
 
 	unsigned long frames_per_callback = paFramesPerBufferUnspecified;
-	op.device = pa_idx;
+	op.device = m_pa_idx;
 	op.channelCount = m_info.m_nodes[node - 1].m_sinks;
 	op.sampleFormat = paInt16;
-	op.suggestedLatency = (m_pa_latency > 0.0f) ? m_pa_latency : Pa_GetDeviceInfo(pa_idx)->defaultLowOutputLatency;
+	op.suggestedLatency = (m_pa_latency > 0.0f) ? m_pa_latency : Pa_GetDeviceInfo(m_pa_idx)->defaultLowOutputLatency;
 	op.hostApiSpecificStreamInfo = nullptr;
 
 #ifdef _WIN32
-	const PaDeviceInfo *device_info = Pa_GetDeviceInfo(pa_idx);
+	const PaDeviceInfo *device_info = Pa_GetDeviceInfo(m_pa_idx);
 	PaWasapiStreamInfo wasapi_stream_info;
 
 	// if requested latency is less than 20 ms, we need to use exclusive mode
@@ -530,7 +510,7 @@ uint32_t sound_part::stream_sink_open(uint32_t node, std::string name, uint32_t 
 	osd_printf_verbose("PART: Sample rate is %0.0f Hz, device output latency is %0.2f ms\n",
 		stream_info->sampleRate, stream_info->outputLatency * 1000.0);
 	osd_printf_verbose("PART: Allowed additional buffering latency is %0.2f ms/%d frames\n",
-		si->second.m_buffer.m_skip_threshold / (m_sample_rate / 1000.0), si->second.m_buffer.m_skip_threshold);
+		si->second.m_buffer.skip_threshold() / (m_sample_rate / 1000.0), si->second.m_buffer.skip_threshold());
 
 	err = Pa_SetStreamFinishedCallback(si->second.m_stream, s_stream_finished_callback);
 	if (err) goto error;
@@ -570,9 +550,9 @@ void sound_part::stream_sink_update(uint32_t id, const int16_t *buffer, int samp
 	auto si = m_streams.find(id);
 	if (si == m_streams.end())
 		return;
-	size_t count = si->second.m_buffer.m_ab->count();
+	size_t count = si->second.m_buffer.available();
 	si->second.m_buffer.push(buffer, samples_this_frame);
-	m_emusync->log("PART buffer count before update", m_emusync->NOW, (double) count);
+	m_sync->log("PART buffer count before update", m_sync->NOW, (double) count);
 }
 
 void sound_part::stream_source_update(uint32_t id, int16_t *buffer, int samples_this_frame)
@@ -584,7 +564,7 @@ int sound_part::stream_callback(stream_info *stream, const void *input, void *ou
 		const PaStreamCallbackTimeInfo *timeInfo, PaStreamCallbackFlags statusFlags)
 {
 	if (output) {
-		m_emusync->register_sink_samples(stream->m_id, frameCount);
+		m_sync->register_sink_samples(stream->m_id, frameCount);
 		stream->m_buffer.get((int16_t*) output, frameCount);
 	}
 	return 0;
