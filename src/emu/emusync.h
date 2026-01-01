@@ -14,6 +14,8 @@
 #include "expfit.h"
 #include "kalman.h"
 
+#include <unordered_map>
+
 class emusync
 {
 public:
@@ -23,11 +25,25 @@ public:
 
 	enum event_tag
 	{
-		BEFORE_DRAW,
-		AFTER_DRAW,
-		BEFORE_PRESENT,
-		AFTER_PRESENT,
-		TIMESTAMP_ITEMS
+		BEFORE_DRAW     = 0,
+		AFTER_DRAW      = 1,
+		BEFORE_PRESENT  = 2,
+		AFTER_PRESENT   = 3,
+		TIMESTAMP_ITEMS = 4,
+		POLL_INPUT      = 5,
+		SERIAL_FREEZE   = 240,
+		SERIAL_DUMP     = 241,
+		SERIAL_RESET    = 242
+	};
+
+	std::unordered_map<event_tag, const char*> event_tag_map =
+	{
+		{ BEFORE_DRAW,     "BEFORE_DRAW"     },
+		{ AFTER_DRAW,      "AFTER_DRAW"      },
+		{ BEFORE_PRESENT,  "BEFORE_PRESENT"  },
+		{ AFTER_PRESENT,   "AFTER_PRESENT"   },
+		{ TIMESTAMP_ITEMS, "TIMESTAMP_ITEMS" },
+		{ POLL_INPUT,      "POLL_INPUT"      },
 	};
 
 	struct raster_status
@@ -93,7 +109,21 @@ public:
 	};
 
 	void log(std::string tag, log_type type, double value);
-	void serial_msg(char msg);
+
+	typedef struct {
+		uint8_t data;
+		uint32_t timestamp;
+	} __attribute__((packed)) serial_tag_t;
+
+	typedef struct {
+		uint32_t system_clock;
+		uint32_t vsync_count;
+		uint32_t vsync_timestamp;
+		uint32_t prev_vsync_timestamp;
+	} __attribute__((packed)) serial_header_t;
+
+	bool serial_write(char msg);
+	void serial_dump();
 
 private:
 	running_machine &m_machine;
@@ -252,5 +282,7 @@ private:
 
 	asio::io_service  io;
 	asio::serial_port serial;
+
+	bool serial_read(char* buf, int count);
 };
 #endif

@@ -64,6 +64,7 @@ emusync::emusync(running_machine &machine)
 		{
 			serial.open(machine.options().emusyncserial());
 			serial.set_option(asio::serial_port_base::baud_rate(115200));
+			serial_write((char) SERIAL_RESET);
 		}
 		catch (const std::exception &e)
 		{
@@ -87,10 +88,10 @@ emusync::~emusync()
 
 
 //============================================================
-//  emusync::serial_sync_msg
+//  emusync::serial_write
 //============================================================
 
-void emusync::serial_msg(char msg)
+bool emusync::serial_write(char msg)
 {
 	if (serial.is_open())
 	{
@@ -100,7 +101,103 @@ void emusync::serial_msg(char msg)
 		asio::write(serial, asio::buffer(send), ec);
 
 		if (ec)
+		{
 			osd_printf_error("Error writing to emusync serial port: %s\n", ec.message());
+			return false;
+		}
+		return true;
+	}
+	return false;
+}
+
+
+//============================================================
+//  emusync::serial_read
+//============================================================
+
+bool emusync::serial_read(char* buf, int count)
+{
+	if (serial.is_open())
+	{
+		asio::error_code ec;
+
+		asio::read(serial, asio::buffer(buf, count), ec);
+
+		if (ec)
+		{
+			osd_printf_error("Error reading from emusync serial port: %s\n", ec.message());
+			return false;
+		}
+		return true;
+	}
+	return false;
+}
+
+
+//============================================================
+//  emusync::serial_dump
+//============================================================
+
+void emusync::serial_dump()
+{
+	if (serial.is_open())
+	{
+		char rxcnt;
+		char rx[127];
+
+		// freeze whatever tags we have collected
+		if (!serial_write((char) SERIAL_FREEZE)) return;
+
+		// get the number of bytes waiting to be read
+		if (!serial_read(&rxcnt, 1)) return;
+
+		// read everything
+		if (!serial_write((char) SERIAL_DUMP)) return;
+		if (!serial_read(rx, rxcnt)) return;
+
+		serial_header_t* header = (serial_header_t*) rx;
+
+		int n_tags = (rxcnt - sizeof(serial_header_t)) / sizeof(serial_tag_t);
+		serial_tag_t* tags = (serial_tag_t*) (rx + sizeof(serial_header_t));
+
+		uint32_t system_clock = header->system_clock;
+		uint32_t vsync_count = header->vsync_count;
+		uint32_t vsync_timestamp = header->vsync_timestamp;
+		uint32_t prev_vsync_timestamp = header->prev_vsync_timestamp;
+
+		int frame_time = vsync_timestamp - prev_vsync_timestamp;
+
+		if (!m_machine.options().emusynclog())
+		{
+			osd_printf_info("[%.3f][%s] %u, %.3f Hz:", time_now(), m_machine.options().emusyncserial(), vsync_count, (double) system_clock / ((vsync_timestamp - prev_vsync_timestamp)));
+
+			if (!n_tags)
+				osd_printf_info(" no tags\n");
+		}
+
+		for (int i = 0; i < n_tags; i++)
+		{
+			uint32_t tag = tags[i].data;
+			uint32_t timestamp = tags[i].timestamp;
+
+			// try and align to when we sent the tag, not when it was received (1 start bit, 8 data bits)
+			int vsync_uart_diff = (int)(timestamp - 9 * (system_clock / 115200)) - prev_vsync_timestamp;
+
+			auto tag_label = event_tag_map.find((event_tag) tag);
+			const char* label = tag_label != nullptr ? tag_label->second : "UNKNOWN";
+
+			if (!m_machine.options().emusynclog())
+			{
+				osd_printf_info(" %s @ %7.3f%%", label, ((double) vsync_uart_diff / frame_time) * 100.f);
+				osd_printf_info("%s", i != n_tags - 1 ? "," : "\n");
+			}
+			else
+			{
+				std::stringstream ss;
+				ss << std::string(tag_label->second) << " [ylim(-200:200)]";
+				log(ss.str(), NOW, ((double) vsync_uart_diff / frame_time) * 100.f);
+			}
+		}
 	}
 }
 
@@ -323,6 +420,9 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 
 	emusync_printf_verbose("[%.3f] register vblank: ", time_now());
 
+	log("emusync::register_vblank_in_ns [diff]", NOW, (double)(timestamp) / 1e9);
+	log("emusync::register_vblank_in_ns (sync_count) [diff]", NOW, sync_count);
+
 	if (m_initialized)
 	{
 		count_delta = sync_count - m_last_sync_count;
@@ -360,8 +460,6 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 			emusync_printf_verbose("period out of range: %f ms\n", get_ms(m_current_period));
 			return false;
 		}
-
-		log("emusync::register_vblank_in_ns [diff]", NOW, (double)(timestamp) / 1e9);
 
 		// Filter timestamp. If needed, compute intermediate timestamps to feed the filter.
 		if (m_kf.initialized)
@@ -530,6 +628,7 @@ void emusync::predraw_sync()
 
 	exit:
 	register_tag(emusync::BEFORE_PRESENT);
+	serial_write(emusync::BEFORE_PRESENT);
 }
 
 
@@ -540,6 +639,7 @@ void emusync::predraw_sync()
 void emusync::postdraw_sync()
 {
 	register_tag(emusync::AFTER_PRESENT);
+	serial_write(emusync::AFTER_PRESENT);
 
 	m_postdraw_sync_wait = 0;
 
