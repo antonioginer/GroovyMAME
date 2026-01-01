@@ -265,7 +265,8 @@ void video_manager::frame_update(bool from_debugger)
 	if (!from_debugger && phase > machine_phase::INIT && m_low_latency && effective_throttle())
 		update_throttle(current_time);
 
-	machine().sync().serial_msg(-1);
+	machine().sync().serial_dump();
+	machine().sync().serial_write(machine().sync().POLL_INPUT);
 
 	machine().osd().input_update(true);
 	emulator_info::periodic_check();

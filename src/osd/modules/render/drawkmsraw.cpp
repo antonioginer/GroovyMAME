@@ -158,8 +158,6 @@ int renderer_kmsraw::draw(const int update)
 
 	m_sync.predraw_sync();
 
-	m_sync.serial_msg(-1);
-
 	osd_ticks_t before = osd_ticks();
 
 	// blit frame
@@ -167,10 +165,7 @@ int renderer_kmsraw::draw(const int update)
 
 	osd_ticks_t after = osd_ticks();
 
-	m_sync.serial_msg(-1);
-
 	m_sync.log("KMSRAW blit duration", m_sync.NOW, (double)(after - before) / osd_ticks_per_second());
-	m_sync.log("KMSRAW blit start time [diff,median(-512e-6:512e-6)]", m_sync.NOW, (double)before / osd_ticks_per_second());
 
 	m_sync.postdraw_sync();
 
