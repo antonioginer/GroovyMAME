@@ -122,7 +122,7 @@ public:
 		uint32_t prev_vsync_timestamp;
 	} __attribute__((packed)) serial_header_t;
 
-	bool serial_write(char msg);
+	bool serial_write(uint8_t msg);
 	void serial_dump();
 
 private:
@@ -280,9 +280,10 @@ private:
 	void log_register_work_items();
 	void log_dump();
 
-	asio::io_service  io;
-	asio::serial_port serial;
+	asio::io_service  m_io;
+	asio::serial_port m_serial;
+	asio::steady_timer m_serial_read_timer;
 
-	bool serial_read(char* buf, int count);
+	bool serial_exchange(uint8_t msg, uint8_t* rdbuf, int length);
 };
 #endif
