@@ -637,7 +637,8 @@ int renderer_d3d9::initialize()
 		return false;
 	}
 
-	m_sync.osd_init(window().monitor()->oshandle(), std::bind(&renderer_d3d9::get_vblank_timestamp, this), std::bind(&renderer_d3d9::get_frame_counter, this));
+	if (window().index() == 0 && m_sync.sync_refresh())
+		m_sync.osd_init(window().monitor()->oshandle(), std::bind(&renderer_d3d9::get_vblank_timestamp, this), std::bind(&renderer_d3d9::get_frame_counter, this));
 
 	return true;
 }
@@ -832,7 +833,7 @@ void renderer_d3d9::end_frame()
 	if (FAILED(result))
 		osd_printf_verbose("Direct3D: Error %08lX during device end_scene call\n", result);
 
-	m_sync.predraw_sync();
+	if (window().index() == 0) m_sync.predraw_sync();
 
 	bool interval = !m_sync.handle_throttle() && window().machine().video().throttled() && video_config.waitvsync;
 
@@ -841,7 +842,7 @@ void renderer_d3d9::end_frame()
 	if (FAILED(result) && (result != D3DERR_WASSTILLDRAWING))
 		osd_printf_verbose("Direct3D: Error %08lX during device present call\n", result);
 
-	m_sync.postdraw_sync();
+	if (window().index() == 0) m_sync.postdraw_sync();
 }
 
 
