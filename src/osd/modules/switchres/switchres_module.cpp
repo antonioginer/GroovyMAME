@@ -305,6 +305,9 @@ bool switchres_module::check_resolution_change(int i, osd_monitor_info *monitor,
 {
 	display_manager *display = switchres().display(i);
 
+	if (!display)
+		return false;
+
 	int old_width = width(i);
 	int old_height = height(i);
 	double old_refresh = refresh(i);
@@ -389,6 +392,8 @@ bool switchres_module::check_geometry_change(int i)
 	#endif
 
 	display_manager *display = switchres().display(i);
+	if (!display)
+		return false;
 
 	if (options.h_size() != display->h_size() || options.h_shift() != display->h_shift() || options.v_shift() != display->v_shift())
 		return true;

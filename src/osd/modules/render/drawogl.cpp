@@ -1549,9 +1549,9 @@ int renderer_ogl::draw(const int update)
 	window().m_primlist->release_lock();
 	m_init_context = 0;
 
-	m_sync.predraw_sync();
+	if (window().index() == 0) m_sync.predraw_sync();
 	m_gl_context->swap_buffer();
-	m_sync.postdraw_sync();
+	if (window().index() == 0) m_sync.postdraw_sync();
 
 	return 0;
 }
