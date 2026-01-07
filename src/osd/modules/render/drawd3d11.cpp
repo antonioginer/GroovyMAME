@@ -31,6 +31,7 @@
 #include "emusync.h"
 
 #define LOG_SCANLINES 0
+#define DEVICE_FLAGS 0 //| D3D11_CREATE_DEVICE_DEBUG
 
 //============================================================
 //  log_debug_info
@@ -1096,8 +1097,7 @@ std::unique_ptr<osd_renderer> video_d3d11::create(osd_window &window)
 
 		auto const d3d11_create_device = m_d3d11_dll->bind<PFN_D3D11_CREATE_DEVICE>("D3D11CreateDevice");
 		hr = (*d3d11_create_device)
-			//(target_adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, D3D11_CREATE_DEVICE_DEBUG, featureLevelArray, 2, D3D11_SDK_VERSION, &d3d11_device, NULL, &m_device_context);
-			(target_adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, 0, featureLevelArray, 2, D3D11_SDK_VERSION, &m_d3d11_device, NULL, &m_device_context);
+			(target_adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, DEVICE_FLAGS, featureLevelArray, 2, D3D11_SDK_VERSION, &m_d3d11_device, NULL, &m_device_context);
 
 		if (!m_d3d11_device) goto error;
 
