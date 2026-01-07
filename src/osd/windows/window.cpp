@@ -161,7 +161,7 @@ int windows_osd_interface::window_count()
 void windows_osd_interface::add_audio_to_recording(const int16_t *buffer, int samples_this_frame)
 {
 	auto const &window = osd_common_t::window_list().front(); // We only record on the first window
-	if (window)
+	if (window && window->has_renderer())
 		window->renderer().add_audio_to_recording(buffer, samples_this_frame);
 }
 

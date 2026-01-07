@@ -12,6 +12,7 @@
 #include <thread>
 #include "emu.h"
 #include "emusync.h"
+#include "winmain.h"
 
 // Windows SDK type definitions
 
@@ -68,14 +69,15 @@ static bool get_video_data(uint32_t *vactive, uint32_t *vtotal);
 
 bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vblank_timestamp_external, std::function<uint64_t(void)> get_frame_counter_external)
 {
-	get_vblank_timestamp = get_vblank_timestamp_external == nullptr ?
+	// If the renderer doesn't have a timestamp method, use Windows to get timestamps
+	const windows_options& options = dynamic_cast<windows_options const &>(machine().options());
+	bool use_polling_thread = (get_vblank_timestamp_external == nullptr || options.wvblsync());
+
+	get_vblank_timestamp = use_polling_thread ?
 						std::bind(&emusync::get_vblank_timestamp_default, this) :
 						get_vblank_timestamp_external;
 
 	get_frame_counter = get_frame_counter_external;
-
-	// If the renderer doesn't have a timestamp method, use Windows to get timestamps
-	bool use_polling_thread = (get_vblank_timestamp_external == nullptr);
 
 	bool valid_adapter = scanline_init(monitor_handle, use_polling_thread);
 	if (valid_adapter)
