@@ -1081,6 +1081,9 @@ bool drmkms_timing::set_timing(modeline *mode)
 		log_verbose("DRM/KMS: <%d> (set_timing) <debug> frame buffer id %d size %dx%d bpp %d\n", m_id, framebuffer_id, pframebuffer->width, pframebuffer->height, pframebuffer->bpp);
 		drmModeFreeFB(pframebuffer);
 
+		// sync first field with even count
+		if (mode->interlace) wait_even_count();
+
 		// set the mode on the crtc
 		if (drmModeSetCrtc(m_drm_fd, mp_crtc_desktop->crtc_id, framebuffer_id, 0, 0, &m_desktop_output, 1, &dmode))
 			log_error("DRM/KMS: <%d> (set_timing) [ERROR] cannot attach the mode to the crtc %d frame buffer %d\n", m_id, mp_crtc_desktop->crtc_id, framebuffer_id);
@@ -1322,6 +1325,44 @@ bool drmkms_timing::kms_has_mode(modeline* mode)
 	log_verbose("DRM/KMS: <%d> (%s) Couldn't find the mode in the connector\n", m_id, __FUNCTION__);
 	drmModeFreeConnector(conn);
 	return false;
+}
+
+//============================================================
+//  drmkms_timing::wait_even_count
+//============================================================
+
+bool drmkms_timing::wait_even_count()
+{
+	uint64_t sequence = 0;
+	uint64_t ns = 0;
+	int ret = 0;
+
+	// Get current sync count
+	ret = drmCrtcGetSequence(m_drm_fd, mp_crtc_desktop->crtc_id, &sequence, &ns);
+	if (ret != 0)
+	{
+		log_verbose("DRM/KMS: <%d> (%s) drmCrtcGetSequence failed(%d)\n", m_id, __FUNCTION__, ret);
+		return false;
+	}
+
+	// Exit if current counter is even
+	if (!(sequence & 1))
+		return true;
+
+	// Otherwise, wait vblank (so our counter is even then)
+	drmVBlank vbl;
+	memset(&vbl, 0, sizeof(vbl));
+
+	vbl.request.sequence = 1;
+	vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | ((m_crtc_idx << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
+
+	ret = drmWaitVBlank(m_drm_fd, &vbl);
+	if (ret != 0)
+	{
+		log_verbose("DRM/KMS: <%d> (%s) drmWaitVBlank failed(%d)\n", m_id, __FUNCTION__, ret);
+		return false;
+	}
+	return true;
 }
 
 //============================================================

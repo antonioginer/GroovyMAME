@@ -29,7 +29,8 @@
 	#define emusync_sinks_printf_verbose(...)
 #endif
 
-#define MAX_PERIOD (1.0 / 49.0) * 1e9
+//#define MAX_PERIOD (1.0 / 49.0) * 1e9
+#define MAX_PERIOD (1.0 / 20.0) * 1e9
 #define MIN_PERIOD (1.0 / 240.0) * 1e9
 
 #define VACTIVE_RATIO_VGA (480.0 / 525.0)
@@ -322,6 +323,7 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 	int count_delta = 0;
 
 	emusync_printf_verbose("[%.3f] register vblank: ", time_now());
+	emusync_printf_info("count: %lld %lld %s\n", sync_count, timestamp, interlaced()? "interlaced" : "");
 
 	if (m_initialized)
 	{
