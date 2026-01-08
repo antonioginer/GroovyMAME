@@ -166,11 +166,9 @@ bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 		fd = drm_open(options.dri_device(), (int)monitor_handle);
 		if (fd)
 			must_close_fd = true;
-
-		crtc_idx = 0;
 	}
 
-	if (fd && options.wvblsync())// && crtc_idx >= 0)
+	if (fd && options.wvblsync() && crtc_idx >= 0)
 	{
 		drmvbl = new drm_vblank_handler(*this, fd, crtc_idx);
 		get_vblank_timestamp = std::bind(&drm_vblank_handler::get_vblank_timestamp, drmvbl);
@@ -291,6 +289,7 @@ static int drm_open(const char *dri_device, int monitor_handle)
 					{
 						found = true;
 						crtc_id = resources->crtcs[j];
+						crtc_idx = j;
 						osd_printf_verbose("drm_open: crtc_id: %d\n", crtc_id);
 						break;
 					}
