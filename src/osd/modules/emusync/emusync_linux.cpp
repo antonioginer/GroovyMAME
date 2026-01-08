@@ -82,6 +82,8 @@ void drm_vblank_handler::vbl_thread_func(const int crtc)
 {
 	drmVBlank vbl;
 
+	osd_printf_verbose("emusync: polling thread started.\n");
+
 	while (m_thread_is_active)
 	{
 		struct timespec ts;
@@ -107,13 +109,14 @@ void drm_vblank_handler::vbl_thread_func(const int crtc)
 		{
 			std::lock_guard<std::mutex> lock(m_mutex);
 
-			m_sequence++;
+			m_sequence = vbl.reply.sequence;
 			m_ns = ts.tv_sec * 1e9 + ts.tv_nsec;
 
 			//m_sequence = vbl.reply.sequence;
 			//m_ns = (vbl.reply.tval_sec * 1e6 + vbl.reply.tval_usec) * 1e3;
 		}
 	}
+	osd_printf_verbose("emusync: polling thread destroyed.\n");
 }
 
 
@@ -163,9 +166,11 @@ bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 		fd = drm_open(options.dri_device(), (int)monitor_handle);
 		if (fd)
 			must_close_fd = true;
+
+		crtc_idx = 0;
 	}
 
-	if (fd && options.wvblsync() && crtc_idx >= 0)
+	if (fd && options.wvblsync())// && crtc_idx >= 0)
 	{
 		drmvbl = new drm_vblank_handler(*this, fd, crtc_idx);
 		get_vblank_timestamp = std::bind(&drm_vblank_handler::get_vblank_timestamp, drmvbl);
