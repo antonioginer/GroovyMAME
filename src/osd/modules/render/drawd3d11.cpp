@@ -484,7 +484,11 @@ int renderer_d3d11::create()
 	ID3DBlob* vs_blob = nullptr;
 	ID3DBlob* ps_blob = nullptr;
 
-	hr = CompileShader(L"src\\osd\\modules\\render\\fullscreen.hlsl", "VS_Main", "vs_5_0", &vs_blob);
+	const char *path = downcast<windows_options &>(window().machine().options()).screen_post_fx_dir();
+	wchar_t shader_file[1024];
+	swprintf(shader_file, 1024, L"%s\\autofilter.fx", path);
+
+	hr = CompileShader(shader_file, "VS_Main", "vs_5_0", &vs_blob);
 	if (FAILED(hr))
 	{
 		osd_printf_error("d3d11: failed compiling vertex shader: %x\n", hr);
@@ -497,7 +501,7 @@ int renderer_d3d11::create()
 		return -1;
 	}
 
-	hr = CompileShader(L"src\\osd\\modules\\render\\fullscreen.hlsl", "PS_Default", "ps_5_0", &ps_blob);
+	hr = CompileShader(shader_file, "PS_Main", "ps_5_0", &ps_blob);
 		if (FAILED(hr))
 	{
 		osd_printf_error("d3d11: failed compiling pixel shader: %x\n", hr);
