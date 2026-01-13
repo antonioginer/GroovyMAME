@@ -196,7 +196,6 @@ const options_entry osd_options::s_option_entries[] =
 	{ nullptr,                                   nullptr,          core_options::option_type::HEADER,    "PORTAUDIO OPTIONS" },
 	{ OSDOPTION_PART_API,                        OSDOPTVAL_NONE,   core_options::option_type::STRING,    "PART API" },
 	{ OSDOPTION_PART_DEVICE,                     OSDOPTVAL_NONE,   core_options::option_type::STRING,    "PART device" },
-	{ OSDOPTION_PART_LATENCY "(0.001-1.0)",      "0.020",          core_options::option_type::FLOAT,     "suggest output latency for portaudio" },
 
 #ifdef SDLMAME_MACOSX
 	{ nullptr,                                   nullptr,          core_options::option_type::HEADER,    "CoreAudio-SPECIFIC OPTIONS" },

@@ -55,15 +55,17 @@ emusync::emusync(running_machine &machine)
 	, m_vactive_ratio(VACTIVE_RATIO_VGA)
 	, ticks_to_ns(1e9 / osd_ticks_per_second())
 	, sleep_time (1 * osd_ticks_per_second() / 1000.0) // 1 ms
-	, io(asio::io_service())
-	, serial(io)
+	, m_io(asio::io_service())
+	, m_serial(m_io)
+	, m_serial_read_timer(m_io)
 {
 	if (*machine.options().emusyncserial())
 	{
 		try
 		{
-			serial.open(machine.options().emusyncserial());
-			serial.set_option(asio::serial_port_base::baud_rate(115200));
+			m_serial.open(machine.options().emusyncserial());
+			m_serial.set_option(asio::serial_port_base::baud_rate(115200));
+			serial_write(SERIAL_RESET);
 		}
 		catch (const std::exception &e)
 		{
@@ -81,28 +83,9 @@ emusync::~emusync()
 {
 	log_dump();
 
-	if (serial.is_open())
-		serial.close();
+	if (m_serial.is_open())
+		m_serial.close();
 };
-
-
-//============================================================
-//  emusync::serial_sync_msg
-//============================================================
-
-void emusync::serial_msg(char msg)
-{
-	if (serial.is_open())
-	{
-		const char send[1] = { (char) msg };
-		asio::error_code ec;
-
-		asio::write(serial, asio::buffer(send), ec);
-
-		if (ec)
-			osd_printf_error("Error writing to emusync serial port: %s\n", ec.message());
-	}
-}
 
 
 //============================================================
@@ -323,6 +306,9 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 
 	emusync_printf_verbose("[%.3f] register vblank: ", time_now());
 
+	log("emusync::register_vblank_in_ns [diff]", NOW, (double)(timestamp) / 1e9);
+	log("emusync::register_vblank_in_ns (sync_count) [diff]", NOW, sync_count);
+
 	if (m_initialized)
 	{
 		count_delta = sync_count - m_last_sync_count;
@@ -360,8 +346,6 @@ bool emusync::register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp)
 			emusync_printf_verbose("period out of range: %f ms\n", get_ms(m_current_period));
 			return false;
 		}
-
-		log("emusync::register_vblank_in_ns [diff]", NOW, (double)(timestamp) / 1e9);
 
 		// Filter timestamp. If needed, compute intermediate timestamps to feed the filter.
 		if (m_kf.initialized)
@@ -530,6 +514,7 @@ void emusync::predraw_sync()
 
 	exit:
 	register_tag(emusync::BEFORE_PRESENT);
+	serial_write(emusync::BEFORE_PRESENT);
 }
 
 
@@ -540,6 +525,7 @@ void emusync::predraw_sync()
 void emusync::postdraw_sync()
 {
 	register_tag(emusync::AFTER_PRESENT);
+	serial_write(emusync::AFTER_PRESENT);
 
 	m_postdraw_sync_wait = 0;
 
@@ -625,5 +611,150 @@ void emusync::log_dump()
 		for (int i = 0; i < out_pair.second.m_count; i++)
 			osd_printf_info("%.9f,%.9f\n", out_pair.second.m_out_items[i].m_timestamp, out_pair.second.m_out_items[i].m_value);
 		osd_printf_info("\n");
+	}
+}
+
+
+//============================================================
+//  emusync::serial_write
+//============================================================
+
+bool emusync::serial_write(uint8_t msg)
+{
+	if (m_serial.is_open())
+	{
+		const uint8_t send[1] = { msg };
+		asio::error_code ec;
+
+		asio::write(m_serial, asio::buffer(send), ec);
+
+		if (ec)
+		{
+			osd_printf_error("Error writing to emusync serial port: %s\n", ec.message());
+			return false;
+		}
+		return true;
+	}
+	return false;
+}
+
+
+//============================================================
+//  emusync::serial_exchange
+//============================================================
+
+bool emusync::serial_exchange(uint8_t msg, uint8_t* rdbuf, int count)
+{
+	if (m_serial.is_open())
+	{
+		m_io.reset();
+
+		m_serial_read_timer.expires_after(std::chrono::seconds(1));
+		m_serial_read_timer.async_wait(
+			[this](const asio::error_code& ec)
+			{
+				if (!ec)
+				{
+					osd_printf_error("Emusync serial read timeout, disabling serial port\n");
+
+					m_serial.cancel();
+					m_serial.close();
+				}
+			}
+		);
+
+		asio::async_read(m_serial, asio::buffer(rdbuf, count),
+			[this](const asio::error_code& ec, std::size_t bytes)
+			{
+				if (ec)
+					osd_printf_error("Emusync serial read error: %s\n", ec.message());
+
+				m_serial_read_timer.cancel();
+			}
+		);
+
+		asio::async_write(m_serial, asio::buffer(&msg, 1),
+			[this](const asio::error_code& ec, std::size_t bytes)
+			{
+				if (ec)
+					osd_printf_error("Emusync serial write error: %s\n", ec.message());
+			}
+		);
+
+		m_io.run();
+	}
+
+	return m_serial.is_open();
+}
+
+
+//============================================================
+//  emusync::serial_dump
+//============================================================
+
+void emusync::serial_dump()
+{
+	uint8_t rxcnt;
+	uint8_t rx[127] = { 0 };
+
+	if (!serial_exchange(SERIAL_FREEZE, &rxcnt, 1)) return;
+
+	if (rxcnt < sizeof(serial_header_t) || rxcnt > sizeof(serial_header_t) + 10 * sizeof(serial_tag_t) ||
+	    (rxcnt - sizeof(serial_header_t)) % sizeof(serial_tag_t))
+	{
+		osd_printf_error("Emusync serial: invalid receive count %d\n", rxcnt);
+		return;
+	}
+
+	if (!serial_exchange(SERIAL_DUMP, rx, rxcnt)) return;
+
+	serial_header_t* header = reinterpret_cast<serial_header_t*>(rx);
+
+	int system_clock = header->system_clock;
+	int vsync_count = header->vsync_count;
+	int vsync_timestamp = header->vsync_timestamp;
+	int prev_vsync_timestamp = header->prev_vsync_timestamp;
+
+	int frame_time = vsync_timestamp - prev_vsync_timestamp;
+
+	if (frame_time <= 0)
+	{
+		osd_printf_error("Emusync serial: invalid frame time %d\n", frame_time);
+		return;
+	}
+
+	int n_tags = (rxcnt - sizeof(serial_header_t)) / sizeof(serial_tag_t);
+	serial_tag_t* tags = reinterpret_cast<serial_tag_t*>(rx + sizeof(serial_header_t));
+
+	if (!m_machine.options().emusynclog())
+	{
+		osd_printf_info("[%.3f][%s] %u, %.3f Hz:", time_now(), m_machine.options().emusyncserial(), vsync_count, (double) system_clock / (vsync_timestamp - prev_vsync_timestamp));
+
+		if (!n_tags)
+			osd_printf_info(" no tags\n");
+	}
+
+	for (int i = 0; i < n_tags; i++)
+	{
+		uint32_t tag = tags[i].data;
+		uint32_t timestamp = tags[i].timestamp;
+
+		// try and align to when we sent the tag, not when it was received (1 start bit, 8 data bits)
+		int vsync_uart_diff = (int)(timestamp - 9 * (system_clock / 115200)) - prev_vsync_timestamp;
+
+		auto tag_label = event_tag_map.find((event_tag) tag);
+		const char* label = tag_label != event_tag_map.end() ? tag_label->second : "UNKNOWN";
+
+		if (!m_machine.options().emusynclog())
+		{
+			osd_printf_info(" %s @ %7.3f%%", label, ((double) vsync_uart_diff / frame_time) * 100.f);
+			osd_printf_info("%s", i != n_tags - 1 ? "," : "\n");
+		}
+		else
+		{
+			std::stringstream ss;
+			ss << std::string(tag_label->second) << " [ylim(-200:200)]";
+			log(ss.str(), NOW, ((double) vsync_uart_diff / frame_time) * 100.f);
+		}
 	}
 }

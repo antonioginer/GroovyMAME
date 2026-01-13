@@ -143,11 +143,11 @@ private:
 	audio_buffer<int16_t> *m_ab;
 };
 
-rtbuf::rtbuf(uint32_t channels, int rate, float audio_latency) noexcept :
+rtbuf::rtbuf(uint32_t channels, int rate, float buffering_latency) noexcept :
 	m_sample_rate(rate),
 	m_channels(channels),
 	m_buffer_min_ct(0),
-	m_skip_threshold(((1.5 + audio_latency * 3.0) / 1000.0) * rate + 0.5f),
+	m_skip_threshold((buffering_latency / 1000.0) * rate + 0.5f),
 	m_underflow(false),
 	m_overflow(false),
 	m_skip_threshold_ticks(0),
@@ -290,7 +290,7 @@ private:
 	std::map<uint32_t, stream_info> m_streams;
 
 	uint32_t m_stream_id;
-	float m_audio_latency;
+	const float m_buffering_latency = 2.0; // 2 ms
 	float m_pa_latency;
 	int m_sample_rate;
 	PaDeviceIndex m_pa_idx;
@@ -390,8 +390,7 @@ int sound_part::init(osd_interface &osd, osd_options const &options)
 
 	m_pa_idx = list_get_devidx(options.part_api(), options.part_device());
 
-	m_audio_latency = options.audio_latency();
-	m_pa_latency = options.part_latency();
+	m_pa_latency = options.audio_latency();
 	m_sample_rate = options.sample_rate();
 
 	m_info.m_generation = 1;
@@ -455,7 +454,7 @@ uint32_t sound_part::stream_sink_open(uint32_t node, std::string name, uint32_t 
 		return 0;
 
 	uint32_t id = m_stream_id++;
-	auto si = m_streams.emplace(id, stream_info(this, m_info.m_nodes[node - 1].m_sinks, m_sample_rate, m_audio_latency, id, node)).first;
+	auto si = m_streams.emplace(id, stream_info(this, m_info.m_nodes[node - 1].m_sinks, m_sample_rate, m_buffering_latency, id, node)).first;
 
 	PaStreamInfo *stream_info;
 	PaStreamParameters op;
@@ -464,7 +463,7 @@ uint32_t sound_part::stream_sink_open(uint32_t node, std::string name, uint32_t 
 	op.device = m_pa_idx;
 	op.channelCount = m_info.m_nodes[node - 1].m_sinks;
 	op.sampleFormat = paInt16;
-	op.suggestedLatency = (m_pa_latency > 0.0f) ? m_pa_latency : Pa_GetDeviceInfo(m_pa_idx)->defaultLowOutputLatency;
+	op.suggestedLatency = (m_pa_latency > 0.0f) ? (m_pa_latency / 1000.0) : Pa_GetDeviceInfo(m_pa_idx)->defaultLowOutputLatency;
 	op.hostApiSpecificStreamInfo = nullptr;
 
 #ifdef _WIN32
