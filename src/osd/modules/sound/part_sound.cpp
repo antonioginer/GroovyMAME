@@ -22,9 +22,13 @@
 #include "modules/lib/osdobj_common.h"
 #include "osdcore.h"
 
+#include <memory>
 #include <portaudio.h>
 #include <mutex>
 #include <map>
+#include <utf8proc/utf8proc.h>
+#include <cstdint>
+#include <string>
 
 #ifdef _WIN32
 #include "pa_win_wasapi.h"
@@ -44,7 +48,8 @@ struct audio_buffer
 
 	audio_buffer(int size, int reserve) : size(size + reserve), reserve(reserve)
 	{
-		playpos = writepos = 0;
+		playpos.store(0, std::memory_order_relaxed);
+		writepos.store(0, std::memory_order_relaxed);
 		buf = new T[this->size];
 	}
 
@@ -55,25 +60,52 @@ struct audio_buffer
 
 	int count()
 	{
-		int diff = writepos - playpos;
+		int w, p;
+
+		w = writepos.load(std::memory_order_acquire);
+		p = playpos.load(std::memory_order_acquire);
+
+		int diff = w - p;
 		return diff < 0 ? size + diff : diff;
 	}
 
 	void increment_writepos(int n)
 	{
-		writepos.store((writepos + n) % size);
+		int w = writepos.load(std::memory_order_relaxed);
+		w += n;
+
+		if (w >= size)
+			w -= size;
+
+		writepos.store(w, std::memory_order_release);
+	}
+
+	void increment_playpos(int n)
+	{
+		int p = playpos.load(std::memory_order_relaxed);
+		p += n;
+
+		if (p >= size)
+			p -= size;
+
+		playpos.store(p, std::memory_order_release);
 	}
 
 	int write(const T *src, int n)
 	{
 		n = std::min<int>(n, size - reserve - count());
 
-		if (writepos + n > size) {
-			std::memcpy(buf + writepos, src, sizeof(T) * (size - writepos));
-			std::memcpy(buf, src + (size - writepos),
-					sizeof(T) * (n - (size - writepos)));
+		if (n <= 0)
+			return 0;
+
+		int w = writepos.load(std::memory_order_relaxed);
+
+		if (w + n > size) {
+			int first = size - w;
+			std::memcpy(buf + w, src, sizeof(T) * first);
+			std::memcpy(buf, src + first, sizeof(T) * (n - first));
 		} else {
-			std::memcpy(buf + writepos, src, sizeof(T) * n);
+			std::memcpy(buf + w, src, sizeof(T) * n);
 		}
 
 		increment_writepos(n);
@@ -81,21 +113,21 @@ struct audio_buffer
 		return n;
 	}
 
-	void increment_playpos(int n)
-	{
-		playpos.store((playpos + n) % size);
-	}
-
 	int read(T *dst, int n)
 	{
 		n = std::min<int>(n, count());
 
-		if (playpos + n > size) {
-			std::memcpy(dst, buf + playpos, sizeof(T) * (size - playpos));
-			std::memcpy(dst + (size - playpos), buf,
-					sizeof(T) * (n - (size - playpos)));
+		if (n <= 0)
+			return 0;
+
+		int p = playpos.load(std::memory_order_relaxed);
+
+		if (p + n > size) {
+			int first = size - p;
+			std::memcpy(dst, buf + p, sizeof(T) * first);
+			std::memcpy(dst + first, buf, sizeof(T) * (n - first));
 		} else {
-			std::memcpy(dst, buf + playpos, sizeof(T) * n);
+			std::memcpy(dst, buf + p, sizeof(T) * n);
 		}
 
 		increment_playpos(n);
@@ -107,11 +139,17 @@ struct audio_buffer
 	{
 		n = std::min<int>(n, size - reserve - count());
 
-		if (writepos + n > size) {
-			std::memset(buf + writepos, 0, sizeof(T) * (size - writepos));
-			std::memset(buf, 0, sizeof(T) * (n - (size - writepos)));
+		if (n <= 0)
+			return 0;
+
+		int w = writepos.load(std::memory_order_relaxed);
+
+		if (w + n > size) {
+			int first = size - w;
+			std::memset(buf + w, 0, sizeof(T) * first);
+			std::memset(buf, 0, sizeof(T) * (n - first));
 		} else {
-			std::memset(buf + writepos, 0, sizeof(T) * n);
+			std::memset(buf + w, 0, sizeof(T) * n);
 		}
 
 		increment_writepos(n);
@@ -124,8 +162,6 @@ class rtbuf
 {
 public:
 	rtbuf(uint32_t channels, int rate, float audio_latency) noexcept;
-	rtbuf(rtbuf &&obj);
-	~rtbuf();
 	void get(int16_t *data, uint32_t samples) noexcept;
 	void push(const int16_t *data, uint32_t samples);
 	size_t available() { return m_ab->count(); };
@@ -137,10 +173,9 @@ private:
 	int m_buffer_min_ct;
 	int m_skip_threshold;
 	bool m_underflow;
-	bool m_overflow;
 	osd_ticks_t m_skip_threshold_ticks;
 	osd_ticks_t m_osd_ticks;
-	audio_buffer<int16_t> *m_ab;
+	std::unique_ptr<audio_buffer<int16_t>> m_ab;
 };
 
 rtbuf::rtbuf(uint32_t channels, int rate, float buffering_latency) noexcept :
@@ -149,33 +184,10 @@ rtbuf::rtbuf(uint32_t channels, int rate, float buffering_latency) noexcept :
 	m_buffer_min_ct(0),
 	m_skip_threshold((buffering_latency / 1000.0) * rate + 0.5f),
 	m_underflow(false),
-	m_overflow(false),
 	m_skip_threshold_ticks(0),
 	m_osd_ticks(0)
 {
-	m_ab = new audio_buffer<int16_t>(rate * channels, channels);
-}
-
-// move constructor to get it to not break with the stream_info device
-rtbuf::rtbuf(rtbuf &&obj) :
-	m_sample_rate(obj.m_sample_rate),
-	m_channels(obj.m_channels),
-	m_buffer_min_ct(obj.m_buffer_min_ct),
-	m_skip_threshold(obj.m_skip_threshold),
-	m_underflow(obj.m_underflow),
-	m_overflow(obj.m_overflow),
-	m_skip_threshold_ticks(obj.m_skip_threshold_ticks),
-	m_osd_ticks(obj.m_osd_ticks)
-{
-	m_ab = obj.m_ab;
-
-	obj.m_ab = nullptr;
-}
-
-rtbuf::~rtbuf()
-{
-	if (m_ab != nullptr)
-		std::destroy_at(m_ab);
+	m_ab = std::make_unique<audio_buffer<int16_t>>(rate * channels, channels);
 }
 
 void rtbuf::get(int16_t *data, uint32_t samples) noexcept
@@ -200,10 +212,8 @@ void rtbuf::get(int16_t *data, uint32_t samples) noexcept
 			int adjust = m_buffer_min_ct - m_skip_threshold;
 
 			// if adjustment is less than two milliseconds, don't bother
-			if (adjust > m_sample_rate / 500) {
+			if (adjust > m_sample_rate / 500)
 				m_ab->increment_playpos(adjust * m_channels);
-				m_overflow = true;
-			}
 
 			m_skip_threshold_ticks = m_osd_ticks;
 			m_buffer_min_ct = 1e8;
@@ -223,9 +233,6 @@ void rtbuf::get(int16_t *data, uint32_t samples) noexcept
 
 void rtbuf::push(const int16_t *data, uint32_t samples)
 {
-	if (m_overflow)
-		m_overflow = false;
-
 	if (m_underflow) {
 		// add some silence to prevent immediate underflows
 		m_ab->clear(m_skip_threshold * m_channels / 2);
@@ -262,6 +269,7 @@ public:
 	virtual void stream_sink_update(uint32_t id, const int16_t *buffer, int samples_this_frame) override;
 	virtual void stream_source_update(uint32_t id, int16_t *buffer, int samples_this_frame) override;
 
+	static bool m_print_devices;
 private:
 	struct stream_info {
 		sound_part *m_manager;
@@ -307,34 +315,88 @@ private:
 	void stream_finished_callback(stream_info *stream);
 	static void s_stream_finished_callback(void *userData);
 
+	std::string sanitize_name(const char *name);
 	PaDeviceIndex list_get_devidx(const char *api_str, const char *device_str);
 };
+
+bool sound_part::m_print_devices = true;
+
+std::string sound_part::sanitize_name(const char *name)
+{
+	std::string out;
+
+	if (!name || !*name)
+		return out;
+
+	utf8proc_uint8_t *utf8proc_result = nullptr;
+	const utf8proc_option_t options = static_cast<utf8proc_option_t>(
+		UTF8PROC_NULLTERM | UTF8PROC_STABLE | UTF8PROC_DECOMPOSE |
+		UTF8PROC_STRIPCC | UTF8PROC_STRIPMARK);
+
+	const utf8proc_ssize_t len = utf8proc_map(
+		reinterpret_cast<const utf8proc_uint8_t *>(name),
+		0,
+		&utf8proc_result,
+		options);
+
+	if (utf8proc_result) {
+		if (len >= 0) {
+			for (utf8proc_ssize_t i = 0; utf8proc_result[i] != 0; ++i) {
+				const unsigned char c = utf8proc_result[i];
+				if (c >= 0x20 && c <= 0x7E)
+					out.push_back(static_cast<char>(c));
+			}
+		}
+		free(utf8proc_result);
+	}
+
+	return out;
+}
 
 PaDeviceIndex sound_part::list_get_devidx(const char *api_str, const char *device_str)
 {
 	PaDeviceIndex selected_devidx = -1;
+	std::unordered_map<std::string, int> name_counts;
 
 	for (PaHostApiIndex api_idx = 0; api_idx < Pa_GetHostApiCount(); api_idx++) {
 		const PaHostApiInfo *api_info = Pa_GetHostApiInfo(api_idx);
 
-		osd_printf_info("PART: API %s has %d devices\n", api_info->name, api_info->deviceCount);
+		if (m_print_devices)
+			osd_printf_info("PART: API %s has %d devices\n",
+			                api_info->name, api_info->deviceCount);
 
 		for (int api_devidx = 0; api_devidx < api_info->deviceCount; api_devidx++) {
 			PaDeviceIndex devidx = Pa_HostApiDeviceIndexToDeviceIndex(api_idx, api_devidx);
 			const PaDeviceInfo *device_info = Pa_GetDeviceInfo(devidx);
 
-			// specified API and device is found
-			if (!strcmp(api_str, api_info->name) && !strcmp(device_str, device_info->name))
+			std::string clean_name = sanitize_name(device_info->name);
+
+			// handle duplicates
+			int &count = name_counts[clean_name];
+			count++;
+			if (count > 1)
+				clean_name += "_" + std::to_string(count);
+
+			if (!strcmp(api_str, api_info->name) &&
+			    !strcmp(device_str, clean_name.c_str())) {
 				selected_devidx = devidx;
+			}
 
-			// if specified device cannot be found, use the default device of the specified API
-			if (!strcmp(api_str, api_info->name) && api_devidx == api_info->deviceCount - 1 && selected_devidx == -1)
+			// fallback to default device for this API
+			if (!strcmp(api_str, api_info->name) &&
+			    api_devidx == api_info->deviceCount - 1 &&
+			    selected_devidx == -1) {
 				selected_devidx = api_info->defaultOutputDevice;
+			}
 
-			osd_printf_info("PART: %s: \"%s\"%s\n",
-			                api_info->name,
-			                device_info->name,
-			                api_info->defaultOutputDevice == devidx ? " (default)" : "");
+			if (m_print_devices) {
+				osd_printf_info("PART: %s: \"%s\"%s\n",
+				                api_info->name,
+				                clean_name.c_str(),
+				                api_info->defaultOutputDevice == devidx
+				                    ? " (default)"
+				                    : "");
+			}
 		}
 	}
 
@@ -343,6 +405,7 @@ PaDeviceIndex sound_part::list_get_devidx(const char *api_str, const char *devic
 		return Pa_GetDefaultOutputDevice();
 	}
 
+	m_print_devices = false;
 	return selected_devidx;
 }
 
