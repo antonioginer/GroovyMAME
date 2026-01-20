@@ -12,7 +12,6 @@
 #include "screen.h"
 
 #define LOG_VBLANK 0
-#define LOG_SINKS 0
 
 #if LOG_VBLANK
 	#define emusync_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
@@ -20,12 +19,6 @@
 #else
 	#define emusync_printf_verbose(...)
 	#define emusync_printf_info(...)
-#endif
-
-#if LOG_SINKS
-	#define emusync_sinks_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
-#else
-	#define emusync_sinks_printf_verbose(...)
 #endif
 
 #define MAX_PERIOD (1.0 / 49.0) * 1e9
@@ -261,8 +254,6 @@ void emusync::register_sink_samples(int id, uint64_t samples)
 		sink_st->second.m_ef.update(timestamp, sink_st->second.m_samples_out);
 		sink_st->second.m_update_ts = timestamp;
 	}
-
-	emusync_sinks_printf_verbose("[%.3f][%d][%llu][%f] register_sink_samples\n", timestamp * 1e3, id, samples, sink_st->second.m_ef.slope());
 }
 
 
@@ -643,7 +634,7 @@ bool emusync::serial_exchange(uint8_t msg, uint8_t* rdbuf, int count)
 {
 	if (m_serial.is_open())
 	{
-		m_io.reset();
+		m_io.restart();
 
 		m_serial_read_timer.expires_after(std::chrono::seconds(1));
 		m_serial_read_timer.async_wait(
@@ -688,7 +679,7 @@ bool emusync::serial_exchange(uint8_t msg, uint8_t* rdbuf, int count)
 //  emusync::serial_dump
 //============================================================
 
-void emusync::serial_dump()
+void emusync::serial_collect()
 {
 	uint8_t rxcnt;
 	uint8_t rx[127] = { 0 };
@@ -698,7 +689,7 @@ void emusync::serial_dump()
 	if (rxcnt < sizeof(serial_header_t) || rxcnt > sizeof(serial_header_t) + 10 * sizeof(serial_tag_t) ||
 	    (rxcnt - sizeof(serial_header_t)) % sizeof(serial_tag_t))
 	{
-		osd_printf_error("Emusync serial: invalid receive count %d\n", rxcnt);
+		osd_printf_error("Emusync serial: invalid receive count %u\n", rxcnt);
 		return;
 	}
 
