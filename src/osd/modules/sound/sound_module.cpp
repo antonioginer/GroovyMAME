@@ -16,18 +16,15 @@ sound_module::~sound_module()
 sound_module::abuffer::abuffer(uint32_t channels) noexcept : m_channels(channels), m_used_buffers(0), m_unused_buffers(0), m_last_sample(channels, 0)
 {
 	m_buf_maintenance = osd_ticks();
-	m_start_ticks = m_buf_maintenance;
 }
 
 void sound_module::abuffer::get(int16_t *data, uint32_t samples) noexcept
 {
 	osd_ticks_t ticks_now = osd_ticks();
-	//double d_ticks_now = (double)(ticks_now - m_start_ticks) / osd_ticks_per_second();
 
 	uint32_t pos = 0;
 	while(pos != samples) {
 		if(!m_used_buffers) {
-			//osd_printf_verbose("%f: underflow\n", d_ticks_now);
 			while(pos != samples) {
 				std::copy_n(m_last_sample.data(), m_channels, data);
 				data += m_channels;
@@ -57,14 +54,12 @@ void sound_module::abuffer::get(int16_t *data, uint32_t samples) noexcept
 	}
 
 	// this tracks the number of unused buffers (which can be dropped safely)
-	m_unused_buffers = (m_used_buffers < m_unused_buffers) ? m_used_buffers : m_unused_buffers;
+	m_unused_buffers = std::min(m_used_buffers, m_unused_buffers);
 
 	if (ticks_now - m_buf_maintenance > 2 * osd_ticks_per_second()) {
 		m_unused_buffers = m_used_buffers;
 		m_buf_maintenance = ticks_now;
 	}
-
-	//osd_printf_verbose("9999.9999, %d, %d, %d\n", available(), m_used_buffers, m_unused_buffers);
 }
 
 void sound_module::abuffer::push(const int16_t *data, uint32_t samples)
@@ -72,7 +67,7 @@ void sound_module::abuffer::push(const int16_t *data, uint32_t samples)
 	auto &buf = push_buffer();
 
 	const int buf_safety_margin = 2;
-	const int buf_keep = std::min<int>(std::max<int>(m_used_buffers - m_unused_buffers + buf_safety_margin, 0), 5);
+	const int buf_keep = std::clamp(m_used_buffers - m_unused_buffers + buf_safety_margin, 0, 5);
 
 	buf.m_cpos = 0;
 	buf.m_data.resize(samples * m_channels);
@@ -85,7 +80,6 @@ void sound_module::abuffer::push(const int16_t *data, uint32_t samples)
 			using std::swap;
 			swap(m_buffers[i], m_buffers[m_used_buffers + i - buf_keep]);
 		}
-		//osd_printf_verbose("%f: overflow, used: %d, unused: %d, dropping %d\n", (double)(osd_ticks() - m_start_ticks) / osd_ticks_per_second(), m_used_buffers, m_unused_buffers, m_used_buffers - buf_keep);
 		m_used_buffers = buf_keep;
 	}
 }
