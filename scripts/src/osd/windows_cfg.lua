@@ -62,3 +62,9 @@ else
 		"USE_SDL=0",
 	}
 end
+
+if not _OPTIONS["with-system-utf8proc"] then
+	defines {
+		"UTF8PROC_STATIC",
+	}
+end

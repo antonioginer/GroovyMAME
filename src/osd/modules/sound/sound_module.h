@@ -66,7 +66,6 @@ protected:
 		buffer &push_buffer();
 
 		osd_ticks_t m_buf_maintenance;
-		osd_ticks_t m_start_ticks;
 		uint32_t m_channels;
 		int m_used_buffers;
 		int m_unused_buffers;
