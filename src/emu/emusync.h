@@ -125,7 +125,7 @@ public:
 	} __attribute__((packed)) serial_header_t;
 
 	bool serial_write(uint8_t msg);
-	void serial_dump();
+	void serial_collect();
 
 private:
 	running_machine &m_machine;
