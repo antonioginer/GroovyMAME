@@ -99,7 +99,6 @@ class drmkms_timing : public custom_video
 		bool kms_has_mode(modeline*);
 		void list_drm_modes();
 		int get_master_fd();
-		bool wait_even_count();
 
 };
 
