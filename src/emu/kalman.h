@@ -1,3 +1,13 @@
+// license:BSD-3-Clause
+// copyright-holders:intealls
+//============================================================
+//
+//  kalman.h
+//
+//  Kalman filter, used to denoise vblank timestamps.
+//
+//============================================================
+
 #include <cmath>
 
 struct kalman_filter

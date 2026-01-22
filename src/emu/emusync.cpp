@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Antonio Giner, intealls
 //============================================================
 //
 //  emusync.cpp - raster synchronization
