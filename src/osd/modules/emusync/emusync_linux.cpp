@@ -195,7 +195,7 @@ void emusync::osd_deinit()
 {
 	if (drmvbl != nullptr)
 	{
-		std::destroy_at(drmvbl);
+		delete drmvbl;
 		drmvbl = nullptr;
 	}
 
