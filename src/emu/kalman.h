@@ -8,6 +8,9 @@
 //
 //============================================================
 
+#ifndef SRC_EMU_KALMAN_H_
+#define SRC_EMU_KALMAN_H_
+
 #include <cmath>
 
 struct kalman_filter
@@ -175,3 +178,5 @@ struct kalman_filter
 	// Get the current filtered timestamp
 	uint64_t get_filtered_timestamp() const { return (uint64_t)x[0]; }
 };
+
+#endif /* SRC_EMU_KALMAN_H_ */

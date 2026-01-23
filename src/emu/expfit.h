@@ -12,6 +12,9 @@
 #ifndef SRC_EMU_EXPFIT_H_
 #define SRC_EMU_EXPFIT_H_
 
+#include <cmath>
+#include <algorithm>
+
 struct exp_fit
 {
 	double m_meanX;

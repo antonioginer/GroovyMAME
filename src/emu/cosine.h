@@ -11,6 +11,8 @@
 #ifndef SRC_EMU_COSINE_H_
 #define SRC_EMU_COSINE_H_
 
+#include <algorithm>
+
 class cosine_resampler
 {
 public:
