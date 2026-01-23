@@ -16,7 +16,7 @@
 #include "expfit.h"
 #include "kalman.h"
 
-#include <unordered_map>
+#include <map>
 
 class emusync
 {
@@ -27,15 +27,15 @@ public:
 
 	enum event_tag
 	{
-		BEFORE_DRAW     = 0,
-		AFTER_DRAW      = 1,
-		BEFORE_PRESENT  = 2,
-		AFTER_PRESENT   = 3,
-		TIMESTAMP_ITEMS = 4,
-		POLL_INPUT      = 5,
-		SERIAL_FREEZE   = 240,
-		SERIAL_DUMP     = 241,
-		SERIAL_RESET    = 242
+		BEFORE_DRAW = 0,
+		AFTER_DRAW,
+		BEFORE_PRESENT,
+		AFTER_PRESENT,
+		TIMESTAMP_ITEMS,
+		POLL_INPUT,
+		SERIAL_FREEZE = 240,
+		SERIAL_DUMP,
+		SERIAL_RESET
 	};
 
 	std::unordered_map<event_tag, const char*> event_tag_map =
