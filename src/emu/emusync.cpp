@@ -6,15 +6,12 @@
 //
 //============================================================
 
-#include <functional>
-
 // MAME headers
-#include "emu.h"
 #include "emuopts.h"
 #include "emusync.h"
 #include "screen.h"
 
-#define LOG_VBLANK 1
+#define LOG_VBLANK 0
 #define LOG_SINKS 0
 
 #if LOG_VBLANK
@@ -139,9 +136,6 @@ void emusync::compute_vactive_ratio()
 
 inline uint64_t emusync::time_in_ns()
 {
-//	Windows-only, calls QueryPerformanceCounter
-//	return osd_ticks() * ticks_to_ns;
-
 	struct timespec monotime;
 	clock_gettime(CLOCK_MONOTONIC, &monotime);
 	return (uint64_t)(monotime.tv_sec) * (uint64_t)1000000000 + (uint64_t)(monotime.tv_nsec);
