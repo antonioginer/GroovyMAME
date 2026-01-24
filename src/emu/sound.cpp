@@ -1143,19 +1143,19 @@ void sound_manager::run_effects()
 				size_t output_frames;
 
 				double rate = 1000.0 / machine().video().speed_factor();
-				double sink_rate = machine().sync().get_sink_rate(stream.m_id) / stream.m_rate;
+				double sink_rate = machine().sync().get_sink_rate(stream.m_id);
 
-				if (machine().sync().handle_throttle() && machine().options().sync_audio())
+				if (machine().sync().handle_throttle() && machine().options().sync_audio()) {
 					rate = 1.0 / machine().sync().speed_factor();
+					rate *= sink_rate == 0.0 ? 1.0 : sink_rate / stream.m_rate;
 
-				rate *= sink_rate == 0.0 ? 1.0 : sink_rate;
+					machine().sync().log("Final audio rate [median(-0.0003:0.0003)]", machine().sync().NOW, rate);
+					machine().sync().log("Stream sink rate", machine().sync().NOW, sink_rate == 0.0 ? stream.m_rate : sink_rate);
+				}
 
 				stream.m_output_resampler.apply(rate, stream.m_buffer.data(), stream.m_samples, stream.m_output_buffer.data(), &output_frames, stream.m_channels);
 
 				machine().osd().sound_stream_sink_update(stream.m_id, stream.m_output_buffer.data(), output_frames);
-
-				machine().sync().log("Final audio rate [median(-0.0003:0.0003)]", machine().sync().NOW, rate);
-				machine().sync().log("Stream sink rate", machine().sync().NOW, (sink_rate == 0.0 ? 1.0 : sink_rate) * stream.m_rate);
 			}
 
 		machine().osd().sound_end_update();

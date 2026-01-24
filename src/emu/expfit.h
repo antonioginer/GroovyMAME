@@ -14,6 +14,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <limits>
 
 struct exp_fit
 {
@@ -34,11 +35,17 @@ struct exp_fit
 
 	exp_fit(double alpha, double x, double y)
 	{
+		if (!(alpha > 0.0 && alpha <= 1.0))
+			alpha = 0.5;
+
 		m_alpha = alpha;
 		reset(x, y);
 
 		// use estimate when 10% of initial value remains
 		m_lim = std::log(0.10) / std::log(1.0 - alpha) + 0.5;
+
+		if (m_lim < 1)
+			m_lim = 1;
 	}
 
 	void reset(double x, double y)
@@ -59,6 +66,9 @@ struct exp_fit
 
 	void update(double x, double y)
 	{
+		if (!std::isfinite(x) || !std::isfinite(y))
+			return;
+
 		double xt = x - m_x0;
 		double yt = y - m_y0;
 
@@ -84,7 +94,15 @@ struct exp_fit
 
 	double slope()
 	{
-		return m_covXY / m_varX;
+		if (std::abs(m_varX) < std::numeric_limits<double>::epsilon())
+			return 0.0;
+
+		double out = m_covXY / m_varX;
+
+		if (!std::isfinite(out))
+			return 0.0;
+
+		return out;
 	}
 
 	double slope_out()
