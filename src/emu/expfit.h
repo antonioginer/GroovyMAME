@@ -15,6 +15,7 @@
 #include <cmath>
 #include <algorithm>
 #include <limits>
+#include <atomic>
 
 struct exp_fit
 {
@@ -31,43 +32,52 @@ struct exp_fit
 	double m_y0;
 
 	int m_lim;
-	double m_slope_lim;
+	std::atomic<double> m_slope_lim;
 
-	exp_fit(double alpha, double x, double y)
+	exp_fit(double alpha)
 	{
 		if (!(alpha > 0.0 && alpha <= 1.0))
 			alpha = 0.5;
 
 		m_alpha = alpha;
-		reset(x, y);
 
 		// use estimate when 10% of initial value remains
 		m_lim = std::log(0.10) / std::log(1.0 - alpha) + 0.5;
 
 		if (m_lim < 1)
 			m_lim = 1;
+
+		reset();
 	}
 
-	void reset(double x, double y)
+	void reset()
 	{
-		m_x0 = x;
-		m_y0 = y;
+		m_x0 = 0.0;
+		m_y0 = 0.0;
 
-		m_meanX = 0;
-		m_meanY = 0;
-		m_varX = 0;
-		m_covXY = 0;
-		m_n = 0;
-		m_meanXY = 0;
-		m_varY = 0;
+		m_meanX  = 0.0;
+		m_meanY  = 0.0;
+		m_varX   = 0.0;
+		m_covXY  = 0;
+		m_n      = 0;
+		m_meanXY = 0.0;
+		m_varY   = 0.0;
 
-		m_slope_lim = 0.0;
+		m_slope_lim.store(0.0, std::memory_order_relaxed);
 	}
 
 	void update(double x, double y)
 	{
 		if (!std::isfinite(x) || !std::isfinite(y))
 			return;
+
+		if (m_x0 == 0.0 && m_y0 == 0.0)
+		{
+			m_x0 = x;
+			m_y0 = y;
+
+			return;
+		}
 
 		double xt = x - m_x0;
 		double yt = y - m_y0;
@@ -89,9 +99,15 @@ struct exp_fit
 		m_meanXY += dxy * alpha;
 
 		if (m_n > m_lim)
-			m_slope_lim = slope();
+			m_slope_lim.store(slope(), std::memory_order_relaxed);
 	}
 
+	double slope_out()
+	{
+		return m_slope_lim.load(std::memory_order_relaxed);
+	}
+
+private:
 	double slope()
 	{
 		if (std::abs(m_varX) < std::numeric_limits<double>::epsilon())
@@ -103,11 +119,6 @@ struct exp_fit
 			return 0.0;
 
 		return out;
-	}
-
-	double slope_out()
-	{
-		return m_slope_lim;
 	}
 };
 

@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <atomic>
 #ifndef MAME_EMU_SYNC_H
 #define MAME_EMU_SYNC_H
 
@@ -65,7 +66,7 @@ public:
 	bool register_vblank_in_ticks(uint64_t sync_count, uint64_t timestamp);
 	bool register_vblank_in_ns(uint64_t sync_count, uint64_t timestamp);
 	void register_emutime(uint64_t emutime);
-	void register_sink_samples(int id, uint64_t samples);
+	void register_sink_samples(uint32_t id, uint64_t samples);
 	double get_sink_rate(int id);
 	uint64_t wait_raster(uint64_t count, double scan);
 	void get_raster(raster_status *status);
@@ -196,12 +197,22 @@ private:
 		double m_update_interval;
 		uint64_t m_samples_out;
 		exp_fit m_ef;
+		std::atomic<bool> m_reset_request;
 
-		sink_status(double timestamp, uint64_t samples_out) :
-			m_update_ts(timestamp),
+		sink_status() :
+			m_update_ts(0.0),
 			m_update_interval(0.050), // 20 Hz
-			m_samples_out(samples_out),
-			m_ef(exp_fit(0.025, timestamp, samples_out)) { }
+			m_samples_out(0),
+			m_ef(0.025),
+		 	m_reset_request(false) { }
+
+		void reset(double timestamp) {
+			m_update_ts = timestamp;
+			m_samples_out = 0;
+			m_ef.reset();
+			m_ef.update(m_update_ts, m_samples_out);
+			m_reset_request.store(false, std::memory_order_relaxed);
+		}
 	};
 
 	std::map<uint32_t, struct sink_status> m_sinks;
