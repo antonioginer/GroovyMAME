@@ -6,6 +6,10 @@
 //
 //============================================================
 
+#include <atomic>
+#include <cstdint>
+#include <functional>
+
 // MAME headers
 #include "emuopts.h"
 #include "emusync.h"
@@ -98,6 +102,9 @@ void emusync::reset()
 	m_current_period = 0;
 	m_mean = 0;
 	m_kf.reset();
+
+	for (auto& [id, sink_st] : m_sinks)
+		sink_st.m_reset_request.store(true, std::memory_order_relaxed);
 }
 
 
@@ -237,14 +244,14 @@ void emusync::register_emutime(uint64_t emutime)
 //  emusync::register_sink_samples
 //============================================================
 
-void emusync::register_sink_samples(int id, uint64_t samples)
+void emusync::register_sink_samples(uint32_t id, uint64_t samples)
 {
 	double timestamp = time_now() / 1e3;
 
-	auto sink_st = m_sinks.find(id);
+	auto [sink_st, inserted] = m_sinks.try_emplace(id);
 
-	if (sink_st == m_sinks.end()) {
-		m_sinks.emplace(id, sink_status(timestamp, samples));
+	if (inserted || sink_st->second.m_reset_request.load(std::memory_order_relaxed)) {
+		sink_st->second.reset(timestamp);
 		return;
 	}
 
