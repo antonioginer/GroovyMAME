@@ -102,6 +102,7 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_FD_MARGIN "(0.0-10.0)",                     "1.0",       core_options::option_type::FLOAT,      "for frame delay margin, reserve this many milliseconds for vblank etc"},
 	{ OPTION_VSYNC_OFFSET,                               "0",         core_options::option_type::INTEGER,    "offset vsync position by this many lines to prevent tearing with frame_delay and high-resolution displays" },
 	{ OPTION_BLACK_FRAME_INSERTION ";bfi",               "0",         core_options::option_type::INTEGER,    "number of black frames to insert after each normal frame, intended to reduce motion blur on 120+ Hz monitors" },
+	{ OPTION_TEARBAR ";tb",                              "0",         core_options::option_type::BOOLEAN,    "show tear bar" },
 
 	// render options
 	{ nullptr,                                           nullptr,     core_options::option_type::HEADER,     "CORE RENDER OPTIONS" },
@@ -137,6 +138,7 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_CONTRAST "(0.1-2.0)",                       "1.0",       core_options::option_type::FLOAT,      "default game screen contrast correction" },
 	{ OPTION_GAMMA "(0.1-3.0)",                          "1.0",       core_options::option_type::FLOAT,      "default game screen gamma correction" },
 	{ OPTION_PAUSE_BRIGHTNESS "(0.0-1.0)",               "0.65",      core_options::option_type::FLOAT,      "amount to scale the screen brightness when paused" },
+	{ OPTION_BFI_BRIGHTNESS "(0.0-1.0)",                 "0.0",       core_options::option_type::FLOAT,      "dimmed brightness for black frame insertion" },
 	{ OPTION_EFFECT,                                     "none",      core_options::option_type::STRING,     "name of a PNG file to use for visual effects, or 'none'" },
 
 	// vector options
