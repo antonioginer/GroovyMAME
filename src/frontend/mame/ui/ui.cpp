@@ -943,6 +943,17 @@ bool mame_ui_manager::update_and_render(render_container &container)
 	else
 		m_popup_text_end = 0;
 
+	if (machine().options().tearbar())
+	{
+		static int x = 0;
+		int width = (double)machine().render().ui_target().width();
+		double x_pos = (double)x / width;
+		x++;
+		if (x > width) x = 0;
+
+		container.add_rect(x_pos, 0, x_pos + 1.0 / 64.0, 1, 0xff00ff00, PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
+	}
+
 	// display the internal pointers
 	bool const pointer_update = m_pointers_changed;
 	m_pointers_changed = false;

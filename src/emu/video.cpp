@@ -252,7 +252,8 @@ void video_manager::frame_update(bool from_debugger)
 		if (phase == machine_phase::RUNNING && (!machine().paused() || machine().options().update_in_pause()))
 		{
 			render_container *container = &machine().render().ui_container();
-			container->add_rect(0, 0, 1, 1, 0x80000000, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+			int alpha = (1.0f - machine().options().bfi_brightness()) * 255.0f;
+			container->add_rect(0, 0, 1, 1, rgb_t(alpha,0x00,0x00,0x00), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 			for (int i = 0; i < machine().options().black_frame_insertion(); i++)
 			{
 				update_throttle(current_time);

@@ -83,6 +83,7 @@
 #define OPTION_FD_MARGIN            "fd_margin"
 #define OPTION_VSYNC_OFFSET         "vsync_offset"
 #define OPTION_BLACK_FRAME_INSERTION "black_frame_insertion"
+#define OPTION_TEARBAR              "tearbar"
 
 // core render options
 #define OPTION_KEEPASPECT           "keepaspect"
@@ -114,6 +115,7 @@
 #define OPTION_CONTRAST             "contrast"
 #define OPTION_GAMMA                "gamma"
 #define OPTION_PAUSE_BRIGHTNESS     "pause_brightness"
+#define OPTION_BFI_BRIGHTNESS       "bfi_brightness"
 #define OPTION_EFFECT               "effect"
 
 // core vector options
@@ -377,6 +379,7 @@ public:
 	float fd_margin() const { return float_value(OPTION_FD_MARGIN); }
 	int vsync_offset() const { return int_value(OPTION_VSYNC_OFFSET); }
 	int black_frame_insertion() const { return int_value(OPTION_BLACK_FRAME_INSERTION); }
+	bool tearbar() const { return bool_value(OPTION_TEARBAR); }
 
 	// core render options
 	bool keep_aspect() const { return bool_value(OPTION_KEEPASPECT); }
@@ -408,6 +411,7 @@ public:
 	float contrast() const { return float_value(OPTION_CONTRAST); }
 	float gamma() const { return float_value(OPTION_GAMMA); }
 	float pause_brightness() const { return float_value(OPTION_PAUSE_BRIGHTNESS); }
+	float bfi_brightness() const { return float_value(OPTION_BFI_BRIGHTNESS); }
 	const char *effect() const { return value(OPTION_EFFECT); }
 
 	// core vector options
