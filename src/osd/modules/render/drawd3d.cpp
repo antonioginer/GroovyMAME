@@ -1129,6 +1129,8 @@ void renderer_d3d9::device_delete()
 
 	// free the device itself
 	m_device.Reset();
+
+	if (window().index() == 0) m_sync.osd_deinit();
 }
 
 

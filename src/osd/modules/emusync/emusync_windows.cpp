@@ -71,7 +71,7 @@ bool emusync::osd_init(uint64_t monitor_handle, std::function<bool(void)> get_vb
 {
 	// If the renderer doesn't have a timestamp method, use Windows to get timestamps
 	const windows_options& options = dynamic_cast<windows_options const &>(machine().options());
-	bool use_polling_thread = (get_vblank_timestamp_external == nullptr || options.wvblsync());
+	bool use_polling_thread = (get_vblank_timestamp_external == nullptr || options.vblank_thread());
 
 	get_vblank_timestamp = use_polling_thread ?
 						std::bind(&emusync::get_vblank_timestamp_default, this) :

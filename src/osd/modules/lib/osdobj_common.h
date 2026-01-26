@@ -121,7 +121,7 @@
 #define OSDOPTION_SYNC_REFRESH_TOLERANCE "sync_refresh_tolerance"
 #define OSDOPTION_INTERLACE_FORCE_EVEN  "interlace_force_even"
 #define OSDOPTION_AUTOSYNC              "autosync"
-#define OSDOPTION_WVBLSYNC              "wvblsync"
+#define OSDOPTION_VBLANK_THREAD         "vblank_thread"
 #define OSDOPTION_AUTOFILTER            "autofilter"
 #define OSDOPTION_AUTOSTRETCH           "autostretch"
 #define OSDOPTION_SCALE_PROPORTIONAL    "scale_proportional"
@@ -210,7 +210,7 @@ public:
 	float sync_refresh_tolerance() const { return float_value(OSDOPTION_SYNC_REFRESH_TOLERANCE); }
 	bool interlace_force_even() const { return bool_value(OSDOPTION_INTERLACE_FORCE_EVEN); }
 	bool autosync() const { return bool_value(OSDOPTION_AUTOSYNC); }
-	bool wvblsync() const { return bool_value(OSDOPTION_WVBLSYNC); }
+	bool vblank_thread() const { return bool_value(OSDOPTION_VBLANK_THREAD); }
 	bool autofilter() const { return bool_value(OSDOPTION_AUTOFILTER); }
 	bool autostretch() const { return bool_value(OSDOPTION_AUTOSTRETCH); }
 	bool scale_proportional() const { return bool_value(OSDOPTION_SCALE_PROPORTIONAL); }
