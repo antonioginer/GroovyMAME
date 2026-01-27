@@ -483,6 +483,9 @@ public:
 	void set_resampler_hq_length(u32 length);
 	void set_resampler_hq_phases(u32 phases);
 
+	// periodic sound update, called STREAMS_UPDATE_FREQUENCY per second
+	void update(s32);
+
 private:
 	struct effect_step {
 		std::unique_ptr<audio_effect> m_effect;
@@ -594,9 +597,6 @@ private:
 	// handle configuration load/save
 	void config_load(config_type cfg_type, config_level cfg_lvl, util::xml::data_node const *parentnode);
 	void config_save(config_type cfg_type, util::xml::data_node *parentnode);
-
-	// periodic sound update, called STREAMS_UPDATE_FREQUENCY per second
-	void update(s32);
 
 	// handle mixing mapping update if needed
 	static std::vector<u32> find_channel_mapping(const osd::channel_position &pos, const osd::audio_info::node_info *node);
