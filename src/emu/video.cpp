@@ -246,6 +246,9 @@ void video_manager::frame_update(bool from_debugger)
 		machine().osd().update(!from_debugger && skipped_it);
 	}
 
+	if (phase > machine_phase::INIT)
+		machine().sound().update(0);
+
 	// manage black frame insertion
 	if (machine().options().black_frame_insertion() && machine().options().sync_refresh())
 	{
