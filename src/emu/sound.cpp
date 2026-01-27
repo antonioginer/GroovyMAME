@@ -772,15 +772,8 @@ sound_manager::sound_manager(running_machine &machine) :
 	machine.save().save_item(NAME(m_last_sync_time));
 
 	// start the periodic update flushing timer
-	m_update_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(sound_manager::update), this));
-	screen_device_enumerator iter(machine.root_device());
-	if (iter.first() == nullptr) {
-		// screenless
-		m_update_timer->adjust(STREAMS_UPDATE_ATTOTIME, 0, STREAMS_UPDATE_ATTOTIME);
-	} else {
-		attotime update_period = iter.first()->frame_period();
-		m_update_timer->adjust(update_period, 0, update_period);
-	}
+	// m_update_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(sound_manager::update), this));
+	// m_update_timer->adjust(STREAMS_UPDATE_ATTOTIME, 0, STREAMS_UPDATE_ATTOTIME);
 
 	// mark the generation as "just starting, waiting for config loading"
 	m_osd_info.m_generation = 0xffff0000;
@@ -2676,7 +2669,6 @@ void sound_manager::update(s32)
 	streams_update();
 
 	m_last_sync_time = machine().time();
-	m_update_timer->adjust(attotime::from_nsec(machine().sync().emu_period()));
 }
 
 void sound_manager::streams_update()
