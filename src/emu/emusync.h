@@ -8,10 +8,10 @@
 
 #pragma once
 
-#include <atomic>
 #ifndef MAME_EMU_SYNC_H
 #define MAME_EMU_SYNC_H
 
+#include <atomic>
 #include <asio.h>
 
 #include "expfit.h"

@@ -8,7 +8,6 @@
 
 #include <atomic>
 #include <cstdint>
-#include <functional>
 
 // MAME headers
 #include "emuopts.h"
