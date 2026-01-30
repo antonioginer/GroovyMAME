@@ -948,7 +948,8 @@ bool mame_ui_manager::update_and_render(render_container &container)
 		static int x = 0;
 		int width = (double)machine().render().ui_target().width();
 		double x_pos = (double)x / width;
-		x++;
+		int x_step = std::max(1, width / 256);
+		x += x_step;
 		if (x > width) x = 0;
 
 		container.add_rect(x_pos, 0, x_pos + 1.0 / 64.0, 1, 0xff00ff00, PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
