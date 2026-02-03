@@ -186,6 +186,7 @@ public:
 	void draw_text_box(render_container &container, std::string_view text, ui::text_layout::text_justify justify, float xpos, float ypos, rgb_t backcolor);
 	void draw_text_box(render_container &container, ui::text_layout &layout, float xpos, float ypos, rgb_t backcolor);
 	void draw_message_window(render_container &container, std::string_view text);
+	void draw_tear_bar(render_container &container);
 
 	// load/save options to file
 	void load_ui_options();

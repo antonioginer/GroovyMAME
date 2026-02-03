@@ -943,17 +943,9 @@ bool mame_ui_manager::update_and_render(render_container &container)
 	else
 		m_popup_text_end = 0;
 
-	if (machine().options().tearbar())
-	{
-		static int x = 0;
-		int width = (double)machine().render().ui_target().width();
-		double x_pos = (double)x / width;
-		int x_step = std::max(1, width / 256);
-		x += x_step;
-		if (x > width) x = 0;
-
-		container.add_rect(x_pos, 0, x_pos + 1.0 / 64.0, 1, 0xff00ff00, PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
-	}
+	// draw tear bar
+	if (show_fps_counter() && machine().options().tearbar())
+		draw_tear_bar(container);
 
 	// display the internal pointers
 	bool const pointer_update = m_pointers_changed;
@@ -1235,6 +1227,26 @@ void mame_ui_manager::draw_text_box(render_container &container, ui::text_layout
 void mame_ui_manager::draw_message_window(render_container &container, std::string_view text)
 {
 	draw_text_box(container, text, ui::text_layout::text_justify::LEFT, 0.5f, 0.5f, colors().background_color());
+}
+
+
+//-------------------------------------------------
+//  draw_tear_bar - draw a tear test scrolling bar
+//-------------------------------------------------
+
+void mame_ui_manager::draw_tear_bar(render_container &container)
+{
+	static int i = 0;
+
+	// draw vertical bar at current x position
+	int target_width = machine().render().ui_target().width();
+	double xpos = (double)i / target_width;
+
+	container.add_rect(xpos, 0, xpos + 1.0 / 64.0, 1, 0xff00ff00, PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
+
+	// increase bar x position
+	i += std::max(1, target_width / 256);
+	i %= target_width;
 }
 
 
