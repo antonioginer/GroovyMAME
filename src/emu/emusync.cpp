@@ -163,20 +163,20 @@ void emusync::register_tag(enum emusync::event_tag tag)
 
 	switch ((int)tag)
 	{
-		case BEFORE_DRAW:
+		case BEFORE_SYNC:
 		{
-			if (m_timestamp[AFTER_DRAW] != 0)
-				register_emutime(m_timestamp[BEFORE_DRAW] - m_timestamp[AFTER_DRAW]);
+			if (m_timestamp[AFTER_SYNC] != 0)
+				register_emutime(m_timestamp[BEFORE_SYNC] - m_timestamp[AFTER_SYNC]);
 			break;
 		}
 
-		case AFTER_DRAW:
+		case AFTER_SYNC:
 		{
 			if (prev_timestamp != 0)
 			{
 				m_frame_time = m_timestamp[tag] - prev_timestamp;
 				emusync_printf_verbose("present: %.3f emu_t: %.3f emu_t_avg: %.3f Dm: %.3f period: %.3f\n\n",
-					get_ms(m_timestamp[AFTER_PRESENT] - m_timestamp[BEFORE_PRESENT]), get_ms(m_current_emulation_time), get_ms(m_emulation_time_avg), get_ms(m_emulation_time_dm), frame_time_in_ms());
+					get_ms(m_timestamp[AFTER_BLIT] - m_timestamp[BEFORE_BLIT]), get_ms(m_current_emulation_time), get_ms(m_emulation_time_avg), get_ms(m_emulation_time_dm), frame_time_in_ms());
 			}
 			else
 				emusync_printf_verbose("\n");
@@ -477,7 +477,7 @@ void emusync::update_stats()
 
 void emusync::predraw_sync()
 {
-	register_tag(emusync::BEFORE_DRAW);
+	register_tag(emusync::BEFORE_SYNC);
 
 	m_predraw_sync_wait = 0;
 	raster_status raster = {};
@@ -506,8 +506,8 @@ void emusync::predraw_sync()
 		emusync_printf_verbose("missed retrace\n");
 
 	exit:
-	register_tag(emusync::BEFORE_PRESENT);
-	serial_write(emusync::BEFORE_PRESENT);
+	register_tag(emusync::BEFORE_BLIT);
+	serial_write(emusync::BEFORE_BLIT);
 }
 
 
@@ -517,8 +517,8 @@ void emusync::predraw_sync()
 
 void emusync::postdraw_sync()
 {
-	register_tag(emusync::AFTER_PRESENT);
-	serial_write(emusync::AFTER_PRESENT);
+	register_tag(emusync::AFTER_BLIT);
+	serial_write(emusync::AFTER_BLIT);
 
 	m_postdraw_sync_wait = 0;
 
@@ -551,7 +551,7 @@ void emusync::postdraw_sync()
 	emusync_printf_verbose("[%.3f] wait: %.3f ", time_now(), get_ms(m_predraw_sync_wait + m_postdraw_sync_wait));
 
 	exit:
-	register_tag(emusync::AFTER_DRAW);
+	register_tag(emusync::AFTER_SYNC);
 }
 
 

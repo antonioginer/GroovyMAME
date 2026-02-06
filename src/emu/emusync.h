@@ -28,25 +28,28 @@ public:
 
 	enum event_tag
 	{
-		BEFORE_DRAW = 0,
-		AFTER_DRAW,
-		BEFORE_PRESENT,
-		AFTER_PRESENT,
-		TIMESTAMP_ITEMS,
+		BEFORE_SYNC = 0,
+		AFTER_SYNC,
+		BEFORE_BLIT,
+		AFTER_BLIT,
 		POLL_INPUT,
-		SERIAL_FREEZE = 240,
-		SERIAL_DUMP,
-		SERIAL_RESET
+		TIMESTAMP_ITEMS
 	};
 
 	std::unordered_map<event_tag, const char*> event_tag_map =
 	{
-		{ BEFORE_DRAW,     "BEFORE_DRAW"     },
-		{ AFTER_DRAW,      "AFTER_DRAW"      },
-		{ BEFORE_PRESENT,  "BEFORE_PRESENT"  },
-		{ AFTER_PRESENT,   "AFTER_PRESENT"   },
-		{ TIMESTAMP_ITEMS, "TIMESTAMP_ITEMS" },
-		{ POLL_INPUT,      "POLL_INPUT"      },
+		{ BEFORE_SYNC,     "BEFORE_SYNC"  },
+		{ AFTER_SYNC,      "AFTER_SYNC"   },
+		{ BEFORE_BLIT,     "BEFORE_BLIT"  },
+		{ AFTER_BLIT,      "AFTER_BLIT"   },
+		{ POLL_INPUT,      "POLL_INPUT"   },
+	};
+
+	enum serial_command
+	{
+		SERIAL_FREEZE = 240,
+		SERIAL_DUMP,
+		SERIAL_RESET
 	};
 
 	struct raster_status
@@ -107,18 +110,21 @@ public:
 	void set_vratio(int vactive, int vtotal) { m_vactive = vactive; m_vtotal = vtotal; compute_vactive_ratio(); }
 	void set_interlace(bool interlace) { m_interlaced = interlace; }
 
-	enum log_type {
+	enum log_type
+	{
 		NOW
 	};
 
 	void log(std::string tag, log_type type, double value);
 
-	typedef struct {
+	typedef struct
+	{
 		uint8_t data;
 		uint32_t timestamp;
 	} __attribute__((packed)) serial_tag_t;
 
-	typedef struct {
+	typedef struct
+	{
 		uint32_t system_clock;
 		uint32_t vsync_count;
 		uint32_t vsync_timestamp;
