@@ -37,6 +37,13 @@
 #define D3DPRESENT_DONOTFLIP      0x00000004L
 #define D3DPRESENT_FORCEIMMEDIATE 0x00000100L
 
+#define LOG_PRESENT_COUNT 0
+
+#if LOG_PRESENT_COUNT
+	#define emusync_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
+#else
+	#define emusync_printf_verbose(...)
+#endif
 
 //============================================================
 //  OSD MODULE
@@ -855,7 +862,7 @@ bool renderer_d3d9::get_vblank_timestamp()
 	if (FAILED(hr))
 		return false;
 
-	osd_printf_verbose("prev present count: #%d [%d]\n", st.PresentCount, st.SyncRefreshCount - m_sync.first_sync_count());
+	emusync_printf_verbose("prev present count: #%d [%d]\n", st.PresentCount, st.SyncRefreshCount - m_sync.first_sync_count());
 	m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 	return true;
@@ -868,7 +875,7 @@ uint64_t renderer_d3d9::get_frame_counter()
 
 	uint32_t frame_count;
 	m_swap->GetLastPresentCount(&frame_count);
-	osd_printf_verbose("this present count: #%d\n", frame_count);
+	emusync_printf_verbose("this present count: #%d\n", frame_count);
 
 	if (frame_count == 1)
 	{
@@ -881,7 +888,7 @@ uint64_t renderer_d3d9::get_frame_counter()
 			m_swap->GetPresentStats(&st);
 		}
 		while (st.PresentCount != 1 && get_ms(time2 - time1) < 300.0);
-		osd_printf_verbose("Synchronizing with first timestamp: [%.3f] stats: %d %d %d %lld\n\n",
+		osd_printf_verbose("Direct3D: synchronizing with first timestamp: %.3f ms elapsed, stats: %d, %d, %d, %lld\n",
 			get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 		m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);

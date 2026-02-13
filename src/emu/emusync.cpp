@@ -14,7 +14,7 @@
 #include "emusync.h"
 #include "screen.h"
 
-#define LOG_VBLANK 1
+#define LOG_VBLANK 0
 
 #if LOG_VBLANK
 	#define emusync_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)

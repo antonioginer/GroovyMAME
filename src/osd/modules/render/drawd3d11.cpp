@@ -31,7 +31,15 @@
 #include "emusync.h"
 
 #define LOG_SCANLINES 0
+#define LOG_PRESENT_COUNT 0
 #define DEVICE_FLAGS 0 //| D3D11_CREATE_DEVICE_DEBUG
+
+#if LOG_PRESENT_COUNT
+	#define emusync_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
+#else
+	#define emusync_printf_verbose(...)
+#endif
+
 
 //============================================================
 //  log_debug_info
@@ -728,7 +736,7 @@ bool renderer_d3d11::get_vblank_timestamp()
 	if (FAILED(hr))
 		return false;
 
-	osd_printf_verbose("prev present count: #%d [%d]\n", st.PresentCount, st.SyncRefreshCount - m_sync.first_sync_count());
+	emusync_printf_verbose("prev present count: #%d [%d]\n", st.PresentCount, st.SyncRefreshCount - m_sync.first_sync_count());
 	m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 	return true;
@@ -745,7 +753,7 @@ uint64_t renderer_d3d11::get_frame_counter()
 
 	uint32_t frame_count;
 	m_swapchain->GetLastPresentCount(&frame_count);
-	osd_printf_verbose("this present count: #%d\n", frame_count);
+	emusync_printf_verbose("this present count: #%d\n", frame_count);
 
 	if (frame_count == 1)
 	{
@@ -758,7 +766,7 @@ uint64_t renderer_d3d11::get_frame_counter()
 			m_swapchain->GetFrameStatistics(&st);
 		}
 		while (st.PresentCount != 1 && get_ms(time2 - time1) < 300.0);
-		osd_printf_verbose("Synchronizing with first timestamp: [%.3f] stats: %d %d %d %lld\n\n",
+		osd_printf_verbose("d3d11: synchronizing with first timestamp: %.3f ms elapsed, stats: %d, %d, %d, %lld\n",
 			get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
 		m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
