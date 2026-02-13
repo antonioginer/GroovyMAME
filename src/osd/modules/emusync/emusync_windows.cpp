@@ -168,6 +168,8 @@ bool scanline_init(uint64_t monitor_handle, bool polling_thread)
 		osd_printf_verbose("emusync: polling thread started.\n");
 		is_active = true;
 
+		const uint64_t ticks_to_ns = 1e9 / osd_ticks_per_second();
+
 		while (is_active)
 		{
 			D3DKMT_WAITFORVERTICALBLANKEVENT vblank_data;
@@ -177,9 +179,7 @@ bool scanline_init(uint64_t monitor_handle, bool polling_thread)
 
 			if ((*WaitForVerticalBlankEvent)(&vblank_data) == STATUS_SUCCESS)
 			{
-				struct timespec monotime;
-				clock_gettime(CLOCK_MONOTONIC, &monotime);
-				vblank_timestamp = (uint64_t)(monotime.tv_sec) * (uint64_t)1000000000 + (uint64_t)(monotime.tv_nsec);
+				vblank_timestamp = osd_ticks() * ticks_to_ns;
 				vblank_counter ++;
 				is_initialized = true;
 			}

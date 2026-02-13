@@ -14,7 +14,7 @@
 #include "emusync.h"
 #include "screen.h"
 
-#define LOG_VBLANK 0
+#define LOG_VBLANK 1
 
 #if LOG_VBLANK
 	#define emusync_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
@@ -135,9 +135,14 @@ void emusync::compute_vactive_ratio()
 
 inline uint64_t emusync::time_in_ns()
 {
+#ifdef _WIN32
+	// Required by Windows 7, where clock_gettime doesn't call QueryPerformanceCounter
+	return osd_ticks() * ticks_to_ns;
+#else
 	struct timespec monotime;
 	clock_gettime(CLOCK_MONOTONIC, &monotime);
 	return (uint64_t)(monotime.tv_sec) * (uint64_t)1000000000 + (uint64_t)(monotime.tv_nsec);
+#endif
 }
 
 
