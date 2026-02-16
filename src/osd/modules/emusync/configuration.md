@@ -7,8 +7,6 @@ Enable speed throttling tied strictly to your monitor’s refresh rate. This adj
 This option enables V-Sync through _emusync_, which handles raster synchronization directly.
 
 The default is OFF (this option is preferably managed through **-autosync**)
-
-**-[no]syncrefresh** / **-srf**
 ___
 
 **-[no]waitvsync** _(reimplemented)_
@@ -22,7 +20,7 @@ ___
 
 **-[no]autosync**
 
-Automatically enable **-syncrefresh** if the refresh difference is below or equal the **-syncrefresh_tolerance**'s value. Otherwise, enable **-waitsync** and throttle the emulation at the system's original speed.
+Automatically enable **-syncrefresh** if the refresh difference is below or equal the value specified by **-syncrefresh_tolerance**. Otherwise, enable **-waitvsync** and throttle the emulation at the system's original speed.
 
 | -autosync | -syncrefresh_tolerance _<value\>_ | effect |
 | :---: | :---: | :---: |
@@ -69,6 +67,8 @@ Delay emulation of each frame to minimize input latency (0-9). The emulation is 
 | 0 | 1 | automatic |
 | 1-9 | - | manual |
 
+It is recommended to use this option in combination with **-nosleep**.
+
 The default is 0.
 
 _For convenience, a UI slider is provided to allow for persistent per-game settings._
@@ -83,7 +83,7 @@ ___
 
 **-fd_margin** _<value\>_
 
-Reserve a margin of _<value\>_ milliseconds to account for variability in frame emulation time when automatic framedelay is enabled.
+Reserve a margin of _value_ milliseconds to account for variability in frame emulation time when automatic framedelay is enabled.
 
 * Increase **-fd_margin** to reduce glitches.
 * Decrease **-fd_margin** to reduce latency.
@@ -95,7 +95,7 @@ ___
 
 **-vsync_offset** _<n\>_
 
-Offset vblank position by _<n\>_ lines to prevent tearing.
+Offset vblank position by _n_ lines to prevent tearing.
 
 * Negative _n_ : syncs before real vblank &#8594; moves tear line upwards, hiding it at the top of screen.
 * Positive _n_ : syncs after real vblank &#8594; moves tear line downwards, hiding it at bottom of screen tearing.
@@ -111,7 +111,7 @@ ___
 
 **[no]-tearbar** / **-tb**
 
-Show a scrolling vertical bar to expose and detect tearing. When enabled, a green bar is shown along the FPS diplay by pressing [F11].
+Show a scrolling vertical bar to expose and detect tearing. When enabled, a green bar is shown along the FPS display by pressing [F11].
 
 The default is ON. (**-tearbar**)
 ___
