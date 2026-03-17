@@ -456,6 +456,8 @@ void emusync::get_raster(raster_status *status)
 
 double emusync::current_framedelay()
 {
+	if (m_framedelay_external != -1.0) return m_framedelay_external;
+
 	uint64_t effective_margin = std::max(m_emulation_time_dm, m_fd_margin);
 	uint64_t adjusted_emulation_time = std::min(m_emulation_time_avg + effective_margin, period());
 	return std::max((double)(period() - adjusted_emulation_time) / period(), 0.0);

@@ -109,6 +109,7 @@ public:
 	void set_vsync_offset(int vsync_offset) { m_vsync_offset = vsync_offset; }
 	void set_vratio(int vactive, int vtotal) { m_vactive = vactive; m_vtotal = vtotal; compute_vactive_ratio(); }
 	void set_interlace(bool interlace) { m_interlaced = interlace; }
+	void set_framedelay_external(double framedelay) { m_framedelay_external = framedelay; }
 
 	enum log_type
 	{
@@ -190,6 +191,7 @@ private:
 	uint32_t m_vtotal_osd = 0;
 	bool     m_interlaced;
 	double   m_vactive_ratio;
+	double   m_framedelay_external = -1.0;
 
 	int ticks_to_ns = 0;
 	uint64_t sleep_time = 1e6; // 1 ms

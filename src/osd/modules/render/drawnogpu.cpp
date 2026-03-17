@@ -153,6 +153,7 @@ public:
 		: osd_renderer(window)
 		, m_bmdata(nullptr)
 		, m_bmsize(0)
+		, m_sync(window.sync())
 	{
 	}
 
@@ -227,6 +228,9 @@ private:
 	bool nogpu_wait_ack(double timeout);
 	bool nogpu_wait_status(nogpu_blit_status *status, double timeout);
 	void nogpu_register_frametime(osd_ticks_t frametime);
+
+	// emusync manager
+	emusync &m_sync;
 };
 
 inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
@@ -892,6 +896,8 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 		m_frame_delay = (double)(video_config.framedelay) / 10.0;
 		vsync_offset = window().machine().sync().vsync_offset();
 	}
+
+	m_sync.set_framedelay_external(m_frame_delay);
 
 	// Update vsync scanline
 	m_vsync_scanline = std::min<int>((m_current_mode.vtotal) * m_frame_delay + vsync_offset + 1, m_current_mode.vtotal);
