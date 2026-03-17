@@ -5,11 +5,11 @@
 
 ## Introduction and Acknowledgements
 
-We are introducing _emusync_, a new synchronization system for GroovyMAME, coded by **intealls** and **Calamity** —with intealls taking care of most technical aspects, to be completely fair—. Its purpose is to achieve ultra-low latency audio and video synchronization.
+We are introducing _emusync_, a new synchronization system for GroovyMAME, coded by **Calamity** and **intealls** whose purpose is to achieve ultra-low latency audio and video synchronization. The goal of _emusync_ is for an emulated system to be very difficult —or impossible— to discern from a real system, latency wise.
 
 Addressing input latency is an elusive matter for software developers, because latency cannot be measured through software methods. This has contributed to it remaining as a poorly understood phenomenon.
 
-Emusync borrows its name and the core idea from an experimental library for software-based raster interrupts, coded by **Doozer** and **Calamity** back in 2019, which was never completed. It also brings in some ideas from **Mark Rejhon's** posts, although the current implementation is not frame-sliced.
+_Emusync_ borrows its name and the core idea from an experimental library for software-based raster interrupts, coded by **Doozer** and **Calamity** back in 2019, which was never completed. It also brings in some ideas from **Mark Rejhon's** posts, although the current implementation is not frame-sliced.
 
 The automatic frame delay implementation in _emusync_ is heavily based on prior work by **psakhis's** for the [Groovy_MiSTer](https://github.com/psakhis/Groovy_MiSTer) project, who proved the feasibility of this idea.
 
@@ -79,37 +79,33 @@ At this point, it becomes evident that accurately estimating the actual video re
 
 Audio/video synchronization is a fundamental dilemma: one must synchronize to either of the two clocks. One might reasonably wonder why the video refresh rate should prevail over the audio rate. The only reason is that, because the audio buffer is linear —rather than composed of discrete frames as video is— it is perceptually easier to hide timing adjustments on the audio side.
 
-## Emusync. Putting the pieces together
+## _Emusync_. Putting the pieces together
 
-Now that the problem has been outlined, it is time to introduce _emusync_. Emusync is not the name of a specific library or implementation, but rather a centralized component within the emulator where real-time data from the audio and video hardware is collected, processed, and used for timing and synchronization, acting as a bridge between the two domains. It orchestrates V-Sync and turns it into the primary throttling mechanism, with a strong focus on minimizing latency. This is a unified effort to address all of the issues discussed above at once.
+Now that the problem has been outlined, it is time to introduce _emusync_. _Emusync_ is not the name of a specific library or implementation, but rather a centralized component within the emulator where real-time data from the audio and video hardware is collected, processed, and used for timing and synchronization, acting as a bridge between the two domains. It orchestrates V-Sync and turns it into the primary throttling mechanism, with a strong focus on minimizing latency. This is a unified effort to address all of the issues discussed above at once.
 
-Emusync consistently achieves sub-frame end-to-end audio and video latency, even on modest hardware. Naturally, the faster the system the emulator runs on, the lower the latency that can be achieved. Typical measured values fall in the 5–7 ms range for audio, and even lower for video.
+_Emusync_ consistently achieves sub-frame end-to-end audio and video latency, even on modest hardware. Naturally, the faster the system the emulator runs on, the lower the latency that can be achieved. Typical measured values fall in the 5–7 ms range for audio, and even lower for video.
 
 Needless to say, this does not include the internal buffering of the emulated system, which usually adds one or two frames — and even more in some extreme cases — but ensures next-frame response on systems that natively behaved that way.
 
-Emusync brings together a bunch of techniques, namely:
+_Emusync_ brings together a bunch of techniques, namely:
 
 - Scanout position estimation and VBlank prediction
 - Automatic frame delay
 - Video refresh rate estimation
 - Audio sink rate estimation
-- Adaptative audio resampling
+- Adaptive audio resampling
 - Real-time event logging
 - Serial port real-world event debugging
 
-Emusync features are fully functional across the different video backends available in MAME, on both Linux and Windows: `d3d`, `opengl`, `bgfx`, `accel`, etc., although `d3d` on Windows and `accel` on Linux are the preferred default options. The same applies to the audio backends, where the default selection is `alsa` on Linux and `wasapi` on Windows.
+_Emusync_ features are fully functional across the different video backends available in MAME, on both Linux and Windows: `d3d`, `opengl`, `bgfx`, `accel`, etc., although `d3d` on Windows and `accel` on Linux are the preferred default options. The same applies to the audio backends, where the default selection is `alsa` on Linux and `wasapi` on Windows.
 
-However, to unleash emusync's full potential, some new specialized backends have also been implemented. These should be the preferred options when possible:
+However, to unleash _emusync_'s full potential, some new specialized backends have also been implemented. These should be the preferred options when possible:
 
-- [PART](https://github.com/intealls/GroovyMAME/blob/emusync_stuff/GMRT.md) (PortAudio Real-Time) (`-sound part`): an optimized PortAudio backend providing exclusive-access, ultra-low-latency audio on Windows and Linux. Exclusive access is optional, but required to achieve the lowest possible latencies — be aware that this means no other applications can use the audio hardware at the same time.
+- [PART](https://github.com/intealls/GroovyMAME/blob/emusync_stuff/GMRT.md) (PortAudio Real-Time) (`-sound part`): an optimized PortAudio backend providing exclusive-access, ultra-low-latency audio on Windows and Linux.
 
-- KMS "RAW" (`-video kmsraw`): a pure software, front-buffer KMS renderer for Linux. It completely bypasses SDL and OpenGL. Modesetting as fast as it gets, finally free from resource acquisition overhead. Zero parallelization. Front-buffer blitting: scanout begins even before blitting has finished. The Holy Grail renderer for low-resolution CRTs.
+- KMS "raw" (`-video kmsraw`): a pure software, front-buffer KMS renderer for Linux. The Holy Grail renderer for low-resolution CRTs.
 
-- An experimental D3D11 backend (`-video d3d11`): a software-based, bare-bones D3D11 renderer. Think of it as a modernized version of the ancient `ddraw` backend. It originated as an attempt to overcome the decline of the native D3D9 renderer, a consequence of modern Windows’ fullscreen-exclusive abolitionism — via the euphemistically named Fullscreen Optimizations.
-
-  Its main purpose is to gain access to the new _swapchain_ interface, which currently preserves fullscreen-exclusive capabilities. It also includes an interesting shader-based filter — enabled through `-autofilter` — that performs smart, axis-independent pixel interpolation, particularly useful for super-resolution scaling.
-
-  Unfortunately, it was later discovered that this backend adds a full frame of latency on older ATI GPUs — confirmed at least on the HD 5000 series, likely due to legacy drivers — which provided strong reasons to remove it. However, since it remains useful on modern hardware and played an important role during the early development of emusync, it is currently kept. It also comes with the firm compromise of never supporting CRT shaders.
+- An experimental D3D11 backend (`-video d3d11`): a software-based, bare-bones D3D11 renderer.
 
 For raster synchronization, VBlank timestamps are obtained through OS-specific APIs —_GetFrameStatistics_ on Windows/D3D, _drmCrtcGetSequence_ on Linux. When the backend does not provide these facilities, a fallback threaded VBlank polling implementation is used, which can also be optionally forced through `-vblank_thread` in situations where the default method yields inaccurate timestamps.
 
