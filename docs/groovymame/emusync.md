@@ -67,7 +67,7 @@ As a result, with default settings applied, audio latency figures on the order o
 
 With this in mind, an effective strategy for addressing the problem must operate on two fronts: buffer management and hardware ownership. Minimizing buffering is the primary goal, while exclusive access to the audio hardware —available only through certain APIs— provides the best possible results.
 
-Aggressive audio buffer management is a challenging task that involves [real-time](https://github.com/intealls/GroovyMAME/blob/emusync_stuff/GMRT.md) concerns and demands a very stable environment. In order to avoid buffer overflows and underflows —in other words, audio glitches— we must ensure that samples are consumed by the audio hardware at the same rate at which they are produced by the emulator. The smaller the buffer, the less forgiving it becomes to even minor timing fluctuations.
+Aggressive audio buffer management is a challenging task that involves [real-time](real-time.md) concerns and demands a very stable environment. In order to avoid buffer overflows and underflows —in other words, audio glitches— we must ensure that samples are consumed by the audio hardware at the same rate at which they are produced by the emulator. The smaller the buffer, the less forgiving it becomes to even minor timing fluctuations.
 
 Samples are consumed at the audio hardware's clock rate, so it is fundamental to estimate its real value, as it will never exactly match the nominal one. Ignoring this and blindly relying on the reported value will inevitably lead to an eventual buffer overflow or underflow, depending on whether the reported clock rate overestimates or underestimates the real one.
 
@@ -101,7 +101,7 @@ _Emusync_ features are fully functional across the different video backends avai
 
 However, to unleash _emusync_'s full potential, some new specialized backends have also been implemented. These should be the preferred options when possible:
 
-- [PART](https://github.com/intealls/GroovyMAME/blob/emusync_stuff/GMRT.md) (PortAudio Real-Time) (`-sound part`): an optimized PortAudio backend providing exclusive-access, ultra-low-latency audio on Windows and Linux.
+- [PART](realtime.md#configuring-part-the-real-time-audio-backend) (PortAudio Real-Time) (`-sound part`): an optimized PortAudio backend providing exclusive-access, ultra-low-latency audio on Windows and Linux.
 
 - KMS "raw" (`-video kmsraw`): a pure software, front-buffer KMS renderer for Linux. The Holy Grail renderer for low-resolution CRTs.
 
@@ -111,7 +111,7 @@ For raster synchronization, VBlank timestamps are obtained through OS-specific A
 
 These raw timestamps are filtered to remove inherent jitter, allowing for highly precise estimations. As a bonus, we get a very good estimation of the actual video refresh, which in turn serves as the basis for audio resampling. This method has proven resilient to sudden performance drops, NTP-induced clock drift, and other real-time disturbances common in multitasking environments.
 
-Although, as a user, you will probably never need to bother, event logging is of vital importance when debugging timing issues. Through the `-emusynclog -str` options, it is possible to collect a complete dump of in-game real-time statistics, which can later be processed in Python into customizable graphs for analysis. Real-world event debugging is also supported through the [optional serial port dongle](https://github.com/antonioginer/GroovyMAME/blob/emusync/3rdparty/emusync/emusync_adapter/README.md), enabled with the `-emusyncserial` option.
+Although, as a user, you will probably never need to bother, event logging is of vital importance when debugging timing issues. Through the `-emusynclog -str` options, it is possible to collect a complete dump of in-game real-time statistics, which can later be processed in Python into customizable graphs for analysis. Real-world event debugging is also supported through the [optional serial port dongle](../../3rdparty/emusync/emusync_adapter/README.md), enabled with the `-emusyncserial` option.
 
 ## Special Thanks
 

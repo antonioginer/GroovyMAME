@@ -11,7 +11,7 @@ The ultimate goal is to make the emulation indistinguishable from the real hardw
 GroovyMAME's main features compared to official MAME include:
 
 * Automatic generation of custom video timings for CRT monitors, through [Switchres](https://github.com/antonioginer/switchres).
-* Ultra-low latency audio and video synchronization through [emusync](https://github.com/antonioginer/GroovyMAME/blob/emusync/src/osd/modules/emusync/emusync.md).
+* Ultra-low latency audio and video synchronization through [emusync](../docs/groovymame/emusync.md).
 * Specialized audio and video backends:
     * `-sound part`: an optimized PortAudio backend, for exclusive-access, ultra-low-latency audio.
     * `-video kmsraw`: a pure-software, front-buffer KMS renderer for Linux.
@@ -25,7 +25,8 @@ Go to the [releases](https://github.com/antonioginer/GroovyMAME/releases) sectio
 
 ## Configuration
 
-GroovyMAME's specific [options](https://github.com/antonioginer/GroovyMAME/blob/emusync/src/osd/modules/emusync/configuration.md).
+* GroovyMAME's [real-time tips and configuration](../docs/groovymame/real-time.md).
+* GroovyMAME's specific [options](../docs/groovymame/configuration.md).
 
 ## Support
 
@@ -50,7 +51,7 @@ However, when we believe a particular feature could benefit MAME itself, we try 
 
 The golden rule of the project is not to break the emulation. This means avoiding any changes that affect the emulation layer.
 
-Because this project is a fork, its long-term viability depends on keeping its footprint on the codebase to a minimum. No extra features will be included except those directly related with to goals of the project.
+Because this project is a fork, its long-term viability depends on keeping its footprint on the codebase to a minimum. No extra features will be included except those directly related to the goals of the project.
 
 The project places special emphasis on CRT preservation, since this remains the only display technology that accurately replicates the genuine video game experience.
 
