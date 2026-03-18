@@ -101,7 +101,7 @@ _Emusync_ features are fully functional across the different video backends avai
 
 However, to unleash _emusync_'s full potential, some new specialized backends have also been implemented. These should be the preferred options when possible:
 
-- [PART](realtime.md#configuring-part-the-real-time-audio-backend) (PortAudio Real-Time) (`-sound part`): an optimized PortAudio backend providing exclusive-access, ultra-low-latency audio on Windows and Linux.
+- [PART](real-time.md#configuring-part-the-real-time-audio-backend) (PortAudio Real-Time) (`-sound part`): an optimized PortAudio backend providing exclusive-access, ultra-low-latency audio on Windows and Linux.
 
 - KMS "raw" (`-video kmsraw`): a pure software, front-buffer KMS renderer for Linux. The Holy Grail renderer for low-resolution CRTs.
 
