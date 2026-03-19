@@ -43,7 +43,7 @@ This is the picture people usually have in mind when they think about why V-Sync
 
 However, if we knew exactly when VBlank was going to occur, we could wait until the very last moment to emulate the frame using the most recent input, and then present it immediately with V-Sync disabled. This is how frame delay works: it _delays_ the emulation of a frame relative to the scanout in order to capture the freshest possible input.
 
-The amount of time the emulation can be delayed depends mainly on how long it takes to emulate a single frame. The faster a system can be emulated on a given PC, the lower the input latency that can be achieved through this method — the longer we can wait without missing VBlank. GPU speed, while usually less critical, also matters, especially at higher resolutions where rendering time becomes significant.
+The amount of time the emulation can be delayed depends mainly on how long it takes to emulate a single frame. The faster a system can be emulated on a given PC, the lower the input latency that can be achieved through this method —the longer we can wait without missing VBlank. GPU speed, while usually less critical, also matters, especially at higher resolutions where rendering time becomes significant.
 
 There is an obvious catch to this method, though:
 - Emulation time is not constant from frame to frame, and can vary significantly for the same system during gameplay depending on the internal state of the emulation at a given moment.
@@ -51,7 +51,7 @@ There is an obvious catch to this method, though:
 
 To deal with this issue, previous implementations allowed the user to specify the amount of delay in fractions of a frame (1–9). As a result, in order to stay on the safe side, one had to consider the worst-case frame and apply a frame delay setting that would avoid missing VBlank under that scenario. This approach was not only suboptimal in terms of latency, but also impractical, as it required ad-hoc, per-game adjustments, either determined empirically during gameplay or estimated through prior benchmarking.
 
-Past implementations also relied on specific API calls to explicitly wait for VBlank on every frame. This allowed the next VBlank event to be predicted based on the previous one, and the delay to be scheduled accordingly. Unfortunately, this mechanism was not smart enough to accurately detect when a VBlank event had been missed — due to frame emulation taking longer than expected — nor to determine its actual timestamp. When this happened, the only option was to resynchronize to the next VBlank. This behavior is the root cause of the infamous speed fluctuations associated with frame delay, affecting both video and audio.
+Past implementations also relied on specific API calls to explicitly wait for VBlank on every frame. This allowed the next VBlank event to be predicted based on the previous one, and the delay to be scheduled accordingly. Unfortunately, this mechanism was not smart enough to accurately detect when a VBlank event had been missed —due to frame emulation taking longer than expected— nor to determine its actual timestamp. When this happened, the only option was to resynchronize to the next VBlank. This behavior is the root cause of the infamous speed fluctuations associated with frame delay, affecting both video and audio.
 
 Automatic frame delay had been discussed for more than a decade, but achieving it required a complete reformulation of V-Sync. Instead of delegating V-Sync to the graphics API, we keep a record of VBlank timestamps, allowing us to accurately predict upcoming events without blocking the emulator at any point. In parallel, frame delay is adjusted adaptively based on recent frame emulation times, optimizing latency across different phases of execution.
 
@@ -85,7 +85,7 @@ Now that the problem has been outlined, it is time to introduce _emusync_. _Emus
 
 _Emusync_ consistently achieves sub-frame end-to-end audio and video latency, even on modest hardware. Naturally, the faster the system the emulator runs on, the lower the latency that can be achieved. Typical measured values fall in the 5–7 ms range for audio, and even lower for video.
 
-Needless to say, this does not include the internal buffering of the emulated system, which usually adds one or two frames — and even more in some extreme cases — but ensures next-frame response on systems that natively behaved that way.
+Needless to say, this does not include the internal buffering of the emulated system, which usually adds one or two frames —and even more in some extreme cases— but ensures next-frame response on systems that natively behaved that way.
 
 _Emusync_ brings together a bunch of techniques, namely:
 

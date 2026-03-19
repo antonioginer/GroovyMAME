@@ -35,7 +35,7 @@
 
 GroovyMAME with [_emusync_](emusync.md) and [PART audio](#configuring-part-the-real-time-audio-backend) can provide latencies comparable to running on a real system, but might require some additional effort to get everything running smoothly.
 
-*Emusync* estimates where the CRT is currently drawing —it does *beam-racing*—. Since the timestep of each frame is usually in the order of 16-20 ms, it is important that MAME is allowed to run uninterrupted to not miss the next deadline —which is VBlank—.
+*Emusync* estimates where the CRT is currently drawing —it does *beam-racing*—. Since the timestep of each frame is usually in the order of 16-20 ms, it is important that MAME is allowed to run uninterrupted to not miss the next deadline —which is VBlank.
 
 *Emusync* also enables automatic framedelay, making uninterrupted execution even more important. The `-nosleep` parameter helps out with this and is recommended to set. Keep in mind though that using `-nosleep` can increase power consumption, heat dissipation and thus fan noise.
 
@@ -147,11 +147,11 @@ Setting a negative value, i.e. synchronizing earlier than the real VBlank —wha
 
 On the contrary, a positive value will delay the sync position, adding to the benefit of framedelay and reducing latency accordingly. On a fast computer, this can be leveraged to squeeze out the last millisecond in the scanout by pushing the emulation down into VBlank. Logically, this makes synchronization more susceptible to spikes in *emutime*.
 
-Please be aware that the correct `-vsync_offset` setting depends on the video renderer you select. It also depens on the GPU —more specifically, its drivers—.
+Please be aware that the correct `-vsync_offset` setting depends on the video renderer you select. It also depens on the GPU —more specifically, its drivers.
 
 ### The fallback method: -vblank_thread
 
-On certain setups, the timestamps available to *emusync* are buggy. You'll know this when the methods discussed above don't have a clear effect removing or reducing tearing. Of course, you're supposed to check that your CPU is powerful enough to emulate that specific system fluently —don't take this for granted, please—.
+On certain setups, the timestamps available to *emusync* are buggy. You'll know this when the methods discussed above don't have a clear effect removing or reducing tearing. Of course, you're supposed to check that your CPU is powerful enough to emulate that specific system fluently —don't take this for granted, please.
 
 Enabling `-vblank_thread` may fix the problem in most cases. This option starts a background thread to register VBlank timestamps. Since this option has a higher CPU consumption, you should only use it when the default timestamps are buggy.
 
@@ -406,9 +406,9 @@ But there's another issue we need to deal with: the rendering pipeline consumes 
 
 Unfortunately, since GPU processing is done in parallel relative to the CPU, we don't have an easy way of knowing how long it takes the GPU to finish its job —at least, not programmatically—. Besides, the rendering time depends on multiple aspects:
 
-* The video renderer —API backend—
+* The video renderer —API backend
 * The frame's resolution
-* The frame's complexity —cf. MAME's UI issue, use of shaders, etc.—
+* The frame's complexity —cf. MAME's UI issue, use of shaders, etc.
 * The GPU's internal state
 * The GPU's speed
 
