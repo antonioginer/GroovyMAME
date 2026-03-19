@@ -68,7 +68,7 @@ GroovyMAME with [_emusync_](emusync.md) and [PART audio](#configuring-part-the-r
 
 ### Example
 
-If starting from a clean `mame.ini`, following command should work for most setups, with little or no additional configuration required.
+If starting from a clean `mame.ini`, the following command should work for most setups, with little or no additional configuration required.
 
     mame [game] -nosleep -autoframedelay -framedelay 0 -sound part -audio_latency 0
 
@@ -126,7 +126,7 @@ For instance, let's say the current time average of the recently emulated frames
     fd = (period - (emutime_average + fd_margin)) / period * 10
     fd = (16.67 - (2.5 + 1.0)) / 16.67 * 10 = 7.900
 
-So in this case, GroovyMAME will apply an automatic framedelay of 7.900. Now, imagine the next frame takes a bit longer to emulate than average, say 3.0 ms. Since this value is smaller than 2.5 + 1.00, we'd still be on the safe side and the frame be'd rendered just in time.
+So in this case, GroovyMAME will apply an automatic framedelay of 7.900. Now, imagine the next frame takes a bit longer to emulate than average, say 3.0 ms. Since this value is smaller than 2.5 + 1.00, we'd still be on the safe side and the frame would be rendered just in time.
 
 But it's also possible that, due to a spike in the emulation time, the next frame takes so long to emulate that it exceeds the margin we've established. Say it takes 4.0 ms, we'd be 0.5 ms late, causing tearing at the top of the screen. If this happens often in the game, it'd be reasonable to raise `fd_margin` to 1.5 ms, so most or all the spikes are covered by the new margin.
 
