@@ -219,3 +219,14 @@ Example (Linux):
 Example (Windows):
 
 `mame sf2 -sound part -part_api "Windows WASAPI" -part_device "Speakers (High Definition Audio Device)"`
+___
+
+**-audio_latency** _<milliseconds\>_
+
+Specify the desired output latency (in milliseconds). `-audio_latency 0` sets the operating system default.
+
+To manually set desired latency, try `-audio latency 4`, and if audio crackles, increase to `8` or `16`.
+
+Example:
+
+`mame sf2 -sound part -audio_latency 4`

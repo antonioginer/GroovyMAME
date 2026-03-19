@@ -68,6 +68,8 @@ GroovyMAME with [_emusync_](emusync.md) and [PART audio](#configuring-part-the-r
 
 ### Example
 
+If starting from a clean `mame.ini`, following command should work for most setups, with little or no additional configuration required.
+
     mame [game] -nosleep -autoframedelay -framedelay 0 -sound part -audio_latency 0
 
 Read the following sections if the above example doesn't work for you, or you experience glitches.
@@ -113,11 +115,11 @@ Now that the usual disruptors are ruled out, take a look at the glitches on the 
 * Random distortions at the top of the screen, which may be followed by periods of apparent perfection. This might point to variability in emulation times. If it consistently occurs in certain phases of the game, such as stage transitions, or if it's accompanied by large fluctuations in the`fd` value, you can be sure this is the case. This issue is addressed by `-fd_margin`.
 * Tearing that usually appears at the top of the screen. Sometimes —less usual— it may happen at the bottom of the screen. On some systems, instead of a tear line it will appear as stutter on the upper segment of the bar. The problem is consistent and not clearly related to a certain phase of the game. These issues are addressed by `-vsync_offset`.
 
-The above distinction is meant to be a rule of thumb rather than a scientific statement. In practice, `-fd_margin` and `-vsync_offset` effects are intertwined: offsetting V-Sync earlier provides an extra margin for framedelay. Think of `-fd_margin` as more focused on addressing CPU-related issues —emulation time variability— while `-vsync_offset` is meant for adjusting a GPU-related aspect —finding the sweat spot within the scanout at which we should send the frame to the GPU for rendering.
+The above distinction is meant to be a rule of thumb rather than a scientific statement. In practice, `-fd_margin` and `-vsync_offset` effects are intertwined: offsetting V-Sync earlier provides an extra margin for framedelay. Think of `-fd_margin` as more focused on addressing CPU-related issues —emulation time variability— while `-vsync_offset` is meant for adjusting a GPU-related aspect —finding the sweet spot within the scanout at which we should send the frame to the GPU for rendering.
 
 ### Adjusting -fd_margin
 
-The value of `-fd_margin` is the amount of ms that GroovyMAME will add to the current emulation time average. By default, `-fd_margin` is set to 1.0 ms.
+Some systems have very consistent frame time emulation (`neogeo`), and some fluctuate wildly (`cv1k`). `-fd_margin` provides a safety margin for systems with fluctuating frame times, to avoid visible tearing at the cost of latency. The value of `-fd_margin` is a set time (specified in milliseconds) that GroovyMAME will add to the current emulation time average. By default, `-fd_margin` is set to 1.0 ms.
 
 For instance, let's say the current time average of the recently emulated frames is 2.5 ms. And the frame period is 16.67 ms.
 
