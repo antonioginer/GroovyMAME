@@ -184,3 +184,38 @@ Automatically set bilinear filtering when the resulting scaling mode is fraction
 Exclusively for the **-video d3d11** renderer, **-autofilter** enables a shader-based smart filter that performs axis-independent pixel interpolation, particularly useful for super-resolution scaling.
 
 Default is ON. (**-autosfilter**)
+___
+
+## PART
+
+**-part_api** _<api\>_
+
+Specify the audio API to use with `-sound part`. Available APIs depend on the platform:
+
+* Linux: `"ALSA"`, `"OSS"`
+* Windows: `"Windows WASAPI"`, `"Windows WDM-KS"`
+
+When not specified, the default API is used. Only specifying `-part_api` (without `-part_device`) selects the default device of the chosen API.
+
+Example:
+
+`mame sf2 -sound part -part_api "ALSA"`
+
+`mame sf2 -sound part -part_api "Windows WASAPI"`
+
+`mame sf2 -sound part -part_api "Windows WDM-KS"`
+___
+
+**-part_device** _<device\>_
+
+Specify the audio output device to use with `-sound part`. Only used in combination with **-part_api**. Available devices are listed in the info log at startup.
+
+On Linux, this can be used to select a raw ALSA device (bypassing PipeWire/PulseAudio).
+
+Example (Linux):
+
+`mame sf2 -sound part -part_api "ALSA" -part_device "HD-Audio Generic: ALCS1200A Analog (hw:2,0)"`
+
+Example (Windows):
+
+`mame sf2 -sound part -part_api "Windows WASAPI" -part_device "Speakers (High Definition Audio Device)"`
