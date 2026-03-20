@@ -283,7 +283,7 @@ Example PipeWire invocation:
 
     mame -verbose -nosleep -sound part -part_api "ALSA" -part_device pipewire -audio_latency 4
 
-For both examples, the verbose log reports a latency of ~5.5ms:
+For both examples, the verbose log reports a latency of ~6.0ms:
 
     PART: Opening device "ALSA: HD-Audio Generic: ALCS1200A Analog (hw:2,0)"
     PART: Sample rate is 48000 Hz, device output latency is 4.00 ms
