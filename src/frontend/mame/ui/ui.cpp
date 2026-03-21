@@ -1238,15 +1238,25 @@ void mame_ui_manager::draw_tear_bar(render_container &container)
 {
 	static int i = 0;
 
-	// draw vertical bar at current x position
-	int target_width = machine().render().ui_target().width();
-	double xpos = (double)i / target_width;
+	render_target &target = machine().render().ui_target();
+	bool target_rotated = (target.height() > target.width());
+	double target_aspect = (double)target.width() / target.height();
 
-	container.add_rect(xpos, 0, xpos + 1.0 / 64.0, 1, 0xff00ff00, PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
+	double ui_aspect = machine().render().ui_aspect(&container);
+	bool ui_rotated = fabs(ui_aspect - target_aspect) < 1e-6;
+
+	// draw vertical bar at current x position
+	int width = target_rotated? target.height() : target.width();
+	double pos = (double)i / width;
+
+	if (target_rotated ^ ui_rotated)
+		container.add_rect(0, pos, 1, pos + 1.0 / 64.0, 0xff00ff00, PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
+	else
+		container.add_rect(pos, 0, pos + 1.0 / 64.0, 1, 0xff00ff00, PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
 
 	// increase bar x position
-	i += std::max(1, target_width / 256);
-	i %= target_width;
+	i += std::max(1, width / 256);
+	i %= width;
 }
 
 
