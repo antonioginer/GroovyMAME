@@ -1814,10 +1814,8 @@ end
 
 	if _OPTIONS["targetos"]=="windows" then
 		defines {
-			"PA_USE_DS=1",
 			"PA_USE_WASAPI=1",
 			"PA_USE_WDMKS=1",
-			"PA_USE_WMME=1",
 		}
 		includedirs {
 			MAME_DIR .. "3rdparty/portaudio/src/os/win",
@@ -1830,12 +1828,9 @@ end
 			MAME_DIR .. "3rdparty/portaudio/src/os/win/pa_win_waveformat.c",
 			MAME_DIR .. "3rdparty/portaudio/src/os/win/pa_win_hostapis.c",
 			MAME_DIR .. "3rdparty/portaudio/src/os/win/pa_win_coinitialize.c",
-			MAME_DIR .. "3rdparty/portaudio/src/hostapi/dsound/pa_win_ds.c",
-			MAME_DIR .. "3rdparty/portaudio/src/hostapi/dsound/pa_win_ds_dynlink.c",
 			MAME_DIR .. "3rdparty/portaudio/src/os/win/pa_win_hostapis.c",
 			MAME_DIR .. "3rdparty/portaudio/src/hostapi/wasapi/pa_win_wasapi.c",
 			MAME_DIR .. "3rdparty/portaudio/src/hostapi/wdmks/pa_win_wdmks.c",
-			MAME_DIR .. "3rdparty/portaudio/src/hostapi/wmme/pa_win_wmme.c",
 			MAME_DIR .. "3rdparty/portaudio/src/common/pa_ringbuffer.c",
 		}
 

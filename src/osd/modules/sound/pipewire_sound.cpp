@@ -16,6 +16,9 @@
 #define GNU_SOURCE
 #include "modules/lib/osdobj_common.h"
 
+#include "emu.h"
+#include "emusync.h"
+
 #include <pipewire/pipewire.h>
 #include <pipewire/extensions/metadata.h>
 #include <spa/debug/pod.h>
@@ -160,6 +163,8 @@ private:
 
 	void stream_event_param_changed(stream_info *stream, uint32_t id, const spa_pod *param);
 	static void s_stream_event_param_changed(void *data, uint32_t id, const spa_pod *param);
+
+	emusync* m_sync;
 };
 
 // Try to more or less map to speaker.h positions
@@ -513,6 +518,8 @@ int sound_pipewire::init(osd_interface &osd, osd_options const &options)
 	sync();
 	sync();
 
+	m_sync = &downcast<osd_common_t &>(osd).machine().sync();
+
 	return 0;
 }
 
@@ -610,6 +617,7 @@ void sound_pipewire::stream_sink_event_process(stream_info *stream)
 		return;
 
 	spa_buffer *sbuf = buffer->buffer;
+	m_sync->register_sink_samples(stream->m_osdid, buffer->requested);
 	stream->m_buffer.get((int16_t *)(sbuf->datas[0].data), buffer->requested);
 
 	sbuf->datas[0].chunk->offset = 0;
@@ -814,6 +822,7 @@ void sound_pipewire::stream_sink_update(uint32_t id, const int16_t *buffer, int 
 		pw_thread_loop_unlock(m_loop);
 		return;
 	}
+	m_sync->log("PipeWire buffer count before update", m_sync->NOW, (double)si->second.m_buffer.available());
 	si->second.m_buffer.push(buffer, samples_this_frame);
 	pw_thread_loop_unlock(m_loop);
 }

@@ -9,6 +9,7 @@
 // MAME headers
 #include "emu.h"
 #include "emuopts.h"
+#include "emusync.h"
 #include "render.h"
 #include "rendutil.h"
 #include "screen.h"
@@ -36,6 +37,13 @@
 #define D3DPRESENT_DONOTFLIP      0x00000004L
 #define D3DPRESENT_FORCEIMMEDIATE 0x00000100L
 
+#define LOG_PRESENT_COUNT 0
+
+#if LOG_PRESENT_COUNT
+	#define emusync_printf_verbose(...) osd_printf_verbose(__VA_ARGS__)
+#else
+	#define emusync_printf_verbose(...)
+#endif
 
 //============================================================
 //  OSD MODULE
@@ -588,7 +596,6 @@ renderer_d3d9::renderer_d3d9(osd_window &window, const IDirect3D9Ptr &d3dobj)
 	, m_width(0)
 	, m_height(0)
 	, m_refresh(0)
-	, m_frame_delay(0)
 	, m_create_error_count(0)
 	, m_post_fx_available(true)
 	, m_gamma_supported(0)
@@ -617,6 +624,7 @@ renderer_d3d9::renderer_d3d9(osd_window &window, const IDirect3D9Ptr &d3dobj)
 	, m_last_modmode(0)
 	, m_shaders(nullptr)
 	, m_texture_manager()
+	, m_sync(window.sync())
 {
 }
 
@@ -635,6 +643,9 @@ int renderer_d3d9::initialize()
 	{
 		return false;
 	}
+
+	if (window().index() == 0)
+		m_sync.osd_init(window().monitor()->oshandle(), std::bind(&renderer_d3d9::get_vblank_timestamp, this), std::bind(&renderer_d3d9::get_frame_counter, this));
 
 	return true;
 }
@@ -829,126 +840,61 @@ void renderer_d3d9::end_frame()
 	if (FAILED(result))
 		osd_printf_verbose("Direct3D: Error %08lX during device end_scene call\n", result);
 
-	if ((m_frame_delay != video_config.framedelay) || (m_vsync_offset != window().machine().video().vsync_offset()))
-	{
-		m_frame_delay = video_config.framedelay;
-		m_vsync_offset = window().machine().video().vsync_offset();
-		update_break_scanlines();
-	}
+	if (window().index() == 0) m_sync.predraw_sync();
 
-	// sync to VBLANK-BEGIN
-	if (video_config.syncrefresh)
-	{
-		m_device->GetRasterStatus(0, &m_raster_status);
-		m_enter_line = m_raster_status.ScanLine;
-
-		do
-		{
-			if (m_device->GetRasterStatus(0, &m_raster_status) != D3D_OK)
-				break;
-		} while (m_frame_delay?
-			// with frame delay, wait for break scanline, or just exit if we're already in vblank
-			!m_raster_status.InVBlank && m_raster_status.ScanLine < m_break_scanline :
-			// with syncrefresh only, just wait for vblank
-			!m_raster_status.InVBlank);
-	}
+	bool interval = !m_sync.handle_throttle() && window().machine().video().throttled() && video_config.waitvsync;
 
 	// present the current buffers
-	result = m_device->PresentEx(nullptr, nullptr, nullptr, nullptr, D3DPRESENT_INTERVAL_ONE);
+	result = m_device->PresentEx(nullptr, nullptr, nullptr, nullptr, interval? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE);
 	if (FAILED(result) && (result != D3DERR_WASSTILLDRAWING))
 		osd_printf_verbose("Direct3D: Error %08lX during device present call\n", result);
 
-	// sync to VBLANK-END
-	if (video_config.syncrefresh)
+	if (window().index() == 0) m_sync.postdraw_sync();
+}
+
+
+bool renderer_d3d9::get_vblank_timestamp()
+{
+	HRESULT hr;
+	D3DPRESENTSTATS st;
+
+	hr = m_swap->GetPresentStats(&st);
+	if (FAILED(hr))
+		return false;
+
+	emusync_printf_verbose("prev present count: #%d [%d]\n", st.PresentCount, st.SyncRefreshCount - m_sync.first_sync_count());
+	m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
+
+	return true;
+}
+
+
+uint64_t renderer_d3d9::get_frame_counter()
+{
+	D3DPRESENTSTATS st;
+
+	uint32_t frame_count;
+	m_swap->GetLastPresentCount(&frame_count);
+	emusync_printf_verbose("this present count: #%d\n", frame_count);
+
+	if (frame_count == 1)
 	{
+		osd_ticks_t time1 = osd_ticks(), time2;
 		do
 		{
-			if (m_device->GetRasterStatus(0, &m_raster_status) != D3D_OK)
-				break;
-		} while (m_raster_status.InVBlank);
+			Sleep(1);
+			time2 = osd_ticks();
 
-		m_exit_line = m_raster_status.ScanLine;
-
-		// check if retrace has been missed
-		if (m_swap != nullptr)
-		{
-			m_swap->GetPresentStats(&m_stats);
-
-			if (m_stats.PresentRefreshCount - m_sync_count > 1 && m_enter_line != 0)
-			{
-				static const double tps = (double)osd_ticks_per_second();
-				static const double time_start = (double)osd_ticks() / tps;
-				osd_printf_verbose("Missed retrace, realtime is %f\n", (double)osd_ticks() / tps - time_start);
-			}
-			m_sync_count = m_stats.PresentRefreshCount;
+			m_swap->GetPresentStats(&st);
 		}
-		//osd_printf_verbose("frame %d enter_line %d exit_line %d\n", m_sync_count, m_enter_line, m_exit_line);
-	}
-}
+		while (st.PresentCount != 1 && get_ms(time2 - time1) < 300.0);
+		osd_printf_verbose("Direct3D: synchronizing with first timestamp: %.3f ms elapsed, stats: %d, %d, %d, %lld\n",
+			get_ms(time2 - time1), st.PresentCount, st.PresentRefreshCount, st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 
-void renderer_d3d9::device_flush()
-{
-	HRESULT result;
-
-	if(m_device)
-	{
-		if(m_query != nullptr)
-		{
-			m_query->Issue(D3DISSUE_END);
-			do
-			{
-				result = m_query->GetData(NULL, 0, D3DGETDATA_FLUSH);
-				if (result == D3DERR_DEVICELOST)
-					return;
-			} while(result == S_FALSE);
-		}
-	}
-}
-
-void renderer_d3d9::update_break_scanlines()
-{
-	switchres_manager *m_switchres = &downcast<windows_osd_interface&>(window().machine().osd()).switchres()->switchres();
-	if (m_switchres->display(window().index()) == nullptr)
-		return;
-
-	modeline *m_switchres_mode = m_switchres->display(window().index())->selected_mode();
-	if (m_switchres_mode == nullptr)
-		return;
-
-	switch (m_vendor_id)
-	{
-		case 0x1002: // ATI
-			m_first_scanline = m_switchres_mode && m_switchres_mode->vtotal ?
-				(m_switchres_mode->vtotal - m_switchres_mode->vbegin - 1) / (m_switchres_mode->interlace ? 2 : 1) :
-				1;
-
-			m_last_scanline = m_switchres_mode && m_switchres_mode->vtotal ?
-				(m_switchres_mode->vactive - 1) + (m_switchres_mode->vtotal - m_switchres_mode->vbegin - 1) / (m_switchres_mode->interlace ? 2 : 1) :
-				m_height;
-			break;
-
-		case 0x8086: // Intel
-			m_first_scanline = 1;
-
-			m_last_scanline = m_switchres_mode && m_switchres_mode->vtotal ?
-				m_switchres_mode->vactive / (m_switchres_mode->interlace ? 2 : 1) :
-				m_height;
-			break;
-
-		default: // NVIDIA (0x10DE) + others (?)
-			m_first_scanline = 0;
-
-			m_last_scanline = m_switchres_mode && m_switchres_mode->vtotal ?
-				(m_switchres_mode->vactive - 1) / (m_switchres_mode->interlace ? 2 : 1) :
-				m_height - 1;
-			break;
+		m_sync.register_vblank_in_ticks(st.SyncRefreshCount, st.SyncQPCTime.QuadPart);
 	}
 
-	m_break_scanline = m_last_scanline - m_vsync_offset;
-	m_break_scanline = m_break_scanline > m_first_scanline ? m_break_scanline : m_last_scanline;
-	m_delay_scanline = m_first_scanline + m_height * (float)video_config.framedelay / (10 * m_switchres_mode->result.v_scale);
-
-	osd_printf_verbose("Direct3D: Frame delay: %d, First scanline: %d, Last scanline: %d, Break scanline: %d, Delay scanline: %d\n", video_config.framedelay, m_first_scanline, m_last_scanline, m_break_scanline, m_delay_scanline);
+	return (uint64_t)frame_count;
 }
 
 
@@ -1078,8 +1024,6 @@ int renderer_d3d9::device_create(HWND hwnd)
 	else
 		m_swap9->QueryInterface(__uuidof(IDirect3DSwapChain9Ex), (void**)&m_swap);
 
-	update_break_scanlines();
-
 	update_gamma_ramp();
 
 	return device_create_resources();
@@ -1163,7 +1107,8 @@ int renderer_d3d9::device_create_resources()
 
 	// clear the buffer
 	result = m_device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-	result = m_device->Present(nullptr, nullptr, nullptr, nullptr);
+	// disable to not increment frame sync counter
+	//result = m_device->Present(nullptr, nullptr, nullptr, nullptr);
 
 	m_texture_manager->create_resources();
 
@@ -1191,6 +1136,8 @@ void renderer_d3d9::device_delete()
 
 	// free the device itself
 	m_device.Reset();
+
+	if (window().index() == 0) m_sync.osd_deinit();
 }
 
 
@@ -1381,9 +1328,6 @@ int renderer_d3d9::restart()
 	if (video_config.switchres)
 		pick_best_mode();
 	update_presentation_parameters();
-
-	if (video_config.syncrefresh)
-		update_break_scanlines();
 
 	D3DDISPLAYMODEEX *display_mode = window().fullscreen()? &m_display_mode : nullptr;
 

@@ -17,6 +17,7 @@
 
 // MAME headers
 #include "emu.h"
+#include "emusync.h"
 #include "uiinput.h"
 #include "ui/uimain.h"
 
@@ -160,7 +161,7 @@ int windows_osd_interface::window_count()
 void windows_osd_interface::add_audio_to_recording(const int16_t *buffer, int samples_this_frame)
 {
 	auto const &window = osd_common_t::window_list().front(); // We only record on the first window
-	if (window)
+	if (window && window->has_renderer())
 		window->renderer().add_audio_to_recording(buffer, samples_this_frame);
 }
 
@@ -779,6 +780,9 @@ void win_window_info::update()
 {
 	assert(GetCurrentThreadId() == main_threadid);
 
+	// Update fullscreen state for raster based throttling
+	machine().sync().set_fullscreen(fullscreen() && !IsIconic(platform_window()));
+
 	// see if the target has changed significantly in window mode
 	unsigned const targetview = target()->view();
 	int const targetorient = target()->orientation();
@@ -810,16 +814,8 @@ void win_window_info::update()
 
 	// check if we need to change the video mode
 	auto &options = downcast<windows_options &>(machine().options());
-	if (options.switch_res() && options.changeres())
+	if (fullscreen() && options.switch_res() && options.changeres())
 		reset_required = WINOSD(machine())->switchres()->check_resolution_change(index(), monitor(), target(), &m_win_config);
-
-	// check if frame delay has changed
-	int new_frame_delay = machine().video().framedelay();
-	if (new_frame_delay != video_config.framedelay)
-	{
-		reset_required |= ((bool)video_config.framedelay != (bool)new_frame_delay);
-		video_config.framedelay = new_frame_delay;
-	}
 
 	// check if geometry has changed
 	if (fullscreen() && options.switch_res() && WINOSD(machine())->switchres()->check_geometry_change(index()))

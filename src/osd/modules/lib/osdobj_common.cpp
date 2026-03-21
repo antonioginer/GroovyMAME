@@ -128,6 +128,7 @@ const options_entry osd_options::s_option_entries[] =
 	{ OSDOPTION_SYNC_REFRESH_TOLERANCE ";srt",   "2.0",            core_options::option_type::FLOAT,     "Maximum refresh difference, in Hz, allowed in order to synchronize" },
 	{ OSDOPTION_INTERLACE_FORCE_EVEN,            "0",              core_options::option_type::BOOLEAN,   "Calculate all vertical values of interlaced modes as even numbers. Required by AMD APU hardware on Linux" },
 	{ OSDOPTION_AUTOSYNC,                        "1",              core_options::option_type::BOOLEAN,   "automatically enable syncrefresh if refresh difference is below syncrefresh_tolerance" },
+	{ OSDOPTION_VBLANK_THREAD ";vbt",            "0",              core_options::option_type::BOOLEAN,   "use thread + wait for vblank mechanic to synchronize vertical retrace, use only if defaults don't work" },
 	{ OSDOPTION_AUTOFILTER,                      "1",              core_options::option_type::BOOLEAN,   "automatically set bilinear filtering with fractional stretching or interlaced " },
 	{ OSDOPTION_AUTOSTRETCH,                     "1",              core_options::option_type::BOOLEAN,   "automatically set scaling mode (integer or fractional) based on the selected video mode " },
 	{ OSDOPTION_SCALE_PROPORTIONAL,              "1",              core_options::option_type::BOOLEAN,   "Scale both axes by the same factor, when integer scaling is applied" },
@@ -191,6 +192,10 @@ const options_entry osd_options::s_option_entries[] =
 	{ nullptr,                                   nullptr,          core_options::option_type::HEADER,    "OSD SOUND OPTIONS" },
 	{ OSDOPTION_SOUND,                           OSDOPTVAL_AUTO,   core_options::option_type::STRING,    "sound output method: " },
 	{ OSDOPTION_AUDIO_LATENCY ";alat(0.0-50.0)", "0.0",            core_options::option_type::FLOAT,     "audio latency, 0 for default (increase to reduce glitches, decrease for responsiveness)" },
+
+	{ nullptr,                                   nullptr,          core_options::option_type::HEADER,    "PORTAUDIO OPTIONS" },
+	{ OSDOPTION_PART_API,                        OSDOPTVAL_NONE,   core_options::option_type::STRING,    "PART API" },
+	{ OSDOPTION_PART_DEVICE,                     OSDOPTVAL_NONE,   core_options::option_type::STRING,    "PART device" },
 
 #ifdef SDLMAME_MACOSX
 	{ nullptr,                                   nullptr,          core_options::option_type::HEADER,    "CoreAudio-SPECIFIC OPTIONS" },
@@ -278,6 +283,7 @@ void osd_common_t::register_options()
 #endif
 #if defined(OSD_WINDOWS)
 	REGISTER_MODULE(m_mod_man, RENDERER_D3D); // this is only built for OSD=windows, there's no dummy stub
+	REGISTER_MODULE(m_mod_man, RENDERER_D3D11);
 #endif
 #if defined(OSD_WINDOWS) || defined(SDLMAME_WIN32)
 	REGISTER_MODULE(m_mod_man, RENDERER_BGFX); // try BGFX before GDI on windows to get DirectX 10/11 acceleration
@@ -300,7 +306,9 @@ void osd_common_t::register_options()
 #endif
 	REGISTER_MODULE(m_mod_man, RENDERER_NONE);
 	REGISTER_MODULE(m_mod_man, RENDERER_MISTER);
-
+#if !defined(OSD_WINDOWS) && !defined(SDLMAME_WIN32) && !defined(SDLMAME_MACOSX)
+	REGISTER_MODULE(m_mod_man, RENDERER_KMSRAW);
+#endif
 	REGISTER_MODULE(m_mod_man, SOUND_WASAPI);
 	REGISTER_MODULE(m_mod_man, SOUND_XAUDIO2);
 	REGISTER_MODULE(m_mod_man, SOUND_COREAUDIO);
@@ -312,6 +320,7 @@ void osd_common_t::register_options()
 #endif
 #ifndef NO_USE_PORTAUDIO
 	REGISTER_MODULE(m_mod_man, SOUND_PORTAUDIO);
+	REGISTER_MODULE(m_mod_man, SOUND_PART);
 #endif
 #ifndef NO_USE_PULSEAUDIO
 	REGISTER_MODULE(m_mod_man, SOUND_PULSEAUDIO);

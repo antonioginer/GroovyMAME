@@ -97,9 +97,12 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_SYNCREFRESH ";srf",                         "0",         core_options::option_type::BOOLEAN,    "enable using the start of VBLANK for throttling instead of the game time" },
 	{ OPTION_SYNCAUDIO ";sau",                           "1",         core_options::option_type::BOOLEAN,    "enable audio resampling to stay synchronized with video" },
 	{ OPTION_LOWLATENCY ";lolat",                        "1",         core_options::option_type::BOOLEAN,    "draws new frame before throttling to reduce input latency" },
+	{ OPTION_AUTOFRAMEDELAY ";afd",                      "1",         core_options::option_type::BOOLEAN,    "enable automatic framedelay if framedelay is set to 0" },
 	{ OPTION_FRAMEDELAY ";fd",                           "0",         core_options::option_type::INTEGER,    "delays the start of each frame to minimize input lag (0-9)"},
+	{ OPTION_FD_MARGIN "(0.0-10.0)",                     "1.0",       core_options::option_type::FLOAT,      "for frame delay margin, reserve this many milliseconds for vblank etc"},
 	{ OPTION_VSYNC_OFFSET,                               "0",         core_options::option_type::INTEGER,    "offset vsync position by this many lines to prevent tearing with frame_delay and high-resolution displays" },
 	{ OPTION_BLACK_FRAME_INSERTION ";bfi",               "0",         core_options::option_type::INTEGER,    "number of black frames to insert after each normal frame, intended to reduce motion blur on 120+ Hz monitors" },
+	{ OPTION_TEARBAR ";tb",                              "1",         core_options::option_type::BOOLEAN,    "show tear bar" },
 
 	// render options
 	{ nullptr,                                           nullptr,     core_options::option_type::HEADER,     "CORE RENDER OPTIONS" },
@@ -135,6 +138,7 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_CONTRAST "(0.1-2.0)",                       "1.0",       core_options::option_type::FLOAT,      "default game screen contrast correction" },
 	{ OPTION_GAMMA "(0.1-3.0)",                          "1.0",       core_options::option_type::FLOAT,      "default game screen gamma correction" },
 	{ OPTION_PAUSE_BRIGHTNESS "(0.0-1.0)",               "0.65",      core_options::option_type::FLOAT,      "amount to scale the screen brightness when paused" },
+	{ OPTION_BFI_BRIGHTNESS "(0.0-1.0)",                 "0.0",       core_options::option_type::FLOAT,      "dimmed brightness for black frame insertion" },
 	{ OPTION_EFFECT,                                     "none",      core_options::option_type::STRING,     "name of a PNG file to use for visual effects, or 'none'" },
 
 	// vector options
@@ -190,6 +194,8 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_UPDATEINPAUSE,                              "0",         core_options::option_type::BOOLEAN,    "keep calling video updates while in pause" },
 	{ OPTION_DEBUGSCRIPT,                                nullptr,     core_options::option_type::PATH,       "script for debugger" },
 	{ OPTION_DEBUGLOG,                                   "0",         core_options::option_type::BOOLEAN,    "write debug console output to debug.log" },
+	{ OPTION_EMUSYNCLOG,                                 "0",         core_options::option_type::BOOLEAN,    "output emusync logging information" },
+	{ OPTION_EMUSYNCSERIAL,                              nullptr,     core_options::option_type::STRING,     "send emusync messages on this serial port" },
 
 	// comm options
 	{ nullptr,                                           nullptr,     core_options::option_type::HEADER,     "CORE COMM OPTIONS" },
