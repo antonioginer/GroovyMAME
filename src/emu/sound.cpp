@@ -15,7 +15,9 @@
 
 #include "config.h"
 #include "emuopts.h"
+#include "emusync.h"
 #include "main.h"
+#include "screen.h"
 #include "speaker.h"
 
 #include "wavwrite.h"
@@ -768,8 +770,8 @@ sound_manager::sound_manager(running_machine &machine) :
 	machine.save().save_item(NAME(m_last_sync_time));
 
 	// start the periodic update flushing timer
-	m_update_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(sound_manager::update), this));
-	m_update_timer->adjust(STREAMS_UPDATE_ATTOTIME, 0, STREAMS_UPDATE_ATTOTIME);
+	// m_update_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(sound_manager::update), this));
+	// m_update_timer->adjust(STREAMS_UPDATE_ATTOTIME, 0, STREAMS_UPDATE_ATTOTIME);
 
 	// mark the generation as "just starting, waiting for config loading"
 	m_osd_info.m_generation = 0xffff0000;
@@ -1031,54 +1033,19 @@ void sound_manager::run_effects()
 
 		std::unique_lock<std::mutex> lock(m_effects_mutex);
 #endif
-		// Copy the data to the effects threads, expanding as needed when -speed is in use
-		double sf = machine().video().speed_factor();
-		if(sf == 1000) {
-			for(auto &si : m_speakers) {
-				int samples = si.m_buffer.available_samples();
-				int channels = si.m_buffer.channels();
-				auto &eb = si.m_effects_buffer;
-				eb.prepare_space(samples);
-				if(m_muted)
-					for(int channel = 0; channel != channels; channel ++)
-						std::fill(si.m_effects_buffer.ptrw(channel, 0), si.m_effects_buffer.ptrw(channel, 0) + samples, 0);
-				else
-					for(int channel = 0; channel != channels; channel ++)
-						std::copy(si.m_buffer.ptrs(channel, 0), si.m_buffer.ptrs(channel, 0) + samples, eb.ptrw(channel, 0));
-				eb.commit(samples);
-			}
-		} else {
-			sf /= 1000;
-			for(auto &si : m_speakers) {
-				int source_samples = si.m_buffer.available_samples();
-				int channels = si.m_buffer.channels();
-				auto &eb = si.m_effects_buffer;
-				eb.prepare_space(source_samples / sf + 1);
-				int source_sample_index = 0;
-				int dest_index = 0;
-				double phase = si.m_speed_phase;
-				for(int channel = 0; channel != channels; channel ++) {
-					const sample_t *src = si.m_buffer.ptrs(channel, 0);
-					phase = si.m_speed_phase;
-					if(phase >= 1) {
-						source_sample_index = int(phase);
-						phase -= int(phase);
-					} else
-						source_sample_index = 0;
-					sample_t *dest = eb.ptrw(channel, 0);
-					dest_index = 0;
-					while(source_sample_index < source_samples) {
-						dest[dest_index++] = m_muted ? 0.0 : src[source_sample_index];
-						phase += sf;
-						if(phase >= 1) {
-							source_sample_index += int(phase);
-							phase -= int(phase);
-						}
-					}
-				}
-				si.m_speed_phase = phase + (source_sample_index - source_samples);
-				eb.commit(dest_index);
-			}
+		// Copy the data to the effects threads
+		for(auto &si : m_speakers) {
+			int samples = si.m_buffer.available_samples();
+			int channels = si.m_buffer.channels();
+			auto &eb = si.m_effects_buffer;
+			eb.prepare_space(samples);
+			if(m_muted)
+				for(int channel = 0; channel != channels; channel ++)
+					std::fill(si.m_effects_buffer.ptrw(channel, 0), si.m_effects_buffer.ptrw(channel, 0) + samples, 0);
+			else
+				for(int channel = 0; channel != channels; channel ++)
+					std::copy(si.m_buffer.ptrs(channel, 0), si.m_buffer.ptrs(channel, 0) + samples, eb.ptrw(channel, 0));
+			eb.commit(samples);
 		}
 #ifndef SOUND_DISABLE_THREADING
 		dlock.unlock();
@@ -1158,12 +1125,31 @@ void sound_manager::run_effects()
 		for(auto &si : m_speakers)
 			si.m_effects.back().m_buffer.sync();
 
+		if (machine().sync().handle_throttle() && machine().options().sync_audio())
+			machine().sync().throttle_audio();
+
 		machine().osd().sound_begin_update();
 
-		// Send the result to the osd
+		// Resample streams and send to osd
 		for(auto &stream : m_osd_output_streams)
-			if(stream.m_samples)
-				machine().osd().sound_stream_sink_update(stream.m_id, stream.m_buffer.data(), stream.m_samples);
+			if(stream.m_samples) {
+				size_t output_frames;
+
+				double rate = 1000.0 / machine().video().speed_factor();
+				double sink_rate = machine().sync().get_sink_rate(stream.m_id);
+
+				if (machine().sync().handle_throttle() && machine().options().sync_audio()) {
+					rate = 1.0 / machine().sync().speed_factor();
+					rate *= sink_rate == 0.0 ? 1.0 : sink_rate / stream.m_rate;
+
+					machine().sync().log("Final audio rate [median(-0.0003:0.0003)]", machine().sync().NOW, rate);
+					machine().sync().log("Stream sink rate", machine().sync().NOW, sink_rate == 0.0 ? stream.m_rate : sink_rate);
+				}
+
+				stream.m_output_resampler.apply(rate, stream.m_buffer.data(), stream.m_samples, stream.m_output_buffer.data(), &output_frames, stream.m_channels);
+
+				machine().osd().sound_stream_sink_update(stream.m_id, stream.m_output_buffer.data(), output_frames);
+			}
 
 		machine().osd().sound_end_update();
 #ifndef SOUND_DISABLE_THREADING

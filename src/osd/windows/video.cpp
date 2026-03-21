@@ -75,6 +75,10 @@ bool windows_osd_interface::video_init()
 	if (m_render->is_interactive())
 		SetForegroundWindow(dynamic_cast<win_window_info &>(*osd_common_t::s_window_list.front()).platform_window());
 
+	// For multi-monitor, defer going fullscreen after all windows are created
+	if (video_config.numscreens > 1 && !options.window())
+		winwindow_toggle_full_screen();
+
 	return true;
 }
 
@@ -153,7 +157,7 @@ void windows_osd_interface::check_osd_inputs()
 void windows_osd_interface::extract_video_config()
 {
 	// global options: extract the data
-	video_config.windowed      = options().window();
+	video_config.windowed      = options().window() || options().numscreens() > 1;
 	video_config.prescale      = options().prescale();
 	video_config.filter        = options().filter();
 	video_config.numscreens    = options().numscreens();
