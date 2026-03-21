@@ -113,6 +113,8 @@ These raw timestamps are filtered to remove inherent jitter, allowing for highly
 
 Although, as a user, you will probably never need to bother, event logging is of vital importance when debugging timing issues. Through the `-emusynclog -str` options, it is possible to collect a complete dump of in-game real-time statistics, which can later be processed in Python into customizable graphs for analysis. Real-world event debugging is also supported through the [optional serial port dongle](../../3rdparty/emusync/emusync_adapter/README.md), enabled with the `-emusyncserial` option.
 
+![emusynclog](emusynclog.webp "emusynclog")
+
 ## Special Thanks
 
 - To Substring, for his continued work on [GroovyArcade](https://gitlab.com/groovyarcade/os), the reference distro for GroovyMAME.
