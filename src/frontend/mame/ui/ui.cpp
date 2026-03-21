@@ -34,6 +34,7 @@
 #include "mameopts.h"
 #include "drivenum.h"
 #include "fileio.h"
+#include "emusync.h"
 #include "natkeyboard.h"
 #include "render.h"
 #include "rendutil.h"
@@ -942,6 +943,10 @@ bool mame_ui_manager::update_and_render(render_container &container)
 	else
 		m_popup_text_end = 0;
 
+	// draw tear bar
+	if (show_fps_counter() && machine().options().tearbar())
+		draw_tear_bar(container);
+
 	// display the internal pointers
 	bool const pointer_update = m_pointers_changed;
 	m_pointers_changed = false;
@@ -1222,6 +1227,36 @@ void mame_ui_manager::draw_text_box(render_container &container, ui::text_layout
 void mame_ui_manager::draw_message_window(render_container &container, std::string_view text)
 {
 	draw_text_box(container, text, ui::text_layout::text_justify::LEFT, 0.5f, 0.5f, colors().background_color());
+}
+
+
+//-------------------------------------------------
+//  draw_tear_bar - draw a tear test scrolling bar
+//-------------------------------------------------
+
+void mame_ui_manager::draw_tear_bar(render_container &container)
+{
+	static int i = 0;
+
+	render_target &target = machine().render().ui_target();
+	bool target_rotated = (target.height() > target.width());
+	double target_aspect = (double)target.width() / target.height();
+
+	double ui_aspect = machine().render().ui_aspect(&container);
+	bool ui_rotated = fabs(ui_aspect - target_aspect) < 1e-6;
+
+	// draw vertical bar at current x position
+	int width = target_rotated? target.height() : target.width();
+	double pos = (double)i / width;
+
+	if (target_rotated ^ ui_rotated)
+		container.add_rect(0, pos, 1, pos + 1.0 / 64.0, 0xff00ff00, PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
+	else
+		container.add_rect(pos, 0, pos + 1.0 / 64.0, 1, 0xff00ff00, PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
+
+	// increase bar x position
+	i += std::max(1, width / 256);
+	i %= width;
 }
 
 
@@ -1930,13 +1965,11 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 				slider_alloc(util::string_format(_("%1$s Channel %d Volume"), snd.device().tag(), channel), -960, 0, 120, 10, std::bind(&mame_ui_manager::slider_devvol_chan, this, &snd, channel, _1, _2));
 	}
 
-	// add frame delay
+	// add sync sliders
 	slider_alloc(_("Frame Delay"), 0, machine.options().frame_delay(), 9, 1, std::bind(&mame_ui_manager::slider_framedelay, this, _1, _2));
+	slider_alloc(_("Frame Delay Margin"), 0, floor(machine.options().fd_margin() * 1000.0 + 0.5), 10000, 10, std::bind(&mame_ui_manager::slider_fd_margin, this, _1, _2));
+	slider_alloc(_("V-Sync Offset"), -1024, machine.options().vsync_offset(), 1024, 1, std::bind(&mame_ui_manager::slider_vsync_offset, this, _1, _2));
 
-#ifdef _WIN32
-	// add vsync offset
-	slider_alloc(_("V-Sync Offset"), 0, machine.options().vsync_offset(), 1024, 1, std::bind(&mame_ui_manager::slider_vsync_offset, this, _1, _2));
-#endif
 
 	// add analog adjusters
 	for (auto &port : machine.ioport().ports())
@@ -2162,10 +2195,29 @@ int32_t mame_ui_manager::slider_devvol_chan(device_sound_interface *snd, int cha
 int32_t mame_ui_manager::slider_framedelay(std::string *str, int32_t newval)
 {
 	if (newval != SLIDER_NOCHANGE)
-		machine().video().set_framedelay(newval);
+		machine().sync().set_framedelay(newval);
 	if (str)
-		*str = string_format(_("%1$3d"), machine().video().framedelay());
-	return machine().video().framedelay();
+		*str = string_format(_("%1$3d"), machine().sync().framedelay());
+	return machine().sync().framedelay();
+}
+
+
+//--------------------------------------------------
+//  slider_fd_margin - global fd_margin slider
+//  callback
+//--------------------------------------------------
+
+int32_t mame_ui_manager::slider_fd_margin(std::string *str, int32_t newval)
+{
+	if (newval != SLIDER_NOCHANGE)
+	{
+		float fval = (float)newval * 0.001f;
+		machine().sync().set_fd_margin(fval);
+	}
+
+	if (str)
+		*str = string_format(_("%.2f"), (float)machine().sync().fd_margin_in_ms());
+	return floor(machine().sync().fd_margin_in_ms() * 1000.0 + 0.5);
 }
 
 
@@ -2177,10 +2229,10 @@ int32_t mame_ui_manager::slider_framedelay(std::string *str, int32_t newval)
 int32_t mame_ui_manager::slider_vsync_offset(std::string *str, int32_t newval)
 {
 	if (newval != SLIDER_NOCHANGE)
-		machine().video().set_vsync_offset(newval);
+		machine().sync().set_vsync_offset(newval);
 	if (str)
-		*str = string_format(_("%1$3d"), machine().video().vsync_offset());
-	return machine().video().vsync_offset();
+		*str = string_format(_("%1$3d"), machine().sync().vsync_offset());
+	return machine().sync().vsync_offset();
 }
 
 

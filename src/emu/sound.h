@@ -67,6 +67,7 @@
 
 #include "wavwrite.h"
 #include "interface/audio.h"
+#include "cosine.h"
 
 #include <string>
 #include <string_view>
@@ -482,6 +483,9 @@ public:
 	void set_resampler_hq_length(u32 length);
 	void set_resampler_hq_phases(u32 phases);
 
+	// periodic sound update, called STREAMS_UPDATE_FREQUENCY per second
+	void update(s32);
+
 private:
 	struct effect_step {
 		std::unique_ptr<audio_effect> m_effect;
@@ -560,11 +564,16 @@ private:
 
 	struct osd_output_stream : public osd_stream {
 		u32 m_samples;
+		cosine_resampler m_output_resampler;
 		std::vector<s16> m_buffer;
+		std::vector<s16> m_output_buffer;
+
 		osd_output_stream(u32 node, std::string &&node_name, u32 channels, u32 rate, bool is_system_default, sound_io_device *dev) :
 			osd_stream(node, std::move(node_name), channels, rate, is_system_default, dev),
 			m_samples(0),
-			m_buffer(channels*rate, 0)
+			m_output_resampler(cosine_resampler()),
+			m_buffer(channels*rate, 0),
+			m_output_buffer(channels * rate, 0)
 		{ }
 	};
 
@@ -588,9 +597,6 @@ private:
 	// handle configuration load/save
 	void config_load(config_type cfg_type, config_level cfg_lvl, util::xml::data_node const *parentnode);
 	void config_save(config_type cfg_type, util::xml::data_node *parentnode);
-
-	// periodic sound update, called STREAMS_UPDATE_FREQUENCY per second
-	void update(s32);
 
 	// handle mixing mapping update if needed
 	static std::vector<u32> find_channel_mapping(const osd::channel_position &pos, const osd::audio_info::node_info *node);

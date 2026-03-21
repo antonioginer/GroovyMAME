@@ -393,6 +393,14 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/sdl/window.h",
 	}
 
+	if _OPTIONS["targetos"]=="linux" then
+		files {
+			MAME_DIR .. "src/osd/modules/emusync/emusync_linux.cpp",
+			MAME_DIR .. "src/osd/modules/render/drawkmsraw.cpp",
+		}
+	end
+
+
 project ("ocore_" .. _OPTIONS["osd"])
 	uuid (os.uuid("ocore_" .. _OPTIONS["osd"]))
 	kind (LIBTYPE)

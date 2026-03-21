@@ -11,6 +11,7 @@
 // MAME headers
 #include "emu.h"
 #include "emuopts.h"
+#include "emusync.h"
 #include "render.h"
 #include "screen.h"
 #include "uiinput.h"
@@ -303,7 +304,8 @@ void sdl_window_info::update_cursor_state()
 			capture_pointer();
 		}
 
-		SDL_SetCursor(nullptr); // Force an update in case the underlying driver has changed visibility
+		// Disable this. This call may take up to one frame period to complete on kms
+		//SDL_SetCursor(nullptr); // Force an update in case the underlying driver has changed visibility
 	}
 #endif
 }
@@ -739,6 +741,9 @@ void sdl_window_info::update()
 	// adjust the cursor state
 	update_cursor_state();
 
+	// Update fullscreen state for raster based throttling
+	machine().sync().set_fullscreen(fullscreen());
+
 	// if we're visible and running and not in the middle of a resize, draw
 	if (target() != nullptr)
 	{
@@ -779,6 +784,11 @@ void sdl_window_info::update()
 				}
 			}
 		}
+
+		// check if frame delay has changed
+		int new_frame_delay = machine().sync().framedelay();
+		if (new_frame_delay != video_config.framedelay)
+			video_config.framedelay = new_frame_delay;
 
 		osd_ticks_t event_wait_ticks;
 		if (video_config.syncrefresh)

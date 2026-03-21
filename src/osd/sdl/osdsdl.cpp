@@ -130,6 +130,8 @@ void osd_sdl_info()
 	{
 		osd_printf_verbose("\t%-20s\n", SDL_GetAudioDriver(i));
 	}
+
+	SDL_ShowCursor(SDL_DISABLE);
 }
 
 
@@ -245,6 +247,10 @@ void sdl_osd_interface::init(running_machine &machine)
 		osd_printf_verbose("Setting SDL_VIDEO_GL_DRIVER = '%s' ...\n", stemp);
 	}
 #endif
+
+	stemp = options().video();
+	if(strcmp(stemp, "kmsraw") == 0)
+		SDL_SetHint(SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER, "0");
 
 	/* get number of processors */
 	stemp = options().numprocessors();

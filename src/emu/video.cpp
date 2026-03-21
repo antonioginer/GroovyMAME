@@ -13,6 +13,7 @@
 #include "crsshair.h"
 #include "debugger.h"
 #include "emuopts.h"
+#include "emusync.h"
 #include "fileio.h"
 #include "main.h"
 #include "output.h"
@@ -95,10 +96,6 @@ video_manager::video_manager(running_machine &machine)
 	, m_overall_valid_counter(0)
 	, m_throttled(true)
 	, m_throttle_rate(1.0f)
-	, m_syncrefresh(machine.options().sync_refresh())
-	, m_syncaudio(machine.options().sync_audio())
-	, m_framedelay(machine.options().frame_delay())
-	, m_vsync_offset(machine.options().vsync_offset())
 	, m_fastforward(false)
 	, m_seconds_to_run(machine.options().seconds_to_run())
 	, m_auto_frameskip(machine.options().auto_frameskip())
@@ -224,7 +221,7 @@ void video_manager::frame_update(bool from_debugger)
 	bool anything_changed = update_screens && finish_screen_updates();
 
 	// update inputs and draw the user interface
-	machine().osd().input_update(true);
+	//machine().osd().input_update(true);
 	anything_changed = emulator_info::draw_user_interface(machine()) || anything_changed;
 
 	// let plugins draw over the UI
@@ -233,7 +230,7 @@ void video_manager::frame_update(bool from_debugger)
 	// if none of the screens changed and we haven't skipped too many frames in a row,
 	// mark this frame as skipped to prevent throttling; this helps for games that
 	// don't update their screen at the monitor refresh rate
-	if (!m_syncrefresh && !anything_changed && !m_auto_frameskip && (m_frameskip_level == 0) && (m_empty_skip_count++ < 3))
+	if (!machine().sync().sync_refresh() && !anything_changed && !m_auto_frameskip && (m_frameskip_level == 0) && (m_empty_skip_count++ < 3))
 		skipped_it = true;
 	else
 		m_empty_skip_count = 0;
@@ -249,13 +246,17 @@ void video_manager::frame_update(bool from_debugger)
 		machine().osd().update(!from_debugger && skipped_it);
 	}
 
+	if (phase > machine_phase::INIT)
+		machine().sound().update(0);
+
 	// manage black frame insertion
 	if (machine().options().black_frame_insertion() && machine().options().sync_refresh())
 	{
 		if (phase == machine_phase::RUNNING && (!machine().paused() || machine().options().update_in_pause()))
 		{
 			render_container *container = &machine().render().ui_container();
-			container->add_rect(0, 0, 1, 1, 0xff000000, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+			int alpha = (1.0f - machine().options().bfi_brightness()) * 255.0f;
+			container->add_rect(0, 0, 1, 1, rgb_t(alpha,0x00,0x00,0x00), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 			for (int i = 0; i < machine().options().black_frame_insertion(); i++)
 			{
 				update_throttle(current_time);
@@ -268,7 +269,10 @@ void video_manager::frame_update(bool from_debugger)
 	if (!from_debugger && phase > machine_phase::INIT && m_low_latency && effective_throttle())
 		update_throttle(current_time);
 
-	machine().osd().input_update(false);
+	machine().sync().serial_collect();
+	machine().sync().serial_write(machine().sync().POLL_INPUT);
+
+	machine().osd().input_update(true);
 	emulator_info::periodic_check();
 
 	if (!from_debugger)
@@ -323,6 +327,11 @@ std::string video_manager::speed_text()
 	// otherwise, just display the frameskip plus the level
 	else
 		util::stream_format(str, "skip %d/%d", effective_frameskip(), MAX_FRAMESKIP);
+
+	if (machine().sync().auto_framedelay() && machine().sync().framedelay() == 0)
+		util::stream_format(str, " fd %.3f", machine().sync().current_framedelay() * 10);
+	else
+		util::stream_format(str, " fd %d", machine().sync().framedelay());
 
 	// append the speed for all cases except paused
 	if (!paused)
@@ -735,24 +744,8 @@ void video_manager::update_throttle(attotime emutime)
 */
 
 	// if we're only syncing to the refresh, bail now
-	if (m_syncrefresh)
-	{
-		if (m_framedelay == 0 || m_framedelay > 9)
-			return;
-
-		screen_device *const screen = screen_device_enumerator(machine().root_device()).first();
-		if (screen)
-		{
-			osd_ticks_t now = osd_ticks();
-			osd_ticks_t ticks_per_second = osd_ticks_per_second();
-			attoseconds_t attoseconds_per_tick = ATTOSECONDS_PER_SECOND / ticks_per_second * m_throttle_rate;
-
-			attoseconds_t period = screen->frame_period().attoseconds();
-			int bfi = machine().options().black_frame_insertion();
-			throttle_until_ticks(now + period / attoseconds_per_tick * m_framedelay / 10 / (bfi + 1));
-			return;
-		}
-	}
+	if (machine().sync().handle_throttle())
+		return;
 
 	// outer scope so we can break out in case of a resync
 	while (1)
@@ -1019,13 +1012,6 @@ void video_manager::recompute_speed(const attotime &emutime)
 		osd_ticks_t delta_realtime = realtime - m_speed_last_realtime;
 		osd_ticks_t tps = osd_ticks_per_second();
 		m_speed_percent = delta_emutime.as_double() * (double)tps / (double)delta_realtime;
-
-		// adjust speed for audio resampling
-		if (m_syncaudio && m_syncrefresh && m_throttled)
-		{
-			if (m_speed_percent >= 0.8 && m_speed_percent <= 1.2)
-				m_speed = m_speed_percent * 1000;
-		}
 
 		// log speed for frame delay statistic
 		if (!m_throttled)
