@@ -779,7 +779,7 @@ int renderer_ogl::create()
 	}
 	m_gl_context->set_swap_interval(video_config.waitvsync ? 1 : 0);
 
-	if (window().index() == 0 && m_sync.sync_refresh())
+	if (window().index() == 0)
 	{
 		if (m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr))
 			m_gl_context->set_swap_interval(0);

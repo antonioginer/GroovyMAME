@@ -553,7 +553,7 @@ int renderer_d3d11::create()
 
 	osd_printf_verbose("d3d11: device created.\n");
 
-	if (window().index() == 0 && m_sync.sync_refresh())
+	if (window().index() == 0)
 		m_sync.osd_init(window().monitor()->oshandle(), std::bind(&renderer_d3d11::get_vblank_timestamp, this), std::bind(&renderer_d3d11::get_frame_counter, this));
 
 	return 0;

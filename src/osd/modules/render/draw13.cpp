@@ -468,7 +468,7 @@ int renderer_sdl2::create()
 	}
 
 	bool handle_vsync = false;
-	if (window().index() == 0 && m_sync.sync_refresh())
+	if (window().index() == 0)
 		handle_vsync = m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr);
 
 	if (video_config.waitvsync)

@@ -85,7 +85,7 @@ int renderer_kmsraw::create()
 		return -1;
 	}
 
-	if (window().index() == 0 && m_sync.sync_refresh())
+	if (window().index() == 0)
 		m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr);
 
 	return 0;

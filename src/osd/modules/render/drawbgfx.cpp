@@ -767,7 +767,7 @@ int renderer_bgfx::create()
 	memset(m_white, 0xff, sizeof(uint32_t) * 16 * 16);
 	m_texinfo.push_back(rectangle_packer::packable_rectangle(WHITE_HASH, PRIMFLAG_TEXFORMAT(TEXFORMAT_ARGB32), 16, 16, 16, nullptr, m_white));
 
-	if (window().index() == 0 && m_sync.sync_refresh())
+	if (window().index() == 0)
 		m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr);
 
 	return 0;
