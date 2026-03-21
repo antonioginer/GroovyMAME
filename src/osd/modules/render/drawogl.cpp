@@ -782,7 +782,8 @@ int renderer_ogl::create()
 	if (window().index() == 0)
 	{
 		if (m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr))
-			m_gl_context->set_swap_interval(0);
+			if (m_sync.sync_refresh())
+				m_gl_context->set_swap_interval(0);
 	}
 
 

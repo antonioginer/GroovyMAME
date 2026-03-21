@@ -469,7 +469,10 @@ int renderer_sdl2::create()
 
 	bool handle_vsync = false;
 	if (window().index() == 0)
-		handle_vsync = m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr);
+	{
+		if (m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr))
+			handle_vsync = m_sync.sync_refresh();
+	}
 
 	if (video_config.waitvsync)
 		m_sdl_renderer = SDL_CreateRenderer(dynamic_cast<sdl_window_info &>(window()).platform_window(), -1, (handle_vsync? 0 : SDL_RENDERER_PRESENTVSYNC) | SDL_RENDERER_ACCELERATED);
