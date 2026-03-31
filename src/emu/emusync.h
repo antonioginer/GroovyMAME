@@ -71,11 +71,13 @@ public:
 	void register_emutime(uint64_t emutime);
 	void register_sink_samples(uint32_t id, uint64_t samples);
 	double get_sink_rate(int id);
+	uint64_t wait_until_time(uint64_t time_target, uint64_t timeout);
 	uint64_t wait_raster(uint64_t count, double scan);
 	void get_raster(raster_status *status);
 	void get_scanline(uint32_t *scanline, bool *in_vblank);
 	void predraw_sync();
 	void postdraw_sync();
+	void throttle_audio();
 
 	// getters
 	running_machine &machine() const noexcept { return m_machine; }
@@ -143,6 +145,7 @@ private:
 	uint64_t time_in_ns();
 	inline double get_ms(int64_t time) { return (double)time / 1e6; };
 	inline double time_now() { return get_ms(time_in_ns() - m_time_start); };
+	inline uint64_t scan_to_time_target(uint64_t count, double scan);
 
 	kalman_filter m_kf;
 
@@ -170,6 +173,8 @@ private:
 	uint64_t m_frame_time = 0;
 	uint64_t m_emu_period = 0;
 	uint64_t m_time_start = 0;
+
+	std::atomic<uint64_t> m_audio_time_target = 0;
 
 	int64_t  m_vblank_count = 0;
 	int64_t  m_current_period = 0;
