@@ -236,7 +236,7 @@ void video_manager::frame_update(bool from_debugger)
 		m_empty_skip_count = 0;
 
 	if (phase > machine_phase::INIT)
-		machine().sound().update(0);
+		machine().sound().update(0, machine().sync().audio_throttle_target());
 
 	// if we're throttling, synchronize before rendering
 	attotime current_time = machine().time();
