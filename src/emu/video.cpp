@@ -235,6 +235,9 @@ void video_manager::frame_update(bool from_debugger)
 	else
 		m_empty_skip_count = 0;
 
+	if (phase > machine_phase::INIT)
+		machine().sound().update(0);
+
 	// if we're throttling, synchronize before rendering
 	attotime current_time = machine().time();
 	if (!from_debugger && phase > machine_phase::INIT && !m_low_latency && effective_throttle())
@@ -245,9 +248,6 @@ void video_manager::frame_update(bool from_debugger)
 		auto profile = g_profiler.start(PROFILER_BLIT);
 		machine().osd().update(!from_debugger && skipped_it);
 	}
-
-	if (phase > machine_phase::INIT)
-		machine().sound().update(0);
 
 	// manage black frame insertion
 	if (machine().options().black_frame_insertion() && machine().options().sync_refresh())
