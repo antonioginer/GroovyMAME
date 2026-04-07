@@ -1028,6 +1028,9 @@ void sound_manager::run_effects()
 	std::unique_lock<std::mutex> dlock(m_effects_data_mutex);
 	for(;;) {
 		m_effects_condition.wait(dlock);
+
+		uint64_t throttle_target = m_effects_throttle_target;
+
 		if(m_effects_done)
 			return;
 
@@ -1126,7 +1129,7 @@ void sound_manager::run_effects()
 			si.m_effects.back().m_buffer.sync();
 
 		if (machine().sync().handle_throttle() && machine().options().sync_audio())
-			machine().sync().throttle_audio();
+			machine().sync().wait_until_time(throttle_target, 20 * 1e6);
 
 		machine().osd().sound_begin_update();
 
@@ -2655,17 +2658,17 @@ u64 sound_manager::rate_and_time_to_index(attotime time, u32 sample_rate) const
 	return time.m_seconds * sample_rate + muldivu_64(time.m_attoseconds, sample_rate, ATTOSECONDS_PER_SECOND);
 }
 
-void sound_manager::update(s32)
+void sound_manager::update(s32, uint64_t throttle_target)
 {
 	auto profile = g_profiler.start(PROFILER_SOUND);
 
 	mapping_update();
-	streams_update();
+	streams_update(throttle_target);
 
 	m_last_sync_time = machine().time();
 }
 
-void sound_manager::streams_update()
+void sound_manager::streams_update(uint64_t throttle_target)
 {
 	attotime now = machine().time();
 	{
@@ -2677,6 +2680,7 @@ void sound_manager::streams_update()
 
 		m_effects_prev_time = m_effects_cur_time;
 		m_effects_cur_time = now;
+		m_effects_throttle_target = throttle_target;
 
 		for(sound_stream *stream : m_ordered_streams)
 			stream->update_nodeps();
