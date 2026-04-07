@@ -1125,6 +1125,9 @@ void sound_manager::run_effects()
 		for(auto &si : m_speakers)
 			si.m_effects.back().m_buffer.sync();
 
+		if (machine().sync().handle_throttle() && machine().options().sync_audio())
+			machine().sync().throttle_audio();
+
 		machine().osd().sound_begin_update();
 
 		// Resample streams and send to osd

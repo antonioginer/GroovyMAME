@@ -102,6 +102,8 @@ void emusync::reset()
 	m_mean = 0;
 	m_kf.reset();
 
+	m_audio_time_target.store(0, std::memory_order_relaxed);
+
 	for (auto& [id, sink_st] : m_sinks)
 		sink_st.m_reset_request.store(true, std::memory_order_relaxed);
 }
@@ -391,16 +393,51 @@ register_and_exit:
 
 
 //============================================================
+//  emusync::wait_until_time
+//============================================================
+
+uint64_t emusync::wait_until_time(uint64_t time_target, uint64_t timeout)
+{
+	uint64_t current_time = time_in_ns();
+	uint64_t time_entry = current_time;
+
+	do
+	{
+		if (current_time >= time_target)
+			break;
+
+		if (m_sleep_allowed && (time_target - current_time) > 2e6) // 2 ms
+			osd_sleep(sleep_time);
+
+		current_time = time_in_ns();
+
+	} while ((current_time - time_entry) < timeout);
+
+	return time_in_ns() - time_entry;
+}
+
+
+//============================================================
+//  emusync::scan_to_time_target
+//============================================================
+
+inline uint64_t emusync::scan_to_time_target(uint64_t count, double scan)
+{
+	//uint64_t sync_target = m_last_timestamp + vsync_offset() * line_period() + (count - m_last_count) * period();
+	uint64_t sync_target = m_kf.get_filtered_timestamp() + vsync_offset() * line_period() + (count - m_last_count) * period();
+	return sync_target + (uint64_t)(scan * period());
+}
+
+
+//============================================================
 //  emusync::wait_raster
 //============================================================
 
 uint64_t emusync::wait_raster(uint64_t count, double scan)
 {
-	//uint64_t sync_target = m_last_timestamp + vsync_offset() * line_period() + (count - m_last_count) * period();
-	uint64_t sync_target = m_kf.get_filtered_timestamp() + vsync_offset() * line_period() + (count - m_last_count) * period();
-	uint64_t time_target = sync_target + (uint64_t)(scan * period());
-
+	uint64_t time_target = scan_to_time_target(count, scan);
 	uint64_t time_entry = time_in_ns();
+	uint64_t elapsed = 0;
 
 	emusync_printf_verbose("wait raster [%d][%.3f]: ", count, scan);
 
@@ -408,26 +445,13 @@ uint64_t emusync::wait_raster(uint64_t count, double scan)
 	if ((int)(time_target - time_entry) > 0)
 	{
 		emusync_printf_verbose("must wait: %+.3f ", get_ms(time_target) - get_ms(time_entry));
-
-		uint64_t current_time;
-		do
-		{
-			current_time = time_in_ns();
-			if (current_time >= time_target)
-				break;
-
-			if (m_sleep_allowed && (time_target - current_time) > 2e6) // 2 ms
-				osd_sleep(sleep_time);
-
-		} while ((current_time - time_entry) < period() * 2);
+		elapsed = wait_until_time(time_target, period() * 2);
+		emusync_printf_verbose("elapsed: %.3f\n", get_ms(elapsed));
 	}
 	else
-		emusync_printf_verbose("delayed, exiting. ");
+		emusync_printf_verbose("delayed, exiting.\n");
 
-	uint64_t time_exit = time_in_ns();
-	emusync_printf_verbose("elapsed: %.3f\n", get_ms(time_exit - time_entry));
-
-	return time_exit - time_entry;
+	return elapsed;
 }
 
 
@@ -451,7 +475,7 @@ void emusync::get_raster(raster_status *status)
 
 
 //============================================================
-//  emusync::get_raster
+//  emusync::current_framedelay
 //============================================================
 
 double emusync::current_framedelay()
@@ -548,6 +572,7 @@ void emusync::postdraw_sync()
 	log("Frame delay", NOW, (double) fd * 10.0);
 
 	m_next_sync_frame = m_this_sync_frame + (m_missed_previous_retrace? 0 : 1);
+	m_audio_time_target.store(scan_to_time_target(m_next_sync_frame, 1.0), std::memory_order_relaxed);
 
 	if (handle_throttle() && machine().video().throttled())
 	{
@@ -561,6 +586,15 @@ void emusync::postdraw_sync()
 	register_tag(emusync::AFTER_SYNC);
 }
 
+
+//============================================================
+//  emusync::throtttle_audio
+//============================================================
+
+void emusync::throttle_audio()
+{
+	wait_until_time(m_audio_time_target.load(std::memory_order_relaxed), period() * 2);
+}
 
 //============================================================
 //  emusync::log
