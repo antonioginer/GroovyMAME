@@ -483,8 +483,8 @@ public:
 	void set_resampler_hq_length(u32 length);
 	void set_resampler_hq_phases(u32 phases);
 
-	// periodic sound update, called STREAMS_UPDATE_FREQUENCY per second
-	void update(s32);
+	// periodic sound update, called once per frame
+	void update(s32, uint64_t);
 
 private:
 	struct effect_step {
@@ -601,7 +601,7 @@ private:
 	// handle mixing mapping update if needed
 	static std::vector<u32> find_channel_mapping(const osd::channel_position &pos, const osd::audio_info::node_info *node);
 	void startup_cleanups();
-	void streams_update();
+	void streams_update(uint64_t);
 	template<bool is_output, typename S> void apply_osd_changes(std::vector<S> &streams);
 	void osd_information_update();
 	void generate_mapping();
@@ -657,6 +657,9 @@ private:
 	std::vector<std::unique_ptr<audio_effect>> m_default_effects;
 	bool m_effects_done;
 	attotime m_effects_prev_time, m_effects_cur_time;
+
+	// Throttle until this (real-world) time, then send to OSD
+	uint64_t m_effects_throttle_target;
 
 	float m_master_gain;
 

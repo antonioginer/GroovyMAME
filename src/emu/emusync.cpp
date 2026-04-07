@@ -102,7 +102,7 @@ void emusync::reset()
 	m_mean = 0;
 	m_kf.reset();
 
-	m_audio_time_target.store(0, std::memory_order_relaxed);
+	m_audio_throttle_target = 0;
 
 	for (auto& [id, sink_st] : m_sinks)
 		sink_st.m_reset_request.store(true, std::memory_order_relaxed);
@@ -572,7 +572,7 @@ void emusync::postdraw_sync()
 	log("Frame delay", NOW, (double) fd * 10.0);
 
 	m_next_sync_frame = m_this_sync_frame + (m_missed_previous_retrace? 0 : 1);
-	m_audio_time_target.store(scan_to_time_target(m_next_sync_frame, 1.0), std::memory_order_relaxed);
+	m_audio_throttle_target = scan_to_time_target(m_next_sync_frame, 1.0);
 
 	if (handle_throttle() && machine().video().throttled())
 	{
@@ -586,15 +586,6 @@ void emusync::postdraw_sync()
 	register_tag(emusync::AFTER_SYNC);
 }
 
-
-//============================================================
-//  emusync::throtttle_audio
-//============================================================
-
-void emusync::throttle_audio()
-{
-	wait_until_time(m_audio_time_target.load(std::memory_order_relaxed), period() * 2);
-}
 
 //============================================================
 //  emusync::log

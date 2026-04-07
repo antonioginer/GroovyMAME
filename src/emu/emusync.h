@@ -77,7 +77,6 @@ public:
 	void get_scanline(uint32_t *scanline, bool *in_vblank);
 	void predraw_sync();
 	void postdraw_sync();
-	void throttle_audio();
 
 	// getters
 	running_machine &machine() const noexcept { return m_machine; }
@@ -100,6 +99,7 @@ public:
 	uint64_t line_period() { return vtotal() != 0 ? period() / vtotal() * (m_interlaced ? 2.0 : 1.0) : 0; };
 	uint64_t emu_period() { return m_emu_period; };
 	double speed_factor() { return handle_throttle() ? (double)m_emu_period / (period() * (1 + m_bfi)) : 1.0; };
+	uint64_t audio_throttle_target() { return m_audio_throttle_target; };
 
 	// setters
 	void set_fullscreen(bool fullscreen) { m_fullscreen = fullscreen; }
@@ -174,7 +174,7 @@ private:
 	uint64_t m_emu_period = 0;
 	uint64_t m_time_start = 0;
 
-	std::atomic<uint64_t> m_audio_time_target = 0;
+	uint64_t m_audio_throttle_target = 0;
 
 	int64_t  m_vblank_count = 0;
 	int64_t  m_current_period = 0;
