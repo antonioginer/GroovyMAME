@@ -49,7 +49,8 @@ public:
 	bool init_display(int index, osd_monitor_info *monitor, osd_window_config *config, render_target *target, void* pf_data);
 	void delete_display(int index);
 	void get_game_info(display_manager* display, render_target *target);
-	bool effective_orientation(display_manager* display, render_target *target);
+	bool effective_orientation(int i, render_target *target);
+	bool scan_swapped();
 	bool check_resolution_change(int i, osd_monitor_info *monitor, render_target *target, osd_window_config *config);
 	bool check_geometry_change(int i);
 	bool set_mode(int i, osd_monitor_info *monitor, render_target *target, osd_window_config *config);
