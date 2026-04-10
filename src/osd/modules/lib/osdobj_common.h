@@ -336,6 +336,7 @@ public:
 	virtual std::vector<osd::network_device_info> list_network_devices() override;
 
 	virtual const char *switchres_mode(int i) override { return m_switchres.display_mode_to_txt(i); }
+	virtual bool scan_swapped() override { return m_switchres.scan_swapped(); }
 
 	// FIXME: everything below seems to be osd specific and not part of
 	//        this INTERFACE but part of the osd IMPLEMENTATION

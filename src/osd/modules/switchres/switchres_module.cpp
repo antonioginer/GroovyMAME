@@ -269,7 +269,7 @@ void switchres_module::delete_display(int index)
 
 void switchres_module::get_game_info(display_manager* display, render_target *target)
 {
-	bool rotation = effective_orientation(display, target);
+	bool rotation = effective_orientation(display->index(), target);
 	set_rotation(display->index(), rotation);
 
 	int minwidth, minheight;
@@ -288,13 +288,31 @@ void switchres_module::get_game_info(display_manager* display, render_target *ta
 //  switchres_module::effective_orientation
 //============================================================
 
-bool switchres_module::effective_orientation(display_manager* display, render_target *target)
+bool switchres_module::effective_orientation(int i, render_target *target)
 {
+	display_manager *display = switchres().display(i);
+
+	if (!display)
+		return false;
 
 	bool target_is_rotated = (target->orientation() & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY? true:false;
 	bool game_is_rotated = (machine().system().flags & machine_flags::MASK_ORIENTATION) & ORIENTATION_SWAP_XY;
 
 	return target_is_rotated ^ game_is_rotated ^ display->desktop_is_rotated();
+}
+
+//============================================================
+//  switchres_module::scan_swapped
+//============================================================
+
+bool switchres_module::scan_swapped()
+{
+	display_manager *display = switchres().display(0);
+
+	if (!display)
+		return false;
+
+	return display->desktop_is_rotated();
 }
 
 //============================================================
