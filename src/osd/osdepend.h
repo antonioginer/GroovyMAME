@@ -117,6 +117,7 @@ public:
 
 	// switchres interface
 	virtual const char *switchres_mode(int i) = 0;
+	virtual bool scan_swapped() = 0;
 
 protected:
 	virtual ~osd_interface() { }
