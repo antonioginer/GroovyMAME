@@ -17,6 +17,7 @@
 #include "debugger.h"
 #include "dirtc.h"
 #include "emuopts.h"
+#include "emusync.h"
 #include "fileio.h"
 #include "http.h"
 #include "image.h"
@@ -157,6 +158,9 @@ void running_machine::start()
 
 	// allocate a soft_reset timer
 	m_soft_reset_timer = m_scheduler.timer_alloc(timer_expired_delegate(FUNC(running_machine::soft_reset), this));
+
+	// raster sync manager
+	m_sync = std::make_unique<emusync>(*this);
 
 	// init the OSD layer
 	m_manager.osd().init(*this);

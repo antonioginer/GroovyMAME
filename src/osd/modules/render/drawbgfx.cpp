@@ -31,12 +31,14 @@
 #include "config.h"
 #include "render.h"
 #include "rendutil.h"
+#include "emusync.h"
 
 // util
 #include "util/xmlfile.h"
 
 // OSD
 #include "modules/lib/osdobj_common.h"
+#include "modules/monitor/monitor_common.h"
 #include "window.h"
 
 #include <bx/math.h>
@@ -634,6 +636,8 @@ renderer_bgfx::renderer_bgfx(osd_window &window, parent_module &parent)
 	, m_avi_target(nullptr)
 	, m_load_sub(parent.subscribe_load(&renderer_bgfx::load_config, this))
 	, m_save_sub(parent.subscribe_save(&renderer_bgfx::save_config, this))
+	, m_sync(window.sync())
+	, m_handle_vsync(false)
 {
 	// load settings if recreated after fullscreen toggle
 	util::xml::data_node *windownode = m_module().persistent_settings().get_child("window");
@@ -684,6 +688,9 @@ renderer_bgfx::~renderer_bgfx()
 		m_avi_data.reset();
 		m_avi_view.reset();
 	}
+
+	// destroy vblank thread
+	m_sync.osd_deinit();
 }
 
 
@@ -755,6 +762,9 @@ int renderer_bgfx::create()
 
 	memset(m_white, 0xff, sizeof(uint32_t) * 16 * 16);
 	m_texinfo.push_back(rectangle_packer::packable_rectangle(WHITE_HASH, PRIMFLAG_TEXFORMAT(TEXFORMAT_ARGB32), 16, 16, 16, nullptr, m_white));
+
+	if (window().index() == 0)
+		m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr);
 
 	return 0;
 }
@@ -1354,7 +1364,9 @@ int renderer_bgfx::draw(int update)
 
 	if (window().index() == osd_common_t::window_list().size() - 1)
 	{
+		m_sync.predraw_sync();
 		bgfx::frame();
+		m_sync.postdraw_sync();
 	}
 
 	return 0;
@@ -1390,12 +1402,15 @@ void renderer_bgfx::add_audio_to_recording(const int16_t *buffer, int samples_th
 
 bool renderer_bgfx::update_dimensions()
 {
-	if (m_dimensions != m_new_dimensions)
+	bool new_handle_vsync = m_sync.handle_throttle();
+
+	if (m_dimensions != m_new_dimensions || m_handle_vsync != new_handle_vsync)
 	{
 		m_dimensions = m_new_dimensions;
+		m_handle_vsync = new_handle_vsync;
 		if (window().index() == 0)
 		{
-			bgfx::reset(m_dimensions.width(), m_dimensions.height(), video_config.waitvsync ? BGFX_RESET_VSYNC : BGFX_RESET_NONE);
+			bgfx::reset(m_dimensions.width(), m_dimensions.height(), video_config.waitvsync && !m_handle_vsync? BGFX_RESET_VSYNC : BGFX_RESET_NONE);
 		}
 		else
 		{
