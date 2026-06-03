@@ -128,7 +128,14 @@ protected:
 			int num_displays = 0;
 			const auto displays = SDL_GetDisplays(&num_displays);
 #else
-			int num_displays = SDL_GetNumVideoDisplays();
+			// SDL2 doesn't get the number of displays correctly on a multi-gpu setup
+			// It only gets the number of displays of the first reported gpu
+			// Do this in order to have access to any screen from the kmsraw renderer
+			int num_displays;
+			if (strcmp(options.video(), "kmsraw") == 0)
+				num_displays = MAX_VIDEO_WINDOWS;
+			else
+				num_displays = SDL_GetNumVideoDisplays();
 #endif
 			for (i = 0; i < num_displays; i++)
 			{
