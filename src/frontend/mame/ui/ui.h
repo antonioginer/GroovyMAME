@@ -187,6 +187,7 @@ public:
 	void draw_text_box(render_target &target, std::string_view text, ui::text_layout::text_justify justify, float xpos, float ypos, rgb_t backcolor);
 	void draw_text_box(render_target &target, ui::text_layout &layout, float xpos, float ypos, rgb_t backcolor);
 	void draw_message_window(render_target &target, std::string_view text);
+	void draw_tear_bar(render_container &container);
 
 	// load/save options to file
 	void load_ui_options();
@@ -363,6 +364,7 @@ private:
 	int32_t slider_devvol(device_sound_interface *snd, std::string *str, int32_t newval);
 	int32_t slider_devvol_chan(device_sound_interface *snd, int channel, std::string *str, int32_t newval);
 	int32_t slider_framedelay(std::string *str, int32_t newval);
+	int32_t slider_fd_margin(std::string *str, int32_t newval);
 	int32_t slider_vsync_offset(std::string *str, int32_t newval);
 	int32_t slider_adjuster(ioport_field &field, std::string *str, int32_t newval);
 	int32_t slider_speed(std::string *str, int32_t newval);

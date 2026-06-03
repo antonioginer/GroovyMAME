@@ -35,6 +35,7 @@ osd_window::osd_window(
 	m_renderprovider(renderprovider),
 	m_monitor(std::move(monitor)),
 	m_renderer(nullptr),
+	m_sync(machine.sync()),
 	m_title(
 			util::string_format(
 				(video_config.numscreens > 1)

@@ -69,8 +69,6 @@ public:
 	int                     device_create_resources();
 	void                    device_delete();
 	void                    device_delete_resources();
-	void                    device_flush();
-	void                    update_break_scanlines();
 	void                    update_presentation_parameters();
 	void                    update_gamma_ramp();
 
@@ -86,6 +84,9 @@ public:
 	int                     pre_window_draw_check();
 	void                    begin_frame();
 	void                    end_frame();
+
+	bool                    get_vblank_timestamp();
+	uint64_t                get_frame_counter();
 
 	void                    draw_line(const render_primitive &prim);
 	void                    draw_quad(const render_primitive &prim);
@@ -142,7 +143,7 @@ private:
 	int                     m_height;                   // current height
 	int                     m_refresh;                  // current refresh rate
 	bool                    m_interlace;                // current interlace
-	int                     m_frame_delay;              // current frame delay value
+	double                  m_frame_delay;              // current frame delay value
 	int                     m_vsync_offset;             // current vsync_offset value
 	int                     m_first_scanline;           // first scanline number (visible)
 	int                     m_last_scanline;            // last scanline number (visible)
@@ -193,6 +194,10 @@ private:
 	std::unique_ptr<shaders> m_shaders;                 // HLSL interface
 
 	std::unique_ptr<d3d_texture_manager> m_texture_manager;          // texture manager
+
+	emusync &m_sync;
+
+	inline double get_ms(osd_ticks_t ticks) { return (double) ticks / osd_ticks_per_second() * 1000; };
 };
 
 #endif // MAME_OSD_MODULES_RENDER_DRAWD3D_H
