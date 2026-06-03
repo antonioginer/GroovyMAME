@@ -82,6 +82,9 @@
 #define OSDOPTION_SOUND                 "sound"
 #define OSDOPTION_AUDIO_LATENCY         "audio_latency"
 
+#define OSDOPTION_PART_API              "part_api"
+#define OSDOPTION_PART_DEVICE           "part_device"
+
 #define OSDOPTION_MIDI_PROVIDER         "midiprovider"
 
 #define OSDOPTION_NETWORK_PROVIDER      "networkprovider"
@@ -115,6 +118,7 @@
 #define OSDOPTION_SYNC_REFRESH_TOLERANCE "sync_refresh_tolerance"
 #define OSDOPTION_INTERLACE_FORCE_EVEN  "interlace_force_even"
 #define OSDOPTION_AUTOSYNC              "autosync"
+#define OSDOPTION_VBLANK_THREAD         "vblank_thread"
 #define OSDOPTION_AUTOFILTER            "autofilter"
 #define OSDOPTION_AUTOSTRETCH           "autostretch"
 #define OSDOPTION_SCALE_PROPORTIONAL    "scale_proportional"
@@ -203,6 +207,7 @@ public:
 	float sync_refresh_tolerance() const { return float_value(OSDOPTION_SYNC_REFRESH_TOLERANCE); }
 	bool interlace_force_even() const { return bool_value(OSDOPTION_INTERLACE_FORCE_EVEN); }
 	bool autosync() const { return bool_value(OSDOPTION_AUTOSYNC); }
+	bool vblank_thread() const { return bool_value(OSDOPTION_VBLANK_THREAD); }
 	bool autofilter() const { return bool_value(OSDOPTION_AUTOFILTER); }
 	bool autostretch() const { return bool_value(OSDOPTION_AUTOSTRETCH); }
 	bool scale_proportional() const { return bool_value(OSDOPTION_SCALE_PROPORTIONAL); }
@@ -237,6 +242,8 @@ public:
 	// sound options
 	const char *sound() const { return value(OSDOPTION_SOUND); }
 	float audio_latency() const { return float_value(OSDOPTION_AUDIO_LATENCY); }
+	const char *part_api() const { return value(OSDOPTION_PART_API); }
+	const char *part_device() const { return value(OSDOPTION_PART_DEVICE); }
 
 	// BGFX specific options
 	const char *bgfx_path() const { return value(OSDOPTION_BGFX_PATH); }

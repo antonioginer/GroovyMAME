@@ -42,6 +42,7 @@ function maintargetosdoptions(_target,_subtarget)
 		"psapi",
 		"shlwapi",
 		"uuid",
+		"d3dcompiler",
 	}
 end
 
@@ -151,6 +152,8 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/modules/render/d3d/d3dhlsl.h",
 		MAME_DIR .. "src/osd/modules/render/drawd3d.cpp",
 		MAME_DIR .. "src/osd/modules/render/drawd3d.h",
+		MAME_DIR .. "src/osd/modules/render/drawd3d11.cpp",
+		MAME_DIR .. "src/osd/modules/emusync/emusync_windows.cpp",
 		MAME_DIR .. "src/osd/windows/video.cpp",
 		MAME_DIR .. "src/osd/windows/video.h",
 		MAME_DIR .. "src/osd/windows/window.cpp",

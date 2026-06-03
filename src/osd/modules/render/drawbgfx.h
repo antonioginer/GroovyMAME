@@ -159,6 +159,10 @@ private:
 	static uint32_t s_current_view;
 	static uint32_t s_width[16];
 	static uint32_t s_height[16];
+
+	// emusync manager
+	emusync &m_sync;
+	bool m_handle_vsync;
 };
 
 #endif // MAME_RENDER_DRAWBGFX_H

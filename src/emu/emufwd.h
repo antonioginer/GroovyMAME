@@ -256,4 +256,7 @@ class validity_checker;
 // declared in video.h
 class video_manager;
 
+// declared in emusync.h
+class emusync;
+
 #endif // MAME_EMU_EMUFWD_H
