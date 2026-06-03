@@ -176,3 +176,12 @@ bool custom_video::process_modelist(std::vector<modeline *>)
 {
 	return false;
 }
+
+//============================================================
+//  custom_video::get_resource
+//============================================================
+
+void *custom_video::get_resource(const char*)
+{
+	return nullptr;
+}

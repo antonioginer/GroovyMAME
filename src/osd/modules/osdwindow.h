@@ -37,6 +37,7 @@ class render_module;
 class render_primitive_list;
 
 class osd_renderer;
+class emusync;
 
 
 class osd_window_config
@@ -80,6 +81,8 @@ public:
 
 	osd_monitor_info *monitor() const { return m_monitor.get(); }
 	std::shared_ptr<osd_monitor_info> monitor_from_rect(const osd_rect *proposed) const;
+
+	emusync &sync() const { return m_sync; }
 
 	void create_target();
 	void destroy();
@@ -186,6 +189,7 @@ private:
 	render_module                       &m_renderprovider;
 	std::shared_ptr<osd_monitor_info>   m_monitor;
 	std::unique_ptr<osd_renderer>       m_renderer;
+	emusync                             &m_sync;
 	const std::string                   m_title;
 };
 

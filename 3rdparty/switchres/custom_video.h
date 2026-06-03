@@ -46,6 +46,7 @@ typedef struct custom_video_settings
 	bool screen_compositing;
 	bool screen_reordering;
 	bool allow_hardware_refresh;
+	bool kms_modesetting;
 	char device_reg_key[128];
 	char custom_timing[256];
 } custom_video_settings;
@@ -83,6 +84,7 @@ public:
 	bool screen_reordering() { return m_vs.screen_reordering; }
 	bool allow_hardware_refresh() { return m_vs.allow_hardware_refresh; }
 	const char *custom_timing() { return (const char*) &m_vs.custom_timing; }
+	virtual void *get_resource(const char *resource);
 
 	// setters
 	void set_screen_compositing(bool value) { m_vs.screen_compositing = value; }

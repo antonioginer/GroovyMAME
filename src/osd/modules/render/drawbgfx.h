@@ -163,6 +163,10 @@ private:
 	static const uint32_t WHITE_HASH;
 
 	static uint32_t s_current_view;
+
+	// emusync manager
+	emusync &m_sync;
+	bool m_handle_vsync;
 };
 
 #endif // MAME_RENDER_DRAWBGFX_H

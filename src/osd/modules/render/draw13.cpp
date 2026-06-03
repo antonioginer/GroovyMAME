@@ -27,6 +27,7 @@
 // emu
 #include "emucore.h"
 #include "render.h"
+#include "emusync.h"
 
 // standard SDL headers
 #include <SDL2/SDL.h>
@@ -37,14 +38,6 @@
 #include <cstdio>
 #include <iterator>
 #include <list>
-
-#ifdef SDLMAME_X11
-#include <unistd.h>
-// DRM
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#include <fcntl.h>
-#endif
 
 
 namespace osd {
@@ -171,6 +164,9 @@ public:
 		destroy_all_textures();
 		SDL_DestroyRenderer(m_sdl_renderer);
 		m_sdl_renderer = nullptr;
+
+		// destroy vblank thread
+		m_sync.osd_deinit();
 	}
 
 	virtual int create() override;
@@ -212,6 +208,9 @@ private:
 	// Stats
 	int64_t         m_last_blit_time;
 	int64_t         m_last_blit_pixels;
+
+	// emusync manager
+	emusync         &m_sync;
 };
 
 
@@ -243,18 +242,6 @@ static inline bool is_transparent(const float &a)
 	return (a <  0.0001f);
 }
 
-
-//============================================================
-//  DRM
-//============================================================
-
-#ifdef SDLMAME_X11
-static int drm_open(const char *dri_device);
-static void drm_waitvblank(int crtc);
-static int fd = 0;
-static const char* dri_device = nullptr;
-#endif
-
 //============================================================
 //  CONSTRUCTOR & DESTRUCTOR
 //============================================================
@@ -273,6 +260,7 @@ renderer_sdl2::renderer_sdl2(
 	, m_blit_dim(0, 0)
 	, m_last_blit_time(0)
 	, m_last_blit_pixels(0)
+	, m_sync(window.sync())
 {
 	for (int i = 0; i < 30; i++)
 	{
@@ -479,19 +467,15 @@ int renderer_sdl2::create()
 		SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 	}
 
-	bool renderer_vsync = true;
-#ifdef SDLMAME_X11
-	if (window().index() == 0 && video_config.syncrefresh && video_config.sync_mode != 0)
+	bool handle_vsync = false;
+	if (window().index() == 0)
 	{
-		// Try to open DRM device
-		fd = drm_open(dri_device);
-		if (fd != 0)
-			renderer_vsync = (video_config.sync_mode == 2 || video_config.sync_mode == 4)? true : false;
+		if (m_sync.osd_init(window().monitor()->oshandle(), nullptr, nullptr))
+			handle_vsync = m_sync.sync_refresh();
 	}
-#endif
 
 	if (video_config.waitvsync)
-		m_sdl_renderer = SDL_CreateRenderer(dynamic_cast<sdl_window_info &>(window()).platform_window(), -1, renderer_vsync? SDL_RENDERER_PRESENTVSYNC : 0 | SDL_RENDERER_ACCELERATED);
+		m_sdl_renderer = SDL_CreateRenderer(dynamic_cast<sdl_window_info &>(window()).platform_window(), -1, (handle_vsync? 0 : SDL_RENDERER_PRESENTVSYNC) | SDL_RENDERER_ACCELERATED);
 	else
 		m_sdl_renderer = SDL_CreateRenderer(dynamic_cast<sdl_window_info &>(window()).platform_window(), -1, SDL_RENDERER_ACCELERATED);
 
@@ -514,146 +498,6 @@ int renderer_sdl2::create()
 
 	return 0;
 }
-
-
-#ifdef SDLMAME_X11
-//============================================================
-//  drm_open
-//============================================================
-
-static int drm_open(const char *dri_device)
-{
-	int fd = 0;
-	char dri_path[16];
-	char *node = dri_path;
-
-	// Dri device forced by user
-	if (strcmp(dri_device, "auto") != 0)
-	{
-		osd_printf_verbose("drm_open: %s for by user\n", dri_device);
-		snprintf(node, sizeof(dri_path), "/dev/dri/%s", dri_device);
-	}
-
-	// Automatic selection
-	else
-	{
-		// Get an array of drm devices to check
-		int num_devices = drmGetDevices2(0, NULL, 0);
-		if (num_devices <= 0)
-		{
-			osd_printf_error("drm_open: couldn't find any drm device\n");
-			return 0;
-		}
-
-		drmDevicePtr *devices = (drmDevicePtr*)calloc(num_devices, sizeof(drmDevicePtr));
-		if (drmGetDevices2(0, devices, num_devices) < 0)
-		{
-			osd_printf_error("drm_open: drmGetDevices2() failed\n");
-			return 0;
-		}
-
-		// Parse device list to find the first one with a valid connector
-		bool found = false;
-
-		for (int i = 0; i < num_devices; i++)
-		{
-			// Skip non-primary nodes
-			if (devices[i]->available_nodes & (1 << DRM_NODE_PRIMARY))
-				node = devices[i]->nodes[DRM_NODE_PRIMARY];
-
-			else continue;
-
-			fd = open(node, O_RDWR | O_CLOEXEC);
-			if (fd < 0)
-			{
-				osd_printf_error("drm_open: couldn't open %s\n", node);
-				continue;
-			}
-			drmModeRes *resources = drmModeGetResources(fd);
-			if (resources && resources->count_connectors > 0 && resources->count_encoders > 0 && resources->count_crtcs > 0)
-			{
-				for (int j = 0; j < resources->count_connectors; j++)
-				{
-					drmModeConnector *conn = drmModeGetConnector(fd, resources->connectors[j]);
-					if (!conn) continue;
-
-					// We found a valid connector, use it
-					if (conn->connection == DRM_MODE_CONNECTED && conn->count_modes > 0)
-						found = true;
-
-					drmModeFreeConnector(conn);
-					if (found) break;
-				}
-			}
-			drmModeFreeResources(resources);
-			close(fd);
-
-			if (found) break;
-		}
-
-		drmFreeDevices(devices, num_devices);
-		free(devices);
-
-		if (!found)
-		{
-			osd_printf_error("drm_open: couldn't find any device with a valid connector\n");
-			return 0;
-		}
-	}
-
-	fd = open(node, O_RDWR | O_CLOEXEC);
-	if (fd < 0)
-	{
-		osd_printf_error("drm_open: cannot open %s\n", node);
-		return 0;
-	}
-
-	osd_printf_verbose("drm_open: %s successfully opened\n", node);
-	return fd;
-}
-
-//============================================================
-//  drm_waitvblank
-//============================================================
-
-static void drm_waitvblank(int crtc)
-{
-
-	drmVBlank vbl;
-	memset(&vbl, 0, sizeof(vbl));
-	vbl.request.sequence = 1;
-
-	// handle vblank for all SR managed crtc
-	// this is a hack based on SDL reported screen index
-	// it won't work on multi-gpu
-	// TO DO: find a correct way to map screen to crtc
-
-	// single screen (default)
-	vbl.request.type = DRM_VBLANK_RELATIVE;
-
-	// two screens
-	if (crtc == 1) vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | DRM_VBLANK_SECONDARY);
-
-	// multi-screen
-	else if (crtc > 1)
-	{
-		static uint64_t caps;
-		static bool caps_checked = false;
-
-		if (!caps_checked)
-		{
-			caps_checked = true;
-			if (drmGetCap(fd, DRM_CAP_VBLANK_HIGH_CRTC, &caps))
-				osd_printf_error("A newer kernel is needed for vblank syncing on multi screen\n");
-		}
-		if (caps)
-			vbl.request.type = drmVBlankSeqType(DRM_VBLANK_RELATIVE | ((crtc << DRM_VBLANK_HIGH_CRTC_SHIFT) & DRM_VBLANK_HIGH_CRTC_MASK));
-	}
-
-	if (drmWaitVBlank(fd, &vbl) != 0)
-		osd_printf_verbose("drmWaitVBlank failed\n");
-}
-#endif
 
 
 //============================================================
@@ -779,22 +623,14 @@ int renderer_sdl2::draw(int update)
 
 	window().m_primlist->release_lock();
 
-#ifdef SDLMAME_X11
-	// wait for vertical retrace
-	if ((video_config.sync_mode == 3 || video_config.sync_mode == 4) && video_config.syncrefresh && fd)
-		drm_waitvblank(window().monitor()->oshandle());
-#endif
+	m_sync.predraw_sync();
 
 	m_last_blit_pixels = blit_pixels;
 	m_last_blit_time = -osd_ticks();
 	SDL_RenderPresent(m_sdl_renderer);
 	m_last_blit_time += osd_ticks();
 
-#ifdef SDLMAME_X11
-	// wait for vertical retrace
-	if ((video_config.sync_mode == 1 || video_config.sync_mode == 2) && video_config.syncrefresh && fd)
-		drm_waitvblank(window().monitor()->oshandle());
-#endif
+	m_sync.postdraw_sync();
 
 	return 0;
 }
@@ -1202,10 +1038,6 @@ int video_sdl2::init(osd_interface &osd, osd_options const &options)
 			osd_printf_verbose("Loaded OpenGL shared library: %s\n", libname ? libname : "<default>");
 		}
 	}
-
-#ifdef SDLMAME_X11
-	dri_device = dynamic_cast<sdl_options const &>(options).dri_device();
-#endif
 
 	return 0;
 }
