@@ -48,6 +48,7 @@ function maintargetosdoptions(_target,_subtarget)
 		"shcore",
 		"shlwapi",
 		"uuid",
+		"d3dcompiler",
 	}
 end
 
@@ -159,6 +160,8 @@ project ("osd_" .. _OPTIONS["osd"])
 		MAME_DIR .. "src/osd/modules/render/drawd3d.h",
 		MAME_DIR .. "src/osd/windows/winvideo.cpp",
 		MAME_DIR .. "src/osd/windows/winvideo.h",
+		MAME_DIR .. "src/osd/modules/render/drawd3d11.cpp",
+		MAME_DIR .. "src/osd/modules/emusync/emusync_windows.cpp",
 		MAME_DIR .. "src/osd/windows/window.cpp",
 		MAME_DIR .. "src/osd/windows/window.h",
 		MAME_DIR .. "src/osd/modules/osdwindow.cpp",

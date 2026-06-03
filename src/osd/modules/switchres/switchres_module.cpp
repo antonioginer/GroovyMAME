@@ -14,6 +14,7 @@
 
 // MAME headers
 #include "emu.h"
+#include "emusync.h"
 #include "rendlay.h"
 #include "render.h"
 #include "../frontend/mame/mameopts.h"
@@ -304,6 +305,9 @@ bool switchres_module::check_resolution_change(int i, osd_monitor_info *monitor,
 {
 	display_manager *display = switchres().display(i);
 
+	if (!display)
+		return false;
+
 	int old_width = width(i);
 	int old_height = height(i);
 	double old_refresh = refresh(i);
@@ -362,9 +366,12 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 			display->set_mode(display->selected_mode());
 			monitor->refresh();
 			monitor->update_resolution(display->width(), display->height());
+			machine().sync().reset();
 		}
 
 		set_options(display, target);
+		machine().sync().set_vratio(display->selected_mode()->vactive, display->selected_mode()->vtotal);
+		machine().sync().set_interlace(display->is_interlaced());
 
 		return true;
 	}
@@ -385,6 +392,8 @@ bool switchres_module::check_geometry_change(int i)
 	#endif
 
 	display_manager *display = switchres().display(i);
+	if (!display)
+		return false;
 
 	if (options.h_size() != display->h_size() || options.h_shift() != display->h_shift() || options.v_shift() != display->v_shift())
 		return true;
@@ -495,6 +504,9 @@ void switchres_module::set_options(display_manager* display, render_target *targ
 	#elif defined(OSD_SDL)
 		downcast<sdl_osd_interface &>(machine().osd()).extract_video_config();
 	#endif
+
+	// Update emusync settings
+	machine().sync().set_sync_refresh(options.sync_refresh());
 }
 
 //============================================================
