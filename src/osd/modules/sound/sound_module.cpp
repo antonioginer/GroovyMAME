@@ -1,13 +1,7 @@
 // license:BSD-3-Clause
-// copyright-holders:O. Galibert
+// copyright-holders:O. Galibert, intealls
 
 #include "sound_module.h"
-
-#include <algorithm>
-#include <cassert>
-#include <cstring>
-#include <numeric>
-#include <utility>
 
 
 sound_module::~sound_module()
@@ -15,190 +9,124 @@ sound_module::~sound_module()
 	// implementing this here forces the vtable and inline virtual member functions to be instantiated
 }
 
-sound_module::abuffer::abuffer(uint32_t channels, uint32_t rate) noexcept :
-	m_channels(channels),
+sound_module::abuffer::abuffer(uint32_t channels, int rate) noexcept :
 	m_rate(rate),
-	m_used_buffers(0),
-	m_max_buffers(8),
-	m_hindex(0),
-	m_last_sample(channels, 0)
+	m_channels(channels),
+	m_buffer_min_ct(1e8),
+	m_skip_threshold((20.f / 1000.f) * rate + 0.5f),
+	m_osd_ticks(osd_ticks()),
+	m_skip_threshold_ticks(m_osd_ticks),
+	m_xfade_length(rate * xfade_length / 1000),
+	m_xfade_buf(m_xfade_length * m_channels),
+	m_xfade_total(0),
+	m_xfade_remaining(0)
 {
-	clear();
+	m_ab = std::make_unique<buffer<int16_t>>(rate, channels);
 }
 
-void sound_module::abuffer::set_latency(float latency)
+uint32_t sound_module::abuffer::available()
 {
-	// set maximum buffers from latency in 20ms steps (the default of 8 is 0.16s)
-	m_max_buffers = std::max<uint32_t>(latency + latency / 2.0f, latency + 3);
-	m_max_buffers = std::clamp(m_max_buffers, 4U, 50U);
+	int count = m_ab->count() / m_channels;
+
+	if (count <= 0)
+		return 0;
+
+	// reserve last sample for underruns, will sustain last sample to reduce crackles
+	return (count - 1) * m_channels;
 }
 
 void sound_module::abuffer::clear()
 {
-	get(m_last_sample.data(), 1);
-	m_used_buffers = 0;
-	m_used_buffers_prev = 0;
-	m_overrun = false;
-	m_history.fill(0);
+	// only used from xaudio2 consumer
+	m_ab->increment_playpos(m_ab->count());
+	m_xfade_total = m_xfade_remaining = 0;
+	m_buffer_min_ct = 1e8;
+	m_skip_threshold_ticks = osd_ticks();
+}
 
-	m_delta = 0;
-	m_delta2 = 0;
-	m_underruns = 0;
-	m_overruns = 0;
+void sound_module::abuffer::set_latency(float latency)
+{
+	if (latency == 0.f)
+		latency = 20.f;
+
+	latency = std::clamp<float>(latency, 1.f, 100.f);
+	m_skip_threshold = (latency / 1000.f) * m_rate + 0.5f;
 }
 
 void sound_module::abuffer::get(int16_t *data, uint32_t samples) noexcept
 {
-	m_delta -= samples;
-	m_delta2 -= samples;
-	uint32_t pos = 0;
-	while(pos != samples) {
-		// on underrun, fill buffer with last sample to prevent audible pop
-		if(!m_used_buffers) {
-			m_delta2 += samples - pos;
-			m_underruns++;
-			while(pos != samples) {
-				std::memmove(data, m_last_sample.data(), m_channels * sizeof(int16_t));
-				data += m_channels;
-				pos++;
+	int buf_ct = available() / m_channels;
+
+	if (buf_ct >= samples) {
+		m_ab->read(data, samples * m_channels);
+
+		if (m_xfade_remaining > 0) {
+			int offset = m_xfade_total - m_xfade_remaining;
+			int blend_frames = std::min<int>(m_xfade_remaining, samples);
+
+			for (int i = 0; i < blend_frames; i++) {
+				float t = static_cast<float>(offset + i) / static_cast<float>(std::max<int>(1, m_xfade_total));
+
+				for (uint32_t ch = 0; ch < m_channels; ch++) {
+					int idx = i * m_channels + ch;
+					int xf_idx = (offset + i) * m_channels + ch;
+					float old_sample = m_xfade_buf[xf_idx];
+					float new_sample = data[idx];
+					float blend = old_sample * (1.0f - t) + new_sample * t;
+					data[idx] = static_cast<int16_t>(std::clamp(blend, -32768.0f, 32767.0f));
+				}
 			}
-			break;
+
+			m_xfade_remaining -= blend_frames;
 		}
 
-		auto &buf = m_buffers.front();
-		if(buf.data.empty()) {
-			pop_buffer();
-			continue;
+		// keep track of the minimum buffer count, skip samples adaptively to respect the audio_latency setting
+		buf_ct -= samples;
+
+		if (buf_ct < m_buffer_min_ct)
+			m_buffer_min_ct = buf_ct;
+
+		// if we are below the threshold, reset the counter
+		if (buf_ct < m_skip_threshold)
+			m_skip_threshold_ticks = m_osd_ticks;
+
+		// if we have been above the set threshold for ~0.5 seconds, skip forward
+		if (m_osd_ticks - m_skip_threshold_ticks > osd_ticks_per_second() / 2) {
+			int adjust = m_buffer_min_ct - m_skip_threshold;
+
+			// if adjustment is less than one millisecond, don't bother
+			if (adjust > m_rate / 1000) {
+				int peeked = m_ab->peek(m_xfade_buf.data(), m_xfade_length * m_channels);
+				m_ab->increment_playpos(adjust * m_channels);
+				m_xfade_total = peeked / m_channels;
+				m_xfade_remaining = m_xfade_total;
+			}
+
+			m_skip_threshold_ticks = m_osd_ticks;
+			m_buffer_min_ct = 1e8;
+		}
+	} else {
+		m_ab->read(data, buf_ct * m_channels);
+		data += buf_ct * m_channels;
+
+		// sustain last sample instead of just clipping to 0, helps out with crackles
+		for (int i = 0; i < samples - buf_ct; i++) {
+			int16_t* dst = data + i * m_channels;
+			if (!m_ab->peek(dst, m_channels)) {
+				// if completely empty zero fill (will rarely happen)
+				std::fill(dst, dst + (samples - buf_ct - i) * m_channels, 0);
+				break;
+			}
 		}
 
-		uint32_t avail = (buf.data.size() / m_channels) - buf.cpos;
-		if(avail > (samples - pos)) {
-			avail = samples - pos;
-			std::copy_n(buf.data.data() + (buf.cpos * m_channels), avail * m_channels, data);
-			buf.cpos += avail;
-			break;
-		}
-
-		std::copy_n(buf.data.data() + (buf.cpos * m_channels), avail * m_channels, data);
-		pop_buffer();
-		pos += avail;
-		data += avail * m_channels;
-	}
-	m_internal_get = false;
-	//printf("%d -%d +%d # %d %d\n", m_used_buffers, m_underruns, m_overruns, m_delta, m_delta2);
-}
-
-void sound_module::abuffer::flush_buffers(uint32_t remain)
-{
-	assert(remain);
-
-	for(uint32_t i = 0; i != m_used_buffers - remain; i++)
-		m_delta2 -= (m_buffers[i].data.size() / m_channels - m_buffers[i].cpos);
-
-	// number of samples to crossfade (eg. 128 when samplerate is 48000)
-	const uint32_t samples = std::max(m_rate / 375, 2U);
-
-	// get crossfade source chunk
-	if(!m_internal_get || m_last_fade.size() != samples * m_channels) {
-		m_last_fade.resize(samples * m_channels);
-		get(m_last_fade.data(), samples);
-		m_internal_get = true;
-		m_delta += samples;
-		m_delta2 += samples;
-	}
-
-	// flush buffers until [remain] are left
-	if(m_used_buffers > remain) {
-		for(uint32_t i = 0; i < remain; i++) {
-			using std::swap;
-			swap(m_buffers[i], m_buffers[m_used_buffers + i - remain]);
-		}
-		m_used_buffers = remain;
-	}
-
-	if(!m_used_buffers || samples > (m_buffers[0].data.size() / m_channels - m_buffers[0].cpos))
-		return;
-	int16_t *dest = &m_buffers[0].data[m_channels * m_buffers[0].cpos];
-
-	// crossfade into front of buffer to reduce clicks
-	for(uint32_t i = 0; i < samples; i++) {
-		int32_t gain_b = (i << 15) / (samples - 1);
-		int32_t gain_a = 32768 - gain_b;
-
-		for(uint32_t ch = 0; ch < m_channels; ch++) {
-			uint32_t j = i * m_channels + ch;
-
-			int32_t mix = (m_last_fade[j] * gain_a + dest[j] * gain_b) >> 15;
-			dest[j] = static_cast<int16_t>(mix);
-		}
+		m_skip_threshold_ticks = m_osd_ticks;
 	}
 }
 
 void sound_module::abuffer::push(const int16_t *data, uint32_t samples)
 {
-	m_delta += samples;
-	m_delta2 += samples;
-	auto &buf = push_buffer();
-	buf.cpos = 0;
-	buf.data.resize(samples * m_channels);
-	std::copy_n(data, samples * m_channels, buf.data.data());
-	std::copy_n(data + ((samples - 1) * m_channels), m_channels, m_last_sample.data());
+	// for determining buffer overflows, take the sample here instead of in the callback
+	m_osd_ticks = osd_ticks();
 
-	// maximum number of buffers relative to samples
-	// unless -speed or -refreshspeed is used, this is same as m_max_buffers
-	const uint32_t max_buffers = std::max(m_max_buffers * m_rate / samples / 50, 4U);
-
-	// minimum number of buffers after overrun
-	// lower limit of 2 prevents buffer underruns with push(this), get, get, push
-	const uint32_t min_buffers = std::max(max_buffers / 3, 2U);
-
-	m_history[m_hindex] = m_used_buffers_prev - m_used_buffers;
-	m_hindex = (m_hindex + 1) % m_history.size();
-
-	if(m_overrun && std::accumulate(m_history.begin(), m_history.end(), 0) >= -2) {
-		if(m_used_buffers > min_buffers) {
-			// once it's stabilized after an overrun, reduce buffers to minimum latency
-			flush_buffers(min_buffers);
-			m_history.fill(0);
-		}
-		m_overrun = false;
-	} else if(m_used_buffers > max_buffers) {
-		// if there are too many buffers, drop some and mark this event as an overrun
-		flush_buffers(max_buffers);
-		m_overrun = true;
-		m_overruns++;
-	}
-
-	m_used_buffers_prev = m_used_buffers;
-	//printf("%d -%d +%d # %d %d\n", m_used_buffers, m_underruns, m_overruns, m_delta, m_delta2);
-}
-
-uint32_t sound_module::abuffer::available() const noexcept
-{
-	uint32_t result = 0;
-	for(uint32_t i = 0; m_used_buffers > i; ++i)
-		result += (m_buffers[i].data.size() / m_channels) - m_buffers[i].cpos;
-	return result;
-}
-
-inline void sound_module::abuffer::pop_buffer() noexcept
-{
-	assert(m_used_buffers);
-	if(--m_used_buffers) {
-		auto temp(std::move(m_buffers.front()));
-		for(uint32_t i = 0; m_used_buffers > i; ++i)
-			m_buffers[i] = std::move(m_buffers[i + 1]);
-		m_buffers[m_used_buffers] = std::move(temp);
-	}
-}
-
-inline sound_module::abuffer::buffer &sound_module::abuffer::push_buffer()
-{
-	if(m_buffers.size() > m_used_buffers) {
-		return m_buffers[m_used_buffers++];
-	} else {
-		assert(m_buffers.size() == m_used_buffers);
-		++m_used_buffers;
-		return m_buffers.emplace_back();
-	}
+	m_ab->write(data, samples * m_channels);
 }

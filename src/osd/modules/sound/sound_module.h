@@ -7,9 +7,12 @@
 #pragma once
 
 #include <osdepend.h>
+#include <osdcore.h>
 
-#include <array>
+#include <algorithm>
+#include <atomic>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -36,48 +39,111 @@ public:
 	virtual void end_update() {}
 
 protected:
-	class abuffer {
+	class abuffer
+	{
 	public:
-		abuffer(uint32_t channels, uint32_t rate) noexcept;
+		abuffer(uint32_t channels, int rate) noexcept;
 		void set_latency(float latency);
 		void clear();
 		void get(int16_t *data, uint32_t samples) noexcept;
 		void push(const int16_t *data, uint32_t samples);
 		uint32_t channels() const noexcept { return m_channels; }
-		uint32_t available() const noexcept;
+		uint32_t available();
 
 	private:
-		struct buffer {
-			uint32_t cpos;
-			std::vector<int16_t> data;
+		const int xfade_length = 4; // 4 ms
 
-			buffer() noexcept = default;
-			buffer(const buffer &) = default;
-			buffer(buffer &&) noexcept = default;
-			buffer &operator=(const buffer &) = default;
-			buffer &operator=(buffer &&) noexcept = default;
+		template<typename T>
+		struct buffer {
+			int m_reserve;
+			int m_capacity;
+			std::vector<T> m_buf;
+			std::atomic<int> m_playpos{0}, m_writepos{0};
+
+			buffer(int rate, int channels)
+				: m_reserve(channels) , m_capacity(rate * channels + m_reserve) , m_buf(m_capacity) { }
+
+			int count() const {
+				int w = m_writepos.load(std::memory_order_acquire);
+				int p = m_playpos.load(std::memory_order_acquire);
+
+				if (w >= p)
+					return w - p;
+				else
+					return m_capacity + w - p;
+			}
+
+			void increment_writepos(int n) {
+				int w = m_writepos.load(std::memory_order_relaxed);
+				w = (w + n) % m_capacity;
+				m_writepos.store(w, std::memory_order_release);
+			}
+
+			void increment_playpos(int n) {
+				int p = m_playpos.load(std::memory_order_relaxed);
+				p = (p + n) % m_capacity;
+				m_playpos.store(p, std::memory_order_release);
+			}
+
+			int write(const T* src, int n) {
+				int available = m_capacity - m_reserve - count();
+				n = std::min(n, available);
+
+				if (n == 0) return 0;
+
+				int w = m_writepos.load(std::memory_order_relaxed);
+
+				if (w + n > m_capacity) {
+					int first = m_capacity - w;
+					std::copy(src, src + first, m_buf.begin() + w);
+					std::copy(src + first, src + n, m_buf.begin());
+				} else {
+					std::copy(src, src + n, m_buf.begin() + w);
+				}
+
+				increment_writepos(n);
+				return n;
+			}
+
+			int peek(T* dst, int n) {
+				n = std::min(n, count());
+
+				if (n == 0) return 0;
+
+				int p = m_playpos.load(std::memory_order_relaxed);
+
+				if (p + n > m_capacity) {
+					int first = m_capacity - p;
+					std::copy(m_buf.begin() + p, m_buf.begin() + m_capacity, dst);
+					std::copy(m_buf.begin(), m_buf.begin() + (n - first), dst + first);
+				} else {
+					std::copy(m_buf.begin() + p, m_buf.begin() + (p + n), dst);
+				}
+
+				return n;
+			}
+
+			int read(T* dst, int n) {
+				n = peek(dst, n);
+
+				increment_playpos(n);
+
+				return n;
+			}
 		};
 
-		void pop_buffer() noexcept;
-		void flush_buffers(uint32_t remain);
-		buffer &push_buffer();
-
+		int m_rate;
 		uint32_t m_channels;
-		uint32_t m_rate;
-		uint32_t m_used_buffers;
-		uint32_t m_used_buffers_prev;
-		uint32_t m_max_buffers;
-		std::array<int32_t, 8> m_history;
-		uint8_t m_hindex;
-		bool m_overrun;
-		bool m_internal_get;
-		std::vector<int16_t> m_last_fade;
-		std::vector<int16_t> m_last_sample;
-		std::vector<buffer> m_buffers;
+		int m_buffer_min_ct;
+		int m_skip_threshold;
+		osd_ticks_t m_osd_ticks;
+		osd_ticks_t m_skip_threshold_ticks;
+		std::unique_ptr<buffer<int16_t>> m_ab;
 
-		// statistics
-		int32_t m_delta, m_delta2;
-		uint32_t m_underruns, m_overruns;
+		int m_xfade_length;
+		std::vector<int16_t> m_xfade_buf;
+		int m_xfade_total;
+		int m_xfade_remaining;
 	};
 };
 

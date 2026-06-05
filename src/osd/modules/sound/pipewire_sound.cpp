@@ -165,6 +165,7 @@ private:
 	static void s_stream_event_param_changed(void *data, uint32_t id, const spa_pod *param);
 
 	emusync* m_sync;
+	float m_audio_latency;
 };
 
 // Try to more or less map to speaker.h positions
@@ -502,8 +503,7 @@ int sound_pipewire::init(osd_interface &osd, osd_options const &options)
 	if(!m_core)
 		return 1;
 
-	if(options.audio_latency() > 0.0f)
-		osd_printf_verbose("Sound: %s module does not support audio_latency option\n", name());
+	m_audio_latency = options.audio_latency();
 
 	pw_core_add_listener(m_core, &m_core_listener, &core_events, this);
 
@@ -689,6 +689,7 @@ uint32_t sound_pipewire::stream_sink_open(uint32_t node, std::string name, uint3
 
 	uint32_t id = m_stream_current_id++;
 	auto &stream = m_streams.emplace(id, stream_info(this, true, id, snode.m_sinks, rate)).first->second;
+	stream.m_buffer.set_latency(m_audio_latency);
 
 	stream.m_stream = pw_stream_new_simple(pw_thread_loop_get_loop(m_loop),
 										   name.c_str(),
@@ -718,7 +719,7 @@ uint32_t sound_pipewire::stream_sink_open(uint32_t node, std::string name, uint3
 	pw_stream_connect(stream.m_stream,
 					  PW_DIRECTION_OUTPUT,
 					  PW_ID_ANY,
-					  pw_stream_flags(PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS),
+					  pw_stream_flags(PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS | PW_STREAM_FLAG_RT_PROCESS),
 					  &params, 1);
 
 	while(stream.m_wait_stream)
@@ -771,7 +772,7 @@ uint32_t sound_pipewire::stream_source_open(uint32_t node, std::string name, uin
 	pw_stream_connect(stream.m_stream,
 					  PW_DIRECTION_INPUT,
 					  PW_ID_ANY,
-					  pw_stream_flags(PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS),
+					  pw_stream_flags(PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS | PW_STREAM_FLAG_RT_PROCESS),
 					  &params, 1);
 
 	while(stream.m_wait_stream)
@@ -812,6 +813,7 @@ void sound_pipewire::stream_close(uint32_t id)
 	pw_stream_destroy(stream.m_stream);
 	m_streams.erase(si);
 	pw_thread_loop_unlock(m_loop);
+	m_sync->unregister_sink(id);
 }
 
 void sound_pipewire::stream_sink_update(uint32_t id, const int16_t *buffer, int samples_this_frame)
