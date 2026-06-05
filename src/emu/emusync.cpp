@@ -102,8 +102,8 @@ void emusync::reset()
 	m_mean = 0;
 	m_kf.reset();
 
-	for (auto& [id, sink_st] : m_sinks)
-		sink_st.m_reset_request.store(true, std::memory_order_relaxed);
+	for (int i = 0; i < MAX_SINKS; i++)
+		m_sink_slots[i].m_id.store(0, std::memory_order_release);
 }
 
 
@@ -252,18 +252,36 @@ void emusync::register_sink_samples(uint32_t id, uint64_t samples)
 {
 	double timestamp = time_now() / 1e3;
 
-	auto [sink_st, inserted] = m_sinks.try_emplace(id);
+	int slot_idx = -1;
+	for (int i = 0; i < MAX_SINKS; i++) {
+		if (m_sink_slots[i].m_id.load(std::memory_order_acquire) == id) {
+			slot_idx = i;
+			break;
+		}
+	}
 
-	if (inserted || sink_st->second.m_reset_request.load(std::memory_order_relaxed)) {
-		sink_st->second.reset(timestamp);
+	if (slot_idx < 0) {
+		for (int i = 0; i < MAX_SINKS; i++) {
+			if (m_sink_slots[i].m_id.load(std::memory_order_acquire) == 0) {
+				m_sink_slots[i].m_data.reset(timestamp);
+				m_sink_slots[i].m_id.store(id, std::memory_order_release);
+				return;
+			}
+		}
 		return;
 	}
 
-	sink_st->second.m_samples_out += samples;
+	// re-check: slot may have been freed and re-claimed by a different sink between the lookup and here
+	if (m_sink_slots[slot_idx].m_id.load(std::memory_order_acquire) != id)
+		return;
 
-	if (timestamp - sink_st->second.m_update_ts >= sink_st->second.m_update_interval) {
-		sink_st->second.m_ef.update(timestamp, sink_st->second.m_samples_out);
-		sink_st->second.m_update_ts = timestamp;
+	sink_slot& slot = m_sink_slots[slot_idx];
+
+	slot.m_data.m_samples_out += samples;
+
+	if (timestamp - slot.m_data.m_update_ts >= slot.m_data.m_update_interval) {
+		slot.m_data.m_ef.update(timestamp, slot.m_data.m_samples_out);
+		slot.m_data.m_update_ts = timestamp;
 	}
 }
 
@@ -272,14 +290,28 @@ void emusync::register_sink_samples(uint32_t id, uint64_t samples)
 //  emusync::sink_rate
 //============================================================
 
+void emusync::unregister_sink(uint32_t id)
+{
+	for (int i = 0; i < MAX_SINKS; i++) {
+		if (m_sink_slots[i].m_id.load(std::memory_order_acquire) == id) {
+			m_sink_slots[i].m_id.store(0, std::memory_order_release);
+			break;
+		}
+	}
+}
+
+
+//============================================================
+//  emusync::get_sink_rate
+//============================================================
+
 double emusync::get_sink_rate(int id)
 {
-	auto sink_st = m_sinks.find(id);
+	for (int i = 0; i < MAX_SINKS; i++)
+		if (m_sink_slots[i].m_id.load(std::memory_order_acquire) == id)
+			return m_sink_slots[i].m_data.m_ef.slope_out();
 
-	if (sink_st == m_sinks.end())
-		return 0.0;
-
-	return sink_st->second.m_ef.slope_out();
+	return 0.0;
 }
 
 

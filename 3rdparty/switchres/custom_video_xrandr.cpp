@@ -806,8 +806,6 @@ bool xrandr_timing::set_timing(modeline *mode, int flags)
 	unsigned int width = m_min_width;
 	unsigned int height = m_min_height;
 
-	unsigned int active_crtc = 0;
-
 	unsigned int reordering_last_y = 0;
 
 	ms_xerrors = 0;
@@ -842,7 +840,6 @@ bool xrandr_timing::set_timing(modeline *mode, int flags)
 				else
 					reordering_last_y += XRANDR_REORDERING_MAXIMUM_HEIGHT;
 				crtc_info1->timestamp |= XRANDR_SETMODE_UPDATE_REORDERING;
-				active_crtc++;
 			}
 			// Switchres selected desktop output
 			else if (resources->crtcs[c] == output_info->crtc)
