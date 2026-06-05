@@ -77,6 +77,7 @@ private:
 	uint32_t m_default_sink;
 	uint32_t m_stream_next_id;
 	emusync* m_sync;
+	float m_audio_latency;
 
 	std::map<uint32_t, std::unique_ptr<stream_info>> m_streams;
 
@@ -100,8 +101,7 @@ int sound_sdl::init(osd_interface &osd, const osd_options &options)
 	char const *const audio_driver = SDL_GetCurrentAudioDriver();
 	osd_printf_verbose("Audio: Driver is %s\n", audio_driver ? audio_driver : "not initialized");
 
-	if(options.audio_latency() > 0.0f)
-		osd_printf_verbose("Audio: %s module does not support audio_latency option\n", name());
+	m_audio_latency = options.audio_latency();
 
 	// Capture is not implemented in SDL2, and the enumeration
 	// interface is different in SDL3
@@ -218,6 +218,7 @@ uint32_t sound_sdl::stream_sink_open(uint32_t node, std::string name, uint32_t r
 	dspec.callback = sink_callback;
 	dspec.userdata = stream.get();
 
+	stream->m_buffer.set_latency(m_audio_latency);
 	stream->m_sdl_id = SDL_OpenAudioDevice(dev.m_def ? nullptr : dev.m_name.c_str(), 0, &dspec, &ospec, 0);
 	if(!stream->m_sdl_id)
 		return 0;
@@ -234,6 +235,7 @@ void sound_sdl::stream_close(uint32_t id)
 		return;
 	SDL_CloseAudioDevice(si->second->m_sdl_id);
 	m_streams.erase(si);
+	m_sync->unregister_sink(id);
 }
 
 void sound_sdl::stream_sink_update(uint32_t id, const int16_t *buffer, int samples_this_frame)
@@ -242,9 +244,11 @@ void sound_sdl::stream_sink_update(uint32_t id, const int16_t *buffer, int sampl
 	if(si == m_streams.end())
 		return;
 	stream_info *stream = si->second.get();
+	uint32_t count = stream->m_buffer.available();
 	SDL_LockAudioDevice(stream->m_sdl_id);
 	stream->m_buffer.push(buffer, samples_this_frame);
 	SDL_UnlockAudioDevice(stream->m_sdl_id);
+	stream->m_sync->log("SDL buffer count before update", stream->m_sync->NOW, (double) count);
 }
 
 void sound_sdl::sink_callback(void *userdata, uint8_t *data, int len)

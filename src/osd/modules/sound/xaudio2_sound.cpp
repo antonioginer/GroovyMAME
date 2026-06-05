@@ -9,6 +9,8 @@
 #include "sound_module.h"
 
 #include "modules/osdmodule.h"
+#include "emu.h"
+#include "emusync.h"
 
 #if defined(OSD_WINDOWS) | defined(SDLMAME_WIN32)
 
@@ -347,6 +349,7 @@ private:
 	std::thread                 m_audioThread;
 	std::atomic<uint32_t>       m_overflows;
 	std::atomic<uint32_t>       m_underflows;
+	emusync*                    m_sync;
 
 	OSD_DYNAMIC_API(xaudio2, "XAudio2_9.dll", "XAudio2_8.dll");
 	OSD_DYNAMIC_API_FN(xaudio2, HRESULT, WINAPI, XAudio2Create, IXAudio2 **, uint32_t, XAUDIO2_PROCESSOR);
@@ -377,10 +380,7 @@ int sound_xaudio2::init(osd_interface &osd, osd_options const &options)
 	}
 
 	// get relevant options
-	m_audio_latency = options.audio_latency() * 20e-3;
-	if (m_audio_latency == 0.0F)
-		m_audio_latency = 0.03F;
-	m_audio_latency = std::clamp(m_audio_latency, 0.01F, 1.0F);
+	m_audio_latency = options.audio_latency(); // buffering latency in ms (not including xaudio2 output latency)
 
 	// create a multimedia device enumerator and enumerate devices
 	HR_GOERR(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&m_device_enum)));
@@ -489,6 +489,8 @@ int sound_xaudio2::init(osd_interface &osd, osd_options const &options)
 	m_exiting_event.reset(CreateEvent(nullptr, FALSE, FALSE, nullptr));
 	if (!m_need_update_event || !m_engine_error_event || !m_exiting_event)
 		goto Error;
+
+	m_sync = &downcast<osd_common_t &>(osd).machine().sync();
 
 	// Start the thread listening
 	m_audioThread = std::thread([] (sound_xaudio2 *self) { self->audio_task(); }, this);
@@ -943,7 +945,7 @@ sound_xaudio2::voice_info::voice_info(sound_xaudio2 &host, WAVEFORMATEX const &f
 	m_need_update(false),
 	m_underflowing(false)
 {
-	m_buffer.set_latency(host.m_audio_latency / 20e-3);
+	m_buffer.set_latency(host.m_audio_latency);
 
 	// set default volume matrix
 	for (unsigned i = 0; format.nChannels > i; ++i)
@@ -970,6 +972,7 @@ sound_xaudio2::voice_info::~voice_info()
 
 void sound_xaudio2::voice_info::update(int16_t const *buffer, int samples_this_frame)
 {
+	size_t count = m_buffer.available();
 	try
 	{
 		m_buffer.push(buffer, samples_this_frame);
@@ -977,6 +980,7 @@ void sound_xaudio2::voice_info::update(int16_t const *buffer, int samples_this_f
 	catch (...)
 	{
 	}
+	m_host.m_sync->log("XA2 buffer count before update", m_host.m_sync->NOW, (double) count);
 	m_need_update.store(true, std::memory_order_relaxed);
 	SetEvent(m_host.m_need_update_event.get());
 }
