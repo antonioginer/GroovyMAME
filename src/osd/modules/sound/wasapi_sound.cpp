@@ -219,6 +219,7 @@ private:
 	std::thread                 m_housekeeping_thread;
 	std::mutex                  m_housekeeping_mutex;
 
+	float                       m_headroom_clamp = 0.0F;
 	float                       m_audio_latency = 0.0F;
 	uint32_t                    m_generation = 1;
 	bool                        m_exiting = false;
@@ -274,12 +275,12 @@ sound_wasapi::stream_info::stream_info(
 	m_underflow_fill(channels, 0U),
 	m_client(std::move(client)),
 	m_buffer_frames(buffer_frames),
-	m_minimum_headroom(std::max<UINT32>(lround(host.m_audio_latency * rate), buffer_frames)),
+	m_minimum_headroom(std::max<UINT32>(lround(host.m_headroom_clamp * rate), buffer_frames)),
 	m_underflowing(true),
 	m_exiting(false)
 {
 	info.m_node = node.m_id;
-	m_buffer.set_latency(host.m_audio_latency / 20e-3F);
+	m_buffer.set_latency(host.m_audio_latency);
 	InitializeCriticalSection(&m_critical_section);
 }
 
@@ -322,8 +323,10 @@ void sound_wasapi::stream_info::render(int16_t const *buffer, int samples_this_f
 	EnterCriticalSection(&m_critical_section);
 	try
 	{
+		uint32_t available = m_buffer.available();
 		m_buffer.push(buffer, samples_this_frame);
 		LeaveCriticalSection(&m_critical_section);
+		m_host.m_sync->log("WASAPI buffer count before update", m_host.m_sync->NOW, (double)available);
 	}
 	catch (...)
 	{
@@ -527,10 +530,11 @@ int sound_wasapi::init(osd_interface &osd, osd_options const &options)
 	HRESULT result;
 
 	// get relevant options
-	m_audio_latency = options.audio_latency() * 20e-3F;
-	if (m_audio_latency == 0.0F)
-		m_audio_latency = 0.03F;
-	m_audio_latency = std::clamp(m_audio_latency, 0.01F, 1.0F);
+	m_audio_latency = options.audio_latency(); // buffering latency in ms (not including wasapi output latency)
+	m_headroom_clamp = m_audio_latency / 1000.0F;
+	if (m_headroom_clamp == 0.0F)
+		m_headroom_clamp = 0.03F;
+	m_headroom_clamp = std::clamp(m_headroom_clamp, 0.01F, 1.0F);
 
 	// create a multimedia device enumerator and enumerate devices
 	result = CoCreateInstance(
@@ -1050,6 +1054,7 @@ void sound_wasapi::stream_close(uint32_t id)
 		stream = std::move(*pos);
 		m_stream_info.erase(pos);
 	}
+	m_sync->unregister_sink(id);
 }
 
 

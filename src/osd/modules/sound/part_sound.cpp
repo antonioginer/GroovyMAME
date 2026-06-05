@@ -38,217 +38,6 @@ namespace osd {
 
 namespace {
 
-template<typename T>
-struct audio_buffer
-{
-	T *buf;
-	int size;
-	int reserve;
-	std::atomic<int> playpos, writepos;
-
-	audio_buffer(int size, int reserve) : size(size + reserve), reserve(reserve)
-	{
-		playpos.store(0, std::memory_order_relaxed);
-		writepos.store(0, std::memory_order_relaxed);
-		buf = new T[this->size];
-	}
-
-	~audio_buffer()
-	{
-		delete[] buf;
-	}
-
-	int count()
-	{
-		int w, p;
-
-		w = writepos.load(std::memory_order_acquire);
-		p = playpos.load(std::memory_order_acquire);
-
-		int diff = w - p;
-		return diff < 0 ? size + diff : diff;
-	}
-
-	void increment_writepos(int n)
-	{
-		int w = writepos.load(std::memory_order_relaxed);
-		w += n;
-
-		if (w >= size)
-			w -= size;
-
-		writepos.store(w, std::memory_order_release);
-	}
-
-	void increment_playpos(int n)
-	{
-		int p = playpos.load(std::memory_order_relaxed);
-		p += n;
-
-		if (p >= size)
-			p -= size;
-
-		playpos.store(p, std::memory_order_release);
-	}
-
-	int write(const T *src, int n)
-	{
-		n = std::min<int>(n, size - reserve - count());
-
-		if (n <= 0)
-			return 0;
-
-		int w = writepos.load(std::memory_order_relaxed);
-
-		if (w + n > size) {
-			int first = size - w;
-			std::memcpy(buf + w, src, sizeof(T) * first);
-			std::memcpy(buf, src + first, sizeof(T) * (n - first));
-		} else {
-			std::memcpy(buf + w, src, sizeof(T) * n);
-		}
-
-		increment_writepos(n);
-
-		return n;
-	}
-
-	int read(T *dst, int n)
-	{
-		n = std::min<int>(n, count());
-
-		if (n <= 0)
-			return 0;
-
-		int p = playpos.load(std::memory_order_relaxed);
-
-		if (p + n > size) {
-			int first = size - p;
-			std::memcpy(dst, buf + p, sizeof(T) * first);
-			std::memcpy(dst + first, buf, sizeof(T) * (n - first));
-		} else {
-			std::memcpy(dst, buf + p, sizeof(T) * n);
-		}
-
-		increment_playpos(n);
-
-		return n;
-	}
-
-	int clear(int n)
-	{
-		n = std::min<int>(n, size - reserve - count());
-
-		if (n <= 0)
-			return 0;
-
-		int w = writepos.load(std::memory_order_relaxed);
-
-		if (w + n > size) {
-			int first = size - w;
-			std::memset(buf + w, 0, sizeof(T) * first);
-			std::memset(buf, 0, sizeof(T) * (n - first));
-		} else {
-			std::memset(buf + w, 0, sizeof(T) * n);
-		}
-
-		increment_writepos(n);
-
-		return n;
-	}
-};
-
-class rtbuf
-{
-public:
-	rtbuf(uint32_t channels, int rate, float audio_latency) noexcept;
-	void get(int16_t *data, uint32_t samples) noexcept;
-	void push(const int16_t *data, uint32_t samples);
-	size_t available() { return m_ab->count(); };
-	int skip_threshold() { return m_skip_threshold; }
-
-private:
-	int m_sample_rate;
-	uint32_t m_channels;
-	int m_buffer_min_ct;
-	int m_skip_threshold;
-	bool m_underflow;
-	osd_ticks_t m_skip_threshold_ticks;
-	osd_ticks_t m_osd_ticks;
-	std::unique_ptr<audio_buffer<int16_t>> m_ab;
-};
-
-rtbuf::rtbuf(uint32_t channels, int rate, float buffering_latency) noexcept :
-	m_sample_rate(rate),
-	m_channels(channels),
-	m_buffer_min_ct(0),
-	m_skip_threshold((buffering_latency / 1000.0) * rate + 0.5f),
-	m_underflow(false),
-	m_skip_threshold_ticks(0),
-	m_osd_ticks(0)
-{
-	m_ab = std::make_unique<audio_buffer<int16_t>>(rate * channels, channels);
-}
-
-void rtbuf::get(int16_t *data, uint32_t samples) noexcept
-{
-	int buf_ct = m_ab->count() / m_channels;
-
-	if (buf_ct >= samples) {
-		m_ab->read(data, samples * m_channels);
-
-		// keep track of the minimum buffer count, skip samples adaptively to respect the audio_latency setting
-		buf_ct -= samples;
-
-		if (buf_ct < m_buffer_min_ct)
-			m_buffer_min_ct = buf_ct;
-
-		// if we are below the threshold, reset the counter
-		if (buf_ct < m_skip_threshold)
-			m_skip_threshold_ticks = m_osd_ticks;
-
-		// if we have been above the set threshold for ~1 second, skip forward
-		if (m_osd_ticks - m_skip_threshold_ticks > osd_ticks_per_second()) {
-			int adjust = m_buffer_min_ct - m_skip_threshold;
-
-			// if adjustment is less than two milliseconds, don't bother
-			if (adjust > m_sample_rate / 500)
-				m_ab->increment_playpos(adjust * m_channels);
-
-			m_skip_threshold_ticks = m_osd_ticks;
-			m_buffer_min_ct = 1e8;
-		}
-	} else {
-		m_ab->read(data, buf_ct * m_channels);
-		std::memset(data + (buf_ct * m_channels), 0,
-				(samples - buf_ct) * m_channels * sizeof(int16_t));
-
-		// if update_audio_stream has been called, note the underflow
-		if (m_osd_ticks)
-			m_underflow = true;
-
-		m_skip_threshold_ticks = m_osd_ticks;
-	}
-}
-
-void rtbuf::push(const int16_t *data, uint32_t samples)
-{
-	if (m_underflow) {
-		// add some silence to prevent immediate underflows
-		m_ab->clear(m_skip_threshold * m_channels / 2);
-		m_underflow = false;
-	}
-
-	osd_ticks_t diff = m_osd_ticks;
-
-	// for determining buffer overflows, take the sample here instead of in the callback
-	m_osd_ticks = osd_ticks();
-
-	diff = m_osd_ticks - diff;
-
-	m_ab->write(data, samples * m_channels);
-}
-
 class sound_part: public osd_module, public sound_module
 {
 public:
@@ -277,7 +66,7 @@ private:
 		uint32_t m_channels;
 		uint32_t m_id;
 		uint32_t m_devid;
-		rtbuf m_buffer;
+		abuffer m_buffer;
 
 		stream_info(sound_part *manager, uint32_t channels, int rate, float latency, uint32_t id, uint32_t devid) :
 				m_manager(manager),
@@ -285,7 +74,9 @@ private:
 				m_channels(channels),
 				m_id(id),
 				m_devid(devid),
-				m_buffer(channels, rate, latency) {
+				m_buffer(channels, rate)
+		{
+			m_buffer.set_latency(latency);
 		}
 	};
 
@@ -571,8 +362,7 @@ uint32_t sound_part::stream_sink_open(uint32_t node, std::string name, uint32_t 
 	osd_printf_verbose("PART: Opening device \"%s\"\n", m_info.m_nodes[node - 1].m_display_name);
 	osd_printf_verbose("PART: Sample rate is %0.0f Hz, device output latency is %0.2f ms\n",
 		stream_info->sampleRate, stream_info->outputLatency * 1000.0);
-	osd_printf_verbose("PART: Allowed additional buffering latency is %0.2f ms/%d frames\n",
-		si->second.m_buffer.skip_threshold() / (m_sample_rate / 1000.0), si->second.m_buffer.skip_threshold());
+	osd_printf_verbose("PART: Allowed additional buffering latency is %0.2f ms\n", m_buffering_latency);
 
 	err = Pa_SetStreamFinishedCallback(si->second.m_stream, s_stream_finished_callback);
 	if (err) goto error;
@@ -605,6 +395,7 @@ void sound_part::stream_close(uint32_t id)
 		Pa_CloseStream(s);
 	} else
 		m_streams.erase(si);
+	m_sync->unregister_sink(id);
 }
 
 void sound_part::stream_sink_update(uint32_t id, const int16_t *buffer, int samples_this_frame)
