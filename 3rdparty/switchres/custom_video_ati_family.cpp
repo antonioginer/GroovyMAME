@@ -111,6 +111,8 @@ enum radeon_chip_flags
 	RADEON_IS_PX       = 0x02000000UL,
 };
 
+constexpr int operator|(radeon_family rfm, radeon_chip_flags rcf) { return static_cast<int>(rfm) | static_cast<int>(rcf); }
+
 #define PCI_ANY_ID (~0)
 
 #define radeon_PCI_IDS \
