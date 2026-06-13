@@ -85,7 +85,7 @@ char* LIBERROR()
 #define SR_MODE_DONT_FLUSH    1<<16
 
 /* That's all the exposed data from Switchres calculation */
-typedef struct MODULE_API
+typedef struct MODULE_API sr_mode
 {
 	int      width;
 	int      height;
@@ -115,7 +115,7 @@ typedef struct MODULE_API
 } sr_mode;
 
 /* Used to retrieve SR settings and state */
-typedef struct MODULE_API
+typedef struct MODULE_API sr_state
 {
 	char     monitor[32];
 	int      modeline_generation;
@@ -161,7 +161,7 @@ MODULE_API void sr_set_log_callback_debug(void *);
 MODULE_API void sr_set_sdl_window(void *);
 
 /* Inspired by https://stackoverflow.com/a/1067684 */
-typedef struct MODULE_API
+typedef struct MODULE_API srAPI
 {
 	void (*init)(void);
 	void (*load_ini)(char*);
