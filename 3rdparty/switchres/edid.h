@@ -22,7 +22,7 @@
 
 typedef struct edid_block
 {
-	char b[128];
+	uint8_t b[128];
 /*  char ext1[128];
     char ext2[128];
     char ext3[128];*/
