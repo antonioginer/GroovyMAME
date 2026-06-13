@@ -143,12 +143,6 @@ private:
 	int                     m_height;                   // current height
 	int                     m_refresh;                  // current refresh rate
 	bool                    m_interlace;                // current interlace
-	double                  m_frame_delay;              // current frame delay value
-	int                     m_vsync_offset;             // current vsync_offset value
-	int                     m_first_scanline;           // first scanline number (visible)
-	int                     m_last_scanline;            // last scanline number (visible)
-	int                     m_delay_scanline;           // scanline number supposed to be after frame delay
-	int                     m_break_scanline;           // break scanline number, for vsync offset
 	int                     m_create_error_count;       // number of consecutive create errors
 	bool                    m_post_fx_available;
 
@@ -161,11 +155,6 @@ private:
 	IDirect3DQuery9 *		m_query;
 	IDirect3DSwapChain9 *   m_swap9;
 	IDirect3DSwapChain9Ex * m_swap;
-	D3DPRESENTSTATS         m_stats;
-	D3DRASTER_STATUS        m_raster_status;
-	int                     m_sync_count;
-	int                     m_enter_line;
-	int                     m_exit_line;
 
 	IDirect3DVertexBuffer9Ptr m_vertexbuf;              // pointer to the vertex buffer object
 	vertex *                m_lockedbuf;                // pointer to the locked vertex buffer
