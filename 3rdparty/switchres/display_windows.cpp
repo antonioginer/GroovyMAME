@@ -81,7 +81,7 @@ bool windows_display::init(void*)
 			MONITORINFOEXA info = {};
 			info.cbSize = sizeof(info);
 			GetMonitorInfoA(mon_info.h_monitor, &info);
-			snprintf(display, sizeof(display) -1, "%s", info.szDevice);
+			snprintf(display, sizeof(display), "%s", info.szDevice);
 			log_info("display %s\n", display);
 		}
 		else
@@ -91,7 +91,7 @@ bool windows_display::init(void*)
 		}
 	}
 	else
-		strncpy(display, m_ds.screen, sizeof(display)-1);
+		snprintf(display, sizeof(display), "%s", m_ds.screen);
 
 	// Find the display by device name, or "auto" for primary display
 	DISPLAY_DEVICEA lpDisplayDevice[DISPLAY_MAX];
@@ -114,8 +114,8 @@ bool windows_display::init(void*)
 	}
 	if (found != -1)
 	{
-		strncpy(m_device_name, lpDisplayDevice[found].DeviceName, sizeof(m_device_name) -1);
-		strncpy(m_device_id, lpDisplayDevice[found].DeviceID, sizeof(m_device_id) -1);
+		snprintf(m_device_name, sizeof(m_device_name), "%s", lpDisplayDevice[found].DeviceName);
+		snprintf(m_device_id, sizeof(m_device_id), "%s", lpDisplayDevice[found].DeviceID);
 		log_verbose("Switchres: %s: %s (%s)\n", m_device_name, lpDisplayDevice[found].DeviceString, m_device_id);
 
 		char *pch;

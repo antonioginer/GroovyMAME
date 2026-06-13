@@ -227,16 +227,15 @@ int edid_from_modeline(modeline *mode, monitor_range *range, const char *name, e
 	edid->b[110] = 0;
 	edid->b[111] = 0xfc;
 	edid->b[112] = 0;
-	snprintf(&edid->b[113], 13, "%s", name);
+	snprintf((char*)&edid->b[113], 13, "%s", name);
 	edid->b[125] = 0x0a;
 
 	// Extensions to follow
 	edid->b[126] = 0;
 
 	// Compute checksum
-	char checksum = 0;
-	int i;
-	for (i = 0; i <= 126; i++)
+	uint8_t checksum = 0;
+	for (int i = 0; i <= 126; i++)
 		checksum += edid->b[i];
 	edid->b[127] = 256 - checksum;
 
