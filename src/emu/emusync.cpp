@@ -731,7 +731,7 @@ bool emusync::serial_exchange(uint8_t msg, uint8_t* rdbuf, int count)
 		);
 
 		asio::async_write(m_serial, asio::buffer(&msg, 1),
-			[this](const asio::error_code& ec, std::size_t bytes)
+			[](const asio::error_code& ec, std::size_t bytes)
 			{
 				if (ec)
 					osd_printf_error("Emusync serial write error: %s\n", ec.message());

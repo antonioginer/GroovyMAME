@@ -116,7 +116,6 @@ private:
 
 	int   m_width;                    // current width
 	int   m_height;                   // current height
-	int   m_refresh;                  // current refresh rate
 	int   m_scale_mode;               // current target scale mode
 	int   m_keep_aspect;              // current target keep aspect mode
 	int   m_ismaximized;              // current window maximized state
@@ -124,7 +123,6 @@ private:
 	int   m_viewport_height;          // current viewport height
 	int   m_client_width;             // current window client width
 	int   m_client_height;            // current window client height
-	bool  m_interlace;                // current interlace
 	bool  m_multimonitor;
 	bool  m_fullscreen_failed;
 	float m_pixel_aspect = 1.0;
@@ -209,7 +207,6 @@ renderer_d3d11::renderer_d3d11(osd_window &window, ID3D11Device *d3d11_device, I
 	, m_constant_buffer(nullptr)
 	, m_width(-1) // force get initial values
 	, m_height(0)
-	, m_refresh(0)
 	, m_fullscreen_failed(false)
 	, m_time_start(osd_ticks())
 	, m_sync(window.sync())
