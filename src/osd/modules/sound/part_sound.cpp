@@ -405,7 +405,7 @@ void sound_part::stream_sink_update(uint32_t id, const int16_t *buffer, int samp
 		return;
 	size_t count = si->second.m_buffer.available();
 	si->second.m_buffer.push(buffer, samples_this_frame);
-	m_sync->log("PART buffer count before update", m_sync->NOW, (double) count);
+	m_sync->log("PART buffer count before update", m_sync->MIN, (double) count);
 }
 
 void sound_part::stream_source_update(uint32_t id, int16_t *buffer, int samples_this_frame)

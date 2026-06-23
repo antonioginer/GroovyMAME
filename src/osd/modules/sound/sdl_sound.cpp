@@ -248,7 +248,7 @@ void sound_sdl::stream_sink_update(uint32_t id, const int16_t *buffer, int sampl
 	SDL_LockAudioDevice(stream->m_sdl_id);
 	stream->m_buffer.push(buffer, samples_this_frame);
 	SDL_UnlockAudioDevice(stream->m_sdl_id);
-	stream->m_sync->log("SDL buffer count before update", stream->m_sync->NOW, (double) count);
+	stream->m_sync->log("SDL buffer count before update", stream->m_sync->MIN, (double) count);
 }
 
 void sound_sdl::sink_callback(void *userdata, uint8_t *data, int len)

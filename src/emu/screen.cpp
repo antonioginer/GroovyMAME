@@ -16,6 +16,7 @@
 #include "main.h"
 #include "render.h"
 #include "rendutil.h"
+#include "sound.h"
 #include "video.h"
 
 #include "png.h"
@@ -1189,8 +1190,13 @@ TIMER_CALLBACK_MEMBER(screen_device::vblank_end)
 	m_screen_vblank(0);
 
 	// if this is the primary screen and we need to update now
-	if (m_video_attributes & VIDEO_UPDATE_AFTER_VBLANK)
-		update_if_primary();
+	if (m_is_primary_screen)
+	{
+		if (m_video_attributes & VIDEO_UPDATE_AFTER_VBLANK)
+			update_if_primary();
+		else if (machine().phase() > machine_phase::INIT)
+			machine().sound().update(0, 0);
+	}
 
 	// increment the frame number counter
 	m_frame_number++;

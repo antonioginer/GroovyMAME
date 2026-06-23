@@ -32,7 +32,7 @@ uint32_t sound_module::abuffer::available()
 		return 0;
 
 	// reserve last sample for underruns, will sustain last sample to reduce crackles
-	return (count - 1) * m_channels;
+	return (count - 1);
 }
 
 void sound_module::abuffer::clear()
@@ -49,13 +49,13 @@ void sound_module::abuffer::set_latency(float latency)
 	if (latency == 0.f)
 		latency = 20.f;
 
-	latency = std::clamp<float>(latency, 1.f, 100.f);
+	latency = std::clamp<float>(latency, 0.1f, 100.f);
 	m_skip_threshold = (latency / 1000.f) * m_rate + 0.5f;
 }
 
 void sound_module::abuffer::get(int16_t *data, uint32_t samples) noexcept
 {
-	int buf_ct = available() / m_channels;
+	int buf_ct = available();
 
 	if (buf_ct >= samples) {
 		m_ab->read(data, samples * m_channels);
@@ -90,12 +90,12 @@ void sound_module::abuffer::get(int16_t *data, uint32_t samples) noexcept
 		if (buf_ct < m_skip_threshold)
 			m_skip_threshold_ticks = m_osd_ticks;
 
-		// if we have been above the set threshold for ~0.5 seconds, skip forward
-		if (m_osd_ticks - m_skip_threshold_ticks > osd_ticks_per_second() / 2) {
+		// if we have been above the set threshold for ~1 second, skip forward
+		if (m_osd_ticks - m_skip_threshold_ticks > osd_ticks_per_second()) {
 			int adjust = m_buffer_min_ct - m_skip_threshold;
 
-			// if adjustment is less than one millisecond, don't bother
-			if (adjust > m_rate / 1000) {
+			// if adjustment is less than 1/4 millisecond, don't bother
+			if (adjust > m_rate / 4000) {
 				int peeked = m_ab->peek(m_xfade_buf.data(), m_xfade_length * m_channels);
 				m_ab->increment_playpos(adjust * m_channels);
 				m_xfade_total = peeked / m_channels;
