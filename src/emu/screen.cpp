@@ -1710,8 +1710,13 @@ TIMER_CALLBACK_MEMBER(screen_device::vblank_end)
 	m_screen_vblank(0);
 
 	// if this is the primary screen and we need to update now
-	if (m_is_primary_screen && (m_video_attributes & VIDEO_UPDATE_AFTER_VBLANK))
-		machine().video().frame_update();
+	if (m_is_primary_screen)
+	{
+		if (m_video_attributes & VIDEO_UPDATE_AFTER_VBLANK)
+			machine().video().frame_update();
+		else if (machine().phase() > machine_phase::INIT)
+			machine().sound().update(0, 0);
+	}
 
 	// increment the frame number counter
 	m_frame_number++;

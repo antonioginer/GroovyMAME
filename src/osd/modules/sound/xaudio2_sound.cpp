@@ -980,7 +980,7 @@ void sound_xaudio2::voice_info::update(int16_t const *buffer, int samples_this_f
 	catch (...)
 	{
 	}
-	m_host.m_sync->log("XA2 buffer count before update", m_host.m_sync->NOW, (double) count);
+	m_host.m_sync->log("XA2 buffer count before update", m_host.m_sync->MIN, (double) count);
 	m_need_update.store(true, std::memory_order_relaxed);
 	SetEvent(m_host.m_need_update_event.get());
 }

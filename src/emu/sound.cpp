@@ -683,7 +683,8 @@ void sound_stream::do_update()
 				r.m_resampler->apply(r.m_source->m_output_buffer, db, m_output_buffer.write_sample(), r.m_output, gain, m_samples_to_update);
 
 			else {
-				const sample_t *sb = r.m_source->m_output_buffer.ptrs(r.m_output, m_output_buffer.write_sample() - r.m_source->m_output_buffer.sync_sample());
+				s64 off = s64(m_output_buffer.write_sample()) - s64(r.m_source->m_output_buffer.sync_sample());
+				const sample_t *sb = r.m_source->m_output_buffer.ptrs(r.m_output, s32(std::max<s64>(off, 0)));
 				for(u32 i = 0; i != m_samples_to_update; i++)
 					db[i] += sb[i] * gain;
 			}

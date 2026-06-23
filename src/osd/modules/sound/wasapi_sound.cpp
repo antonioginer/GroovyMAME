@@ -326,7 +326,7 @@ void sound_wasapi::stream_info::render(int16_t const *buffer, int samples_this_f
 		uint32_t available = m_buffer.available();
 		m_buffer.push(buffer, samples_this_frame);
 		LeaveCriticalSection(&m_critical_section);
-		m_host.m_sync->log("WASAPI buffer count before update", m_host.m_sync->NOW, (double)available);
+		m_host.m_sync->log("WASAPI buffer count before update", m_host.m_sync->MIN, (double)available);
 	}
 	catch (...)
 	{

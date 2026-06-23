@@ -102,6 +102,7 @@ void emusync::reset()
 	m_mean = 0;
 	m_kf.reset();
 
+	std::lock_guard<std::mutex> lock(m_sink_reg_mutex);
 	for (int i = 0; i < MAX_SINKS; i++)
 		m_sink_slots[i].m_id.store(0, std::memory_order_release);
 
@@ -263,6 +264,7 @@ void emusync::register_sink_samples(uint32_t id, uint64_t samples)
 	}
 
 	if (slot_idx < 0) {
+		std::lock_guard<std::mutex> lock(m_sink_reg_mutex);
 		for (int i = 0; i < MAX_SINKS; i++) {
 			if (m_sink_slots[i].m_id.load(std::memory_order_acquire) == 0) {
 				m_sink_slots[i].m_data.reset(timestamp);
@@ -272,10 +274,6 @@ void emusync::register_sink_samples(uint32_t id, uint64_t samples)
 		}
 		return;
 	}
-
-	// re-check: slot may have been freed and re-claimed by a different sink between the lookup and here
-	if (m_sink_slots[slot_idx].m_id.load(std::memory_order_acquire) != id)
-		return;
 
 	sink_slot& slot = m_sink_slots[slot_idx];
 
@@ -294,6 +292,7 @@ void emusync::register_sink_samples(uint32_t id, uint64_t samples)
 
 void emusync::unregister_sink(uint32_t id)
 {
+	std::lock_guard<std::mutex> lock(m_sink_reg_mutex);
 	for (int i = 0; i < MAX_SINKS; i++) {
 		if (m_sink_slots[i].m_id.load(std::memory_order_acquire) == id) {
 			m_sink_slots[i].m_id.store(0, std::memory_order_release);
@@ -563,6 +562,9 @@ void emusync::predraw_sync()
 	m_this_sync_frame = raster.count;
 	m_missed_previous_retrace = m_this_sync_frame > m_next_sync_frame;
 
+	m_next_sync_frame = m_this_sync_frame + (m_missed_previous_retrace? 0 : 1);
+	m_audio_throttle_target = scan_to_time_target(m_next_sync_frame, m_vactive_ratio);
+
 	if (handle_throttle() && machine().video().throttled() && !m_missed_previous_retrace)
 		m_predraw_sync_wait = wait_raster(raster.count, m_vactive_ratio);
 	else
@@ -602,9 +604,6 @@ void emusync::postdraw_sync()
 		fd = (double)(m_framedelay) / 10.0;
 
 	log("Frame delay", NOW, (double) fd * 10.0);
-
-	m_next_sync_frame = m_this_sync_frame + (m_missed_previous_retrace? 0 : 1);
-	m_audio_throttle_target = scan_to_time_target(m_next_sync_frame, 1.0);
 
 	if (handle_throttle() && machine().video().throttled())
 	{
