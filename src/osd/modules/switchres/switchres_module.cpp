@@ -382,6 +382,7 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 		config->height = display->height();
 		config->refresh = display->refresh();
 
+		// modesetting handled by Switchres
 		if (options.mode_setting())
 		{
 			display->set_mode(display->selected_mode());
@@ -389,6 +390,9 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 			monitor->update_resolution(display->width(), display->height());
 			machine().sync().reset();
 		}
+		// modesetting delegated to the renderer, make sure we store the new current mode
+		else
+			display->set_current_mode(display->selected_mode());
 
 		set_options(display, target);
 		machine().sync().set_vratio(display->selected_mode()->vactive, display->selected_mode()->vtotal);
