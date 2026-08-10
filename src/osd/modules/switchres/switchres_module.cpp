@@ -280,9 +280,9 @@ void switchres_module::get_game_info(display_manager* display, render_target *ta
 	set_height(display->index(), minheight);
 
 	// determine the refresh rate of the primary screen
-	const screen_device *primary_screen = screen_device_enumerator(machine().root_device()).first();
+	const device_video_output_interface *primary_screen = video_output_interface_enumerator(machine().root_device()).first();
 	if (primary_screen != nullptr)
-		set_refresh(display->index(), primary_screen->frame_number() == 0? ATTOSECONDS_TO_HZ(primary_screen->refresh_attoseconds()) : primary_screen->frame_period().as_hz());
+		set_refresh(display->index(), primary_screen->frame_period().as_hz());
 	else
 		set_refresh(display->index(), 60.0);
 }
@@ -382,6 +382,7 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 		config->height = display->height();
 		config->refresh = display->refresh();
 
+		// modesetting handled by Switchres
 		if (options.mode_setting())
 		{
 			display->set_mode(display->selected_mode());
@@ -389,6 +390,9 @@ bool switchres_module::set_mode(int i, osd_monitor_info *monitor, render_target 
 			monitor->update_resolution(display->width(), display->height());
 			machine().sync().reset();
 		}
+		// modesetting delegated to the renderer, make sure we store the new current mode
+		else
+			display->set_current_mode(display->selected_mode());
 
 		set_options(display, target);
 		machine().sync().set_vratio(display->selected_mode()->vactive, display->selected_mode()->vtotal);
