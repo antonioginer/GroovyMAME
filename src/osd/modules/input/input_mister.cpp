@@ -14,6 +14,7 @@
 
 // emu
 #include "emu.h"
+#include "input.h"
 #include "strconv.h"
 
 #ifdef _WIN32
@@ -309,7 +310,7 @@ public:
 
 protected:
 	u8 m_hats[4];
-	u8 m_buttons[MAX_BUTTONS];
+	u8 m_buttons[MISTER_MAX_BUTTONS];
 	s32 m_axes[4];
 };
 

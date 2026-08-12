@@ -41,7 +41,7 @@ struct mouse_state
 struct joystick_state
 {
 	int32_t axes[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-	BYTE	buttons[MAX_BUTTONS];
+	BYTE	buttons[32];
 	BYTE	hats[4] = { 0x00, 0x00, 0x00, 0x00 };
 };
 
