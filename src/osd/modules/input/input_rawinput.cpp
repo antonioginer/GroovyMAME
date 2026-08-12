@@ -444,7 +444,7 @@ public:
 
 	virtual void process_event(RAWINPUT const &rawinput) override
 	{
-		for (size_t button_index = 0; button_index != MAX_BUTTONS; ++button_index)
+		for (size_t button_index = 0; button_index != rawinput_joystick_device::MAX_BUTTONS; ++button_index)
 			m_joystick.buttons[button_index] = 0x00;
 
 		for (size_t axis_index = 0; axis_index != 9; ++axis_index)
@@ -512,7 +512,7 @@ public:
 		}
 
 		// add the item to the device
-		for (size_t button_index = 0; button_index != MAX_BUTTONS; ++button_index)
+		for (size_t button_index = 0; button_index != rawinput_joystick_device::MAX_BUTTONS; ++button_index)
 			device.add_item(default_button_name(button_index),
 					std::string_view(),
 					static_cast<input_item_id>(ITEM_ID_BUTTON1 + button_index),
@@ -522,6 +522,8 @@ public:
 
 private:
 	joystick_state m_joystick;
+
+	static constexpr unsigned MAX_BUTTONS = 32;
 
 	int32_t sign_extend(uint32_t value, size_t bits)
 	{
@@ -687,7 +689,7 @@ private:
 				if (usage_page == HID_USAGE_PAGE_BUTTON && usage > 0)
 				{
 					const size_t button_index = static_cast<size_t>(usage - 1);
-					if (button_index < MAX_BUTTONS)
+					if (button_index < rawinput_joystick_device::MAX_BUTTONS)
 					{
 						m_joystick.buttons[button_index] = 0x80;
 					}
