@@ -11,6 +11,10 @@
 #ifndef SRC_EMU_COSINE_H_
 #define SRC_EMU_COSINE_H_
 
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433832
+#endif
+
 #include <algorithm>
 
 class cosine_resampler
