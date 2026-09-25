@@ -2335,7 +2335,7 @@ int32_t mame_ui_manager::slider_fd_margin(std::string *str, int32_t newval)
 	}
 
 	if (str)
-		*str = string_format(_("%.2f"), (float)machine().sync().fd_margin_in_ms());
+		*str = string_format(_("%1$.3f"), (float)machine().sync().fd_margin_in_ms());
 	return floor(machine().sync().fd_margin_in_ms() * 1000.0 + 0.5);
 }
 
@@ -2369,7 +2369,7 @@ int32_t mame_ui_manager::slider_h_size(std::string *str, int32_t newval)
 	}
 
 	if (str)
-		*str = string_format(_("%1.2f"), downcast<osd_options &>(machine().options()).h_size());
+		*str = string_format(_("%1$.3f"), downcast<osd_options &>(machine().options()).h_size());
 	return floor(downcast<osd_options &>(machine().options()).h_size() * 1000.0 + 0.5);
 }
 
@@ -2418,7 +2418,7 @@ int32_t mame_ui_manager::slider_bfi_brightness(std::string *str, int32_t newval)
 	}
 
 	if (str)
-		*str = string_format(_("%1.2f"), downcast<osd_options &>(machine().options()).bfi_brightness());
+		*str = string_format(_("%1$.3f"), downcast<osd_options &>(machine().options()).bfi_brightness());
 	return floor(downcast<osd_options &>(machine().options()).bfi_brightness() * 1000.0 + 0.5);
 }
 
