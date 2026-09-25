@@ -2087,6 +2087,8 @@ std::vector<ui::menu_item> mame_ui_manager::slider_init(running_machine &machine
 	slider_alloc(_("Frame Delay Margin"), 0, floor(machine.options().fd_margin() * 1000.0 + 0.5), 10000, 10, std::bind(&mame_ui_manager::slider_fd_margin, this, _1, _2));
 	slider_alloc(_("V-Sync Offset"), -1024, machine.options().vsync_offset(), 1024, 1, std::bind(&mame_ui_manager::slider_vsync_offset, this, _1, _2));
 
+	// add BFI sliders
+	slider_alloc(_("BFI Brightness"), 0, floor(machine.options().bfi_brightness() * 1000.0 + 0.5), 1000, 10, std::bind(&mame_ui_manager::slider_bfi_brightness, this, _1, _2));
 
 	// add analog adjusters
 	for (auto &port : machine.ioport().ports())
@@ -2399,6 +2401,25 @@ int32_t mame_ui_manager::slider_v_shift(std::string *str, int32_t newval)
 	if (str)
 		*str = string_format(_("%1$3d"), downcast<osd_options &>(machine().options()).v_shift());
 	return downcast<osd_options &>(machine().options()).v_shift();
+}
+
+
+//--------------------------------------------------
+//  slider_bfi_brightness - global bfi_brightness slider
+//  callback
+//--------------------------------------------------
+
+int32_t mame_ui_manager::slider_bfi_brightness(std::string *str, int32_t newval)
+{
+	if (newval != SLIDER_NOCHANGE)
+	{
+		float fval = (float)newval * 0.001f;
+		machine().options().set_value(OPTION_BFI_BRIGHTNESS, fval, OPTION_PRIORITY_CMDLINE);
+	}
+
+	if (str)
+		*str = string_format(_("%1.2f"), downcast<osd_options &>(machine().options()).bfi_brightness());
+	return floor(downcast<osd_options &>(machine().options()).bfi_brightness() * 1000.0 + 0.5);
 }
 
 
@@ -3114,7 +3135,8 @@ void mame_ui_manager::sliders_save(config_type cfg_type, util::xml::data_node *p
 			slider->description.find("V-Sync Offset") == std::string::npos &&
 			slider->description.find("Overclock") == std::string::npos &&
 			slider->description.find("Screen Refresh Rate") == std::string::npos &&
-			slider->description.find("CRT") == std::string::npos)
+			slider->description.find("CRT") == std::string::npos &&
+			slider->description.find("BFI") == std::string::npos)
 			continue;
 
 		int32_t curval = slider->update(&tempstring, SLIDER_NOCHANGE);
