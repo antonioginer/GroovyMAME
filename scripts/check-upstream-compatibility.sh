@@ -49,15 +49,10 @@ if ! git -c user.name='Compatibility check' -c user.email='compatibility@localho
         git log --format=fuller --stat "$base..$upstream" -- "$path"
     done < "$out/conflicted-files.txt" > "$out/upstream-conflict-candidates.txt"
     git rebase --abort || true
-    # Diagnose the earliest observed upstream integration boundary. The
-    # investigation is time-limited and must never mask the original failure.
-    if [[ ${UPSTREAM_BISECT_ENABLED:-1} == 1 ]]; then
-        timeout --signal=TERM --kill-after=10s "${UPSTREAM_BISECT_TIMEOUT:-900}" \
-            bash "$repo/scripts/bisect-upstream-rebase.sh" \
-            "$base" "$target" "$upstream" "$work" "$out" \
-            > "$out/bisect-run.log" 2>&1 || \
-            echo 'Upstream bisect incomplete; see bisect-run.log' >> "$out/upstream-bisect.txt"
-    fi
+    # Produce bounded, read-only context for Work; do not retry or skip commits.
+    bash "$repo/scripts/collect-upstream-context.sh" \
+        "$repo" "$base" "$target" "$upstream" "$out" || \
+        echo 'WARNING: supplemental Work context could not be completed' >&2
     exit 1
 fi
 git rev-parse HEAD > "$out/rebased-test-head.txt"
