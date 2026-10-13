@@ -49,20 +49,29 @@ implementation was checked with Bash syntax validation, YAML parsing and
 isolated Git fixtures for successful rebases, conflicts, build failures and
 distribution failures. A full real GroovyMAME build remains to be run in Actions.
 
-## Bounded upstream regression search
+## Work-oriented conflict diagnostics
 
-After a failed rebase, the checker attempts a bounded binary search over the
-**first-parent** history between the common ancestor and upstream master. Each
-probe resets the disposable worktree to the pinned GroovyMAME tip and replays
-**all** GroovyMAME commits onto the candidate upstream revision; testing only
-the failing commit would omit its GroovyMAME prerequisites. A control probe at
-the merge-base must succeed, otherwise the search is inconclusive.
+A failed rebase also invokes `scripts/collect-upstream-context.sh` after saving
+its original conflict state. The collector performs **no rebases** and no
+bisection. It writes:
 
-The default limit is 12 probes and 900 seconds. Configure
-`BISECT_MAX_ATTEMPTS` or `UPSTREAM_BISECT_TIMEOUT` to adjust these limits;
-`UPSTREAM_BISECT_ENABLED=0` skips the search. Results are in
-`upstream-bisect.txt`, with the last probe log and first-failing commit file
-list. A failed or timed-out diagnosis never changes the original rebase failure
-result. The search does not build every candidate, and it does not claim to
-identify all independent conflicts. In particular, pass/fail may be
-non-monotonic when upstream later resolves an earlier incompatibility.
+- `work-handoff.md`: pinned revisions, first failed GroovyMAME commit, affected
+  paths, and a reproducible Work task with safety constraints.
+- `groovymame-pending-commits.tsv`: the failed commit and later commits in their
+  original replay order, with paths changed by each commit.
+- `conflict-related-groovymame.tsv`: pending commits touching a currently
+  conflicted path, grouped by path, to reveal incremental dependencies.
+- `upstream-conflict-history.tsv`: upstream commits since the common ancestor
+  touching those paths (SHA, date, subject, path). This is a candidate list,
+  **not** a causal attribution.
+
+The original `failed-groovymame-commit.patch`, `conflicts.diff`, unmerged index
+stages and rebase log are preserved as before. Work should reproduce the rebase
+on a disposable branch/worktree, resolve related conflicts consistently across
+the complete GroovyMAME series, build, and submit a patch/PR for human review.
+Never skip a conflicting commit or change `rebased` to make the test pass.
+
+For very large histories, the detailed upstream candidate list is capped at
+`CONTEXT_MAX_UPSTREAM_COMMITS` (default 300) per conflicted path, with an explicit
+truncation notice. The collector is best-effort and never masks the original
+rebase failure.
