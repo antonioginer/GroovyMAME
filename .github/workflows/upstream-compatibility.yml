@@ -1,0 +1,40 @@
+name: Upstream compatibility
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Monday, 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-compatibility-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    # Manual runs always work; explicitly opt in to the weekly build after testing.
+    if: github.event_name == 'workflow_dispatch' || vars.UPSTREAM_COMPATIBILITY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      # On manual runs, use the selected branch's checker, but always test rebased.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git build-essential python3 libsdl2-dev libsdl2-ttf-dev libfontconfig-dev libdrm-dev p7zip qt6-base-dev qt6-base-dev-tools
+      - name: Test rebase and Linux build
+        run: bash scripts/check-upstream-compatibility.sh "$RUNNER_TEMP/upstream-compatibility-logs"
+      - name: Preserve diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-compatibility-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/upstream-compatibility-logs/
+          if-no-files-found: warn
+          retention-days: 30
