@@ -12,18 +12,16 @@ log() { printf '%s\n' "$*" | tee -a "$report"; }
 log "Base: $base"
 log "GroovyMAME: $target"
 log "Upstream: $upstream"
-# First-parent history gives an ordered release-integration path. If the
-# merge-base is not on that path, don't claim a meaningful binary search.
+# Select first-parent integration points that descend from the merge-base.
+# The merge-base itself need not be on the first-parent chain: it may have
+# reached upstream/master through a merged side branch.
 mapfile -t chain < <(git rev-list --first-parent --reverse "$upstream")
-start=-1
-for i in "${!chain[@]}"; do
-    if [[ ${chain[i]} == "$base" ]]; then start=$i; break; fi
+commits=("$base")
+for sha in "${chain[@]}"; do
+    if [[ "$sha" != "$base" ]] && git merge-base --is-ancestor "$base" "$sha"; then
+        commits+=("$sha")
+    fi
 done
-if (( start < 0 )); then
-    log 'SKIPPED: merge-base is not on the upstream first-parent chain'
-    exit 0
-fi
-commits=("$base" "${chain[@]:start+1}")
 last=$((${#commits[@]} - 1))
 if (( last < 1 )); then log 'SKIPPED: no upstream first-parent commits'; exit 0; fi
 log "First-parent commits in interval: $last"
