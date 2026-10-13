@@ -48,3 +48,21 @@ cleanup or artifact upload; no remote refs are written in any case. The initial
 implementation was checked with Bash syntax validation, YAML parsing and
 isolated Git fixtures for successful rebases, conflicts, build failures and
 distribution failures. A full real GroovyMAME build remains to be run in Actions.
+
+## Bounded upstream regression search
+
+After a failed rebase, the checker attempts a bounded binary search over the
+**first-parent** history between the common ancestor and upstream master. Each
+probe resets the disposable worktree to the pinned GroovyMAME tip and replays
+**all** GroovyMAME commits onto the candidate upstream revision; testing only
+the failing commit would omit its GroovyMAME prerequisites. A control probe at
+the merge-base must succeed, otherwise the search is inconclusive.
+
+The default limit is 12 probes and 900 seconds. Configure
+`BISECT_MAX_ATTEMPTS` or `UPSTREAM_BISECT_TIMEOUT` to adjust these limits;
+`UPSTREAM_BISECT_ENABLED=0` skips the search. Results are in
+`upstream-bisect.txt`, with the last probe log and first-failing commit file
+list. A failed or timed-out diagnosis never changes the original rebase failure
+result. The search does not build every candidate, and it does not claim to
+identify all independent conflicts. In particular, pass/fail may be
+non-monotonic when upstream later resolves an earlier incompatibility.
