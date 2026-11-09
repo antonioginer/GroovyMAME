@@ -929,7 +929,7 @@ void renderer_nogpu::nogpu_blit(uint32_t frame, uint16_t width, uint16_t height)
 
 void renderer_nogpu::add_audio_to_recording(const int16_t *buffer, int samples_this_frame)
 {
-	if (m_blit_status.bits & FPGA_AUDIO && m_sample_rate)
+	if (m_blit_status.bits & FPGA_AUDIO && m_sample_rate && samples_this_frame > 0)
 	{
 		osd_printf_verbose("audio samples sent: %d\n", samples_this_frame);
 
