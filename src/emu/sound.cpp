@@ -2046,6 +2046,10 @@ void sound_manager::streams_update(uint64_t throttle_target)
 	machine().video().add_sound_to_recording(m_record_buffer.data(), m_record_samples);
 	if(m_wavfile)
 		util::wav_add_data_16(*m_wavfile, m_record_buffer.data(), m_record_samples * m_outputs_count);
+
+	// GroovyMAME also updates sound at vblank end; when no speaker pushed new samples since the
+	// last update, don't hand the same buffer to the recorders (and the MiSTer) a second time
+	m_record_samples = 0;
 }
 
 //**// Resampler management
